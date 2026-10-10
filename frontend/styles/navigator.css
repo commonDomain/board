@@ -1,0 +1,5 @@
+/* Preserve the original cascade order across component styles. */
+@import './navigator-panel.css';
+@import './navigator-tree.css';
+@import './navigator-search.css';
+@import './navigator-motion.css';

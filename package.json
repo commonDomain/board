@@ -1,0 +1,50 @@
+{
+  "name": "realtime-whiteboard",
+  "version": "3.0.0",
+  "private": true,
+  "license": "Apache-2.0",
+  "description": "A reliable, pressure-sensitive realtime collaborative drawing workspace.",
+  "main": "backend/server.js",
+  "scripts": {
+    "build:vendor": "node scripts/build-vendor.js",
+    "build:backgrounds": "node scripts/build-background-previews.js",
+    "transfer:account": "node --env-file-if-exists=.env scripts/transfer-account-canvases.js",
+    "recover:backup": "node scripts/restore-backup.js",
+    "backup:now": "node --env-file-if-exists=.env scripts/backup-now.js",
+    "prestart": "npm run build",
+    "start": "node --env-file-if-exists=.env backend/server.js",
+    "check": "node scripts/check-project.js",
+    "build:frontend": "node scripts/build-frontend.js",
+    "build": "npm run build:vendor && npm run build:frontend"
+  },
+  "engines": {
+    "node": ">=24"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/client": "^2.0.0",
+    "@simplewebauthn/browser": "^13.3.0",
+    "@simplewebauthn/server": "^13.3.3",
+    "@tiptap/core": "^3.31.4",
+    "@tiptap/extension-highlight": "^3.31.4",
+    "@tiptap/extension-table": "^3.31.4",
+    "@tiptap/extension-task-item": "^3.31.4",
+    "@tiptap/extension-task-list": "^3.31.4",
+    "@tiptap/extension-text-align": "^3.31.4",
+    "@tiptap/extension-text-style": "^3.31.4",
+    "@tiptap/starter-kit": "^3.31.4",
+    "esbuild": "^0.25.0",
+    "gsap": "^3.15.0",
+    "lucide": "^0.468.0",
+    "perfect-freehand": "^1.2.2",
+    "qrcode": "^1.5.4",
+    "resend": "^6.26.0",
+    "saxes": "^6.0.0",
+    "sharp": "^0.35.4",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "eslint": "^10.11.0",
+    "fflate": "^0.8.3",
+    "globals": "^17.12.0"
+  }
+}

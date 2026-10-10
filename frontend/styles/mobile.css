@@ -1,0 +1,109 @@
+/* Shared touch surfaces. Width controls layout; input capability controls hit areas. */
+.touch-settings { width:min(420px,calc(100vw - 24px)); max-height:calc(var(--viewport-height,100dvh) - 24px); overflow:auto; border:1px solid var(--line); border-radius:18px; padding:20px; color:var(--ink); background:var(--surface-strong); }
+.touch-settings::backdrop { background:#17192266; }
+.touch-settings h2 { font-size:18px; margin:0 0 16px; }
+.touch-settings label { display:flex; align-items:flex-start; gap:12px; padding:12px 0; cursor:pointer; }
+.touch-settings input { width:24px; height:24px; flex:none; accent-color:var(--accent); }
+.touch-settings small { display:block; color:var(--muted); margin-top:6px; line-height:1.6; }
+.touch-settings button { width:100%; min-height:44px; border:0; border-radius:10px; background:var(--accent); color:white; }
+.touch-actions { display:none; }
+.viewport,.board { touch-action:none; }
+/* Overflowing cards are scroll containers: their touch policy is evaluated before
+   the viewport's. Only an active text editor may delegate to native scrolling. */
+.viewport .text-card:not([contenteditable=true]),.viewport .note-card:not([contenteditable=true]),
+.viewport .board-table:not([contenteditable=true]),.viewport .sheet-preview { touch-action:none; }
+.nt-app { top:var(--viewport-top,0px); left:var(--viewport-left,0px); right:auto; bottom:auto; width:var(--viewport-width,100vw); height:var(--viewport-height,100dvh); padding-top:env(safe-area-inset-top); padding-left:env(safe-area-inset-left); padding-right:env(safe-area-inset-right); }
+.nt-reorder { touch-action:none; }
+.nt-drop-target { outline:2px dashed var(--accent); outline-offset:-2px; }
+.nt-app .nt-done-editing { display:none; }
+.nt-app:has(.tiptap) .nt-done-editing { display:inline-flex; }
+.nt-scroll { touch-action:none; }
+.nt-surface { touch-action:none; }
+.nt-element-body .tiptap,.nt-element input,.nt-title-block input { touch-action:manipulation; user-select:text; -webkit-user-select:text; }
+.nt-ribbon > * { flex-shrink:0; }
+.nt-status { flex-shrink:0; }
+.nt-status-hint { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0; }
+.nt-zoom { flex-shrink:0; }
+.nt-dialog,.context-menu { max-height:calc(var(--viewport-height,100dvh) - 24px); overflow:auto; overscroll-behavior:contain; }
+.nt-dialog input { max-width:100%; }
+.nt-page-entry[draggable] { -webkit-user-drag:element; }
+.soft-keyboard-open .tool-popover { max-height:calc(var(--viewport-height,100dvh) - 100px); }
+.soft-keyboard-open .nt-dialog,.soft-keyboard-open .touch-settings { top:calc(var(--viewport-top,0px) + 12px); bottom:auto; margin:0 auto; }
+.soft-keyboard-open .account-overlay,.soft-keyboard-open .canvas-dialog-overlay,.soft-keyboard-open .search-overlay { top:var(--viewport-top,0px); bottom:auto; height:var(--viewport-height,100dvh); overflow:auto; }
+
+html[data-device=mobile] {
+  .touch-actions { position:fixed; display:flex; z-index:115; gap:4px; padding:4px; border:1px solid var(--line); border-radius:12px; background:var(--surface-strong); box-shadow:var(--shadow-sm); left:max(8px,var(--safe-left)); bottom:calc(max(8px,var(--safe-bottom)) + 78px); max-width:calc(100vw - 16px); overflow-x:auto; }
+  .touch-actions button { flex:none; min-width:44px; min-height:44px; border:0; border-radius:8px; background:transparent; color:var(--ink); font:inherit; font-size:13px; padding:0 9px; }
+  .touch-actions button[aria-pressed=true] { color:var(--accent-strong); background:var(--accent-soft); }
+  .nt-app button,.nt-dialog button,.context-menu button,.sheet-editor button,.panel-icon-button,.context-btn,.floating-format-bar button,.tool-popover button,.account-card button { min-height:44px; min-width:44px; }
+  .nt-page-entry .nt-icon,.nt-book-row .nt-icon,.nt-section-row .nt-icon { opacity:1; }
+  .nt-element.selected > .nt-move { top:calc(-44px / var(--note-zoom,1)); width:calc(60px / var(--note-zoom,1)); height:calc(44px / var(--note-zoom,1)); min-height:calc(44px / var(--note-zoom,1)); }
+  .nt-element.selected > .nt-remove { top:calc(-44px / var(--note-zoom,1)); right:0; width:calc(44px / var(--note-zoom,1)); height:calc(44px / var(--note-zoom,1)); min-width:calc(44px / var(--note-zoom,1)); min-height:calc(44px / var(--note-zoom,1)); justify-content:center; }
+  .nt-element.selected > .nt-move svg,.nt-element.selected > .nt-remove svg { width:calc(17px / var(--note-zoom,1)); height:calc(17px / var(--note-zoom,1)); }
+  .nt-element.selected > .nt-element-resize { right:calc(-14px / var(--note-zoom,1)); bottom:calc(-22px / var(--note-zoom,1)); width:calc(44px / var(--note-zoom,1)); height:calc(44px / var(--note-zoom,1)); min-width:calc(44px / var(--note-zoom,1)); min-height:calc(44px / var(--note-zoom,1)); background:radial-gradient(circle,var(--accent) 0 calc(6px / var(--note-zoom,1)),transparent calc(7px / var(--note-zoom,1))) !important; }
+  .nt-element > button.nt-origin { display:inline-flex; }
+  .nt-ribbon-tabs { height:44px; }
+  .nt-tabs { min-height:44px; }
+  .nt-status { height:calc(48px + env(safe-area-inset-bottom)); }
+  .nt-ribbon input[type=color] { width:44px; height:44px; }
+  .nt-app input:not([type=range]):not([type=color]),.nt-app select,.nt-dialog input,.sheet-editor input,.sheet-editor textarea,.canvas-dialog-card input,.account-card input { font-size:16px; }
+  .handle::before,.rotate-handle::before,.section-resize-handle::before { content:''; position:absolute; width:calc(44px / var(--canvas-zoom,1)); height:calc(44px / var(--canvas-zoom,1)); left:50%; top:50%; transform:translate(-50%,-50%); }
+  .color-palette { grid-template-columns:repeat(auto-fit,minmax(44px,1fr)); }
+  .color-swatch { min-width:44px; min-height:44px; }
+  .tool-popover,.context-panel { max-height:calc(var(--viewport-height,100dvh) - 164px); overflow:auto; overscroll-behavior:contain; }
+  .note-originals-tray { max-width:calc(100vw - 16px); max-height:calc(var(--viewport-height,100dvh) - 160px); }
+}
+@media (min-width:1101px) {
+  .touch-actions { left:160px; bottom:max(12px,var(--safe-bottom)); }
+}
+@media (max-width:1100px) {
+  .canvas-view-controls { bottom:calc(max(8px,var(--safe-bottom)) + 78px); right:max(8px,var(--safe-right)); }
+  .canvas-view-controls button { min-width:44px; min-height:44px; }
+  .document-bar { max-width:calc(100vw - 16px); }
+  .toolbar-actions { overflow-x:auto; min-width:0; flex:1; }
+  .toolbar-actions > * { flex-shrink:0; }
+  .workspace-mode-switch { flex-shrink:0; }
+  .document-bar #noteOriginalsButton { white-space:nowrap; flex-shrink:0; }
+  .tool-popover,.context-panel { bottom:calc(max(8px,var(--safe-bottom)) + 134px) !important; }
+  .nt-appbar { gap:4px 8px; }
+  .nt-app-actions button { min-width:40px; width:40px; padding:6px; }
+  .nt-ribbon-tabs { gap:4px; overflow-x:auto; }
+  .nt-title-block { width:100%; }
+  .nt-materials { max-width:100%; }
+  .sheet-editor { left:var(--viewport-left,0px); top:var(--viewport-top,0px); width:var(--viewport-width,100vw); height:var(--viewport-height,100dvh); max-height:none; border-radius:0; transform:none; padding-bottom:env(safe-area-inset-bottom); }
+  .sheet-toolbar-row { overflow-x:auto; flex-wrap:nowrap; }
+  .sheet-tool-group { flex-shrink:0; }
+  .soft-keyboard-open .tool-dock { display:none; }
+  .soft-keyboard-open .touch-actions { bottom:calc(var(--keyboard-inset,0px) + 4px); }
+  .soft-keyboard-open .canvas-view-controls { display:none; }
+  .soft-keyboard-open .tool-popover,.soft-keyboard-open .context-panel { bottom:calc(var(--keyboard-inset,0px) + 60px) !important; max-height:calc(var(--viewport-height,100dvh) - 80px); }
+  .soft-keyboard-open .document-bar { display:none; }
+}
+@media (max-width:760px) {
+  .canvas-view-controls { bottom:calc(max(8px,var(--safe-bottom)) + 136px); }
+  .nt-brand strong { font-size:14px; }
+  .nt-brand > svg { display:none; }
+  .nt-global-search { padding:0 5px; }
+  .nt-save { max-width:108px; }
+  .nt-navigation-open .nt-library { width:100%; }
+  .nt-navigation-open .nt-pages { left:0; }
+  .nt-library-head,.nt-pages > header { flex-wrap:wrap; }
+  .nt-status-hint { max-width:48%; font-size:11px; }
+  .touch-actions { gap:0; }
+  .touch-actions button { padding:0 7px; }
+  .floating-format-bar { max-width:calc(var(--viewport-width,100vw) - 16px); }
+}
+@media print {
+  .touch-actions { display:none !important; }
+  .nt-app { width:auto; height:auto; padding:0; }
+}
+
+.sheet-touch-select { display:none; align-items:center; justify-content:center; padding:6px 12px; border:1px solid var(--line); border-radius:10px; background:var(--surface); color:var(--ink); font:inherit; font-size:13px; cursor:pointer; }
+.sheet-touch-select[aria-pressed=true] { color:var(--accent-strong); background:var(--accent-soft); border-color:var(--accent); }
+html[data-device=mobile] .sheet-touch-select { display:inline-flex; }
+
+html:not([data-device=mobile]) :is(.touch-only,.touch-actions,.sheet-touch-select) { display:none !important; }
+@media (max-width:1100px) {
+  html:not([data-device=mobile]) :is(.tool-popover,.context-panel) { bottom:calc(max(8px,var(--safe-bottom)) + 78px) !important; }
+  html:not([data-device=mobile]) .canvas-view-controls { bottom:calc(max(8px,var(--safe-bottom)) + 78px); }
+}

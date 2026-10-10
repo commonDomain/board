@@ -1,0 +1,539 @@
+{
+  "version": 5,
+  "boardId": "template",
+  "revision": 0,
+  "savedAt": null,
+  "updatedAt": 0,
+  "sections": [
+    {
+      "id": "section_24eb06ee8915415d",
+      "name": "01 · 欢迎与快速上手",
+      "x": -464,
+      "y": -386.5,
+      "w": 970,
+      "h": 210,
+      "order": 0,
+      "navigatorOrder": 0,
+      "collapsed": false,
+      "locked": false,
+      "lockChildren": false,
+      "hidden": false,
+      "style": {
+        "fill": "#ffffff",
+        "stroke": "#94a3b8",
+        "titleColor": "#334155"
+      }
+    },
+    {
+      "id": "section_cf0e0d81c1e54128",
+      "name": "02 · 三步开始",
+      "x": -464,
+      "y": -131.5,
+      "w": 440,
+      "h": 250,
+      "order": 1,
+      "navigatorOrder": 1,
+      "collapsed": false,
+      "locked": false,
+      "lockChildren": false,
+      "hidden": false,
+      "style": {
+        "fill": "#ffffff",
+        "stroke": "#94a3b8",
+        "titleColor": "#334155"
+      }
+    },
+    {
+      "id": "section_11d05f7946ac4f01",
+      "name": "03 · 核心工具",
+      "x": 15.666666666666666,
+      "y": -129.33333333333334,
+      "w": 490.66666666666663,
+      "h": 249.33333333333334,
+      "order": 2,
+      "navigatorOrder": 2,
+      "collapsed": false,
+      "locked": false,
+      "lockChildren": false,
+      "hidden": false,
+      "style": {
+        "fill": "#ffffff",
+        "stroke": "#94a3b8",
+        "titleColor": "#334155"
+      }
+    },
+    {
+      "id": "section_cbe06313cec946fd",
+      "name": "04 · 协作、保存与注意事项",
+      "x": -464.3333333333333,
+      "y": 237.33333333333334,
+      "w": 970.6666666666666,
+      "h": 320,
+      "order": 3,
+      "navigatorOrder": 3,
+      "collapsed": false,
+      "locked": false,
+      "lockChildren": false,
+      "hidden": false,
+      "style": {
+        "fill": "#ffffff",
+        "stroke": "#94a3b8",
+        "titleColor": "#334155"
+      }
+    }
+  ],
+  "groups": [],
+  "layers": [
+    {
+      "id": "layer_default",
+      "name": "图层 1",
+      "visible": true,
+      "opacity": 1,
+      "locked": false,
+      "blendMode": "normal"
+    }
+  ],
+  "settings": {
+    "background": {
+      "type": "blank",
+      "color": "#ffffff",
+      "spacing": 24,
+      "opacity": 1
+    }
+  },
+  "items": [
+    {
+      "id": "text_1ddaaf9c2af94c11",
+      "type": "text",
+      "x": -331,
+      "y": -322.6666666666667,
+      "w": 457,
+      "h": 73,
+      "rotation": 0,
+      "z": 12,
+      "navigatorOrder": 12,
+      "layerId": "layer_default",
+      "sectionId": "section_24eb06ee8915415d",
+      "groupId": null,
+      "locked": false,
+      "hidden": false,
+      "color": "#111111",
+      "fontSize": 32,
+      "fontFamily": "system-ui, sans-serif",
+      "bold": true,
+      "italic": false,
+      "underline": false,
+      "align": "left",
+      "richText": [
+        {
+          "text": "Muse Board 新用户快速指南",
+          "color": "#111111",
+          "fontSize": 32,
+          "fontFamily": "system-ui, sans-serif",
+          "bold": true
+        }
+      ],
+      "text": "Muse Board 新用户快速指南",
+      "listMode": "none",
+      "lineStyles": [
+        "none"
+      ],
+      "completedLines": [],
+      "textBorderStyle": "solid",
+      "textBorderColor": "default",
+      "textFill": "default",
+      "contentVersion": 1
+    },
+    {
+      "id": "text_796d94a5c70040be",
+      "type": "text",
+      "x": -304.3333333333333,
+      "y": -222.66666666666666,
+      "w": 480,
+      "h": 53,
+      "rotation": 0,
+      "z": 16,
+      "navigatorOrder": 16,
+      "layerId": "layer_default",
+      "sectionId": "section_24eb06ee8915415d",
+      "groupId": null,
+      "locked": false,
+      "hidden": false,
+      "color": "#111111",
+      "fontSize": 18,
+      "fontFamily": "system-ui, sans-serif",
+      "bold": false,
+      "italic": false,
+      "underline": false,
+      "align": "left",
+      "richText": [
+        {
+          "text": "把零散想法变成清晰的便签、结构、关系与可分享成果。",
+          "color": "#111111",
+          "fontSize": 18,
+          "fontFamily": "system-ui, sans-serif",
+          "bold": false
+        }
+      ],
+      "text": "把零散想法变成清晰的便签、结构、关系与可分享成果。",
+      "listMode": "none",
+      "lineStyles": [
+        "none"
+      ],
+      "completedLines": [],
+      "textBorderStyle": "solid",
+      "textBorderColor": "default",
+      "textFill": "default",
+      "contentVersion": 1
+    },
+    {
+      "id": "mindmap_68a9974b5b5b4724",
+      "type": "mindmap",
+      "x": 128,
+      "y": -104,
+      "w": 360,
+      "h": 220,
+      "rotation": 0,
+      "z": 20,
+      "navigatorOrder": 20,
+      "layerId": "layer_default",
+      "sectionId": "section_11d05f7946ac4f01",
+      "groupId": null,
+      "locked": false,
+      "hidden": false,
+      "tree": {
+        "id": "mn_754160c104654d1f",
+        "text": "核心工具",
+        "collapsed": false,
+        "children": [
+          {
+            "id": "mn_bb60432dc2ed41c2",
+            "text": "便签：快速记录",
+            "collapsed": false,
+            "children": [],
+            "h": 38
+          },
+          {
+            "id": "mn_d143dc52b4c84d86",
+            "text": "文本与画框：清晰组织",
+            "collapsed": false,
+            "children": [],
+            "h": 38
+          },
+          {
+            "id": "mn_5a0aecbe428d496a",
+            "text": "脑图与连线：表达关系",
+            "collapsed": false,
+            "children": [],
+            "h": 38
+          }
+        ],
+        "h": 38
+      },
+      "branchStyle": "smart",
+      "layoutMode": "mindmap",
+      "relations": [],
+      "contentVersion": 4
+    },
+    {
+      "id": "note_540347a19a6a4cf1",
+      "type": "note",
+      "x": -411,
+      "y": -69.33333333333333,
+      "w": 210,
+      "h": 150,
+      "rotation": 0,
+      "z": 22,
+      "navigatorOrder": 22,
+      "layerId": "layer_default",
+      "sectionId": "section_cf0e0d81c1e54128",
+      "groupId": null,
+      "locked": false,
+      "hidden": false,
+      "color": "#111111",
+      "fontSize": 16,
+      "fontFamily": "system-ui, sans-serif",
+      "bold": false,
+      "italic": false,
+      "underline": false,
+      "align": "left",
+      "richText": [
+        {
+          "text": "快速开始｜1 选择或新建画布 · 2 放下内容并连线 · 3 保存或导出成果",
+          "color": "#111111",
+          "fontSize": 16,
+          "fontFamily": "system-ui, sans-serif",
+          "bold": false
+        }
+      ],
+      "text": "快速开始｜1 选择或新建画布 · 2 放下内容并连线 · 3 保存或导出成果",
+      "listMode": "none",
+      "lineStyles": [
+        "none"
+      ],
+      "completedLines": [],
+      "noteFill": "#fff4b2",
+      "noteBorder": "none",
+      "noteShadow": true,
+      "noteOpacity": 1,
+      "contentVersion": 1
+    },
+    {
+      "id": "note_4352b1344ef94c68",
+      "type": "note",
+      "x": -157.66666666666666,
+      "y": -69.33333333333333,
+      "w": 210,
+      "h": 150,
+      "rotation": 0,
+      "z": 28,
+      "navigatorOrder": 28,
+      "layerId": "layer_default",
+      "sectionId": "section_cf0e0d81c1e54128",
+      "groupId": null,
+      "locked": false,
+      "hidden": false,
+      "color": "#111111",
+      "fontSize": 16,
+      "fontFamily": "system-ui, sans-serif",
+      "bold": false,
+      "italic": false,
+      "underline": false,
+      "align": "left",
+      "richText": [
+        {
+          "text": "导航要领｜滚轮缩放 · 拖动空白处平移 · 双击内容进入编辑 · Shift+S 快速建画框",
+          "color": "#111111",
+          "fontSize": 16,
+          "fontFamily": "system-ui, sans-serif",
+          "bold": false
+        }
+      ],
+      "text": "导航要领｜滚轮缩放 · 拖动空白处平移 · 双击内容进入编辑 · Shift+S 快速建画框",
+      "listMode": "none",
+      "lineStyles": [
+        "none"
+      ],
+      "completedLines": [],
+      "noteFill": "#fff4b2",
+      "noteBorder": "none",
+      "noteShadow": true,
+      "noteOpacity": 1,
+      "contentVersion": 1
+    },
+    {
+      "id": "note_c4ad4a25457d47e9",
+      "type": "note",
+      "x": -411,
+      "y": 317.3333333333333,
+      "w": 210,
+      "h": 150,
+      "rotation": 0,
+      "z": 30,
+      "navigatorOrder": 30,
+      "layerId": "layer_default",
+      "sectionId": "section_cbe06313cec946fd",
+      "groupId": null,
+      "locked": false,
+      "hidden": false,
+      "color": "#111111",
+      "fontSize": 16,
+      "fontFamily": "system-ui, sans-serif",
+      "bold": false,
+      "italic": false,
+      "underline": false,
+      "align": "left",
+      "richText": [
+        {
+          "text": "协作｜已注册用户可同步与共享 · 游客数据只保存在当前浏览器 · 更换设备前先登录并保存",
+          "color": "#111111",
+          "fontSize": 16,
+          "fontFamily": "system-ui, sans-serif",
+          "bold": false
+        }
+      ],
+      "text": "协作｜已注册用户可同步与共享 · 游客数据只保存在当前浏览器 · 更换设备前先登录并保存",
+      "listMode": "none",
+      "lineStyles": [
+        "none"
+      ],
+      "completedLines": [],
+      "noteFill": "#e8f1ff",
+      "noteBorder": "none",
+      "noteShadow": true,
+      "noteOpacity": 1,
+      "contentVersion": 1
+    },
+    {
+      "id": "note_cc2d7558220f4d4a",
+      "type": "note",
+      "x": -91,
+      "y": 317.3333333333333,
+      "w": 210,
+      "h": 150,
+      "rotation": 0,
+      "z": 32,
+      "navigatorOrder": 32,
+      "layerId": "layer_default",
+      "sectionId": "section_cbe06313cec946fd",
+      "groupId": null,
+      "locked": false,
+      "hidden": false,
+      "color": "#111111",
+      "fontSize": 16,
+      "fontFamily": "system-ui, sans-serif",
+      "bold": false,
+      "italic": false,
+      "underline": false,
+      "align": "left",
+      "richText": [
+        {
+          "text": "保存与导出｜看到“已保存”再离开 · PNG 适合快速分享 · 原画布便于继续编辑",
+          "color": "#111111",
+          "fontSize": 16,
+          "fontFamily": "system-ui, sans-serif",
+          "bold": false
+        }
+      ],
+      "text": "保存与导出｜看到“已保存”再离开 · PNG 适合快速分享 · 原画布便于继续编辑",
+      "listMode": "none",
+      "lineStyles": [
+        "none"
+      ],
+      "completedLines": [],
+      "noteFill": "#e8f8f0",
+      "noteBorder": "none",
+      "noteShadow": true,
+      "noteOpacity": 1,
+      "contentVersion": 1
+    },
+    {
+      "id": "note_f673958308a9435f",
+      "type": "note",
+      "x": 229,
+      "y": 317.3333333333333,
+      "w": 210,
+      "h": 150,
+      "rotation": 0,
+      "z": 34,
+      "navigatorOrder": 34,
+      "layerId": "layer_default",
+      "sectionId": "section_cbe06313cec946fd",
+      "groupId": null,
+      "locked": false,
+      "hidden": false,
+      "color": "#111111",
+      "fontSize": 16,
+      "fontFamily": "system-ui, sans-serif",
+      "bold": false,
+      "italic": false,
+      "underline": false,
+      "align": "left",
+      "richText": [
+        {
+          "text": "不容易发现｜双击内容进入编辑 · 画框可折叠、锁定、单独导出 · 重要内容先命名再整理",
+          "color": "#111111",
+          "fontSize": 16,
+          "fontFamily": "system-ui, sans-serif",
+          "bold": false
+        }
+      ],
+      "text": "不容易发现｜双击内容进入编辑 · 画框可折叠、锁定、单独导出 · 重要内容先命名再整理",
+      "listMode": "none",
+      "lineStyles": [
+        "none"
+      ],
+      "completedLines": [],
+      "noteFill": "#f2ecff",
+      "noteBorder": "none",
+      "noteShadow": true,
+      "noteOpacity": 1,
+      "contentVersion": 1
+    },
+    {
+      "id": "connector_c552e88fbc02499d",
+      "type": "connector",
+      "x": -233,
+      "y": -25.67971029006122,
+      "w": 107.33333333333334,
+      "h": 64.2697491924615,
+      "rotation": 0,
+      "z": 36,
+      "navigatorOrder": 36,
+      "layerId": "layer_default",
+      "sectionId": null,
+      "groupId": null,
+      "locked": false,
+      "hidden": false,
+      "startId": "note_540347a19a6a4cf1",
+      "endId": "note_4352b1344ef94c68",
+      "startX": -201,
+      "startY": 6.971113158417336,
+      "endX": -157.66666666666666,
+      "endY": 7.509456155012849,
+      "stroke": "#475569",
+      "strokeWidth": 2,
+      "arrowStart": false,
+      "arrowEnd": true,
+      "dasharray": "",
+      "connectorVersion": 1,
+      "source": {
+        "binding": {
+          "kind": "item",
+          "id": "note_540347a19a6a4cf1"
+        },
+        "anchor": {
+          "mode": "auto",
+          "side": "right",
+          "u": 0.5,
+          "v": 0.5
+        },
+        "fallback": {
+          "x": -201,
+          "y": 6.971113158417336
+        },
+        "status": "normal"
+      },
+      "target": {
+        "binding": {
+          "kind": "item",
+          "id": "note_4352b1344ef94c68"
+        },
+        "anchor": {
+          "mode": "auto",
+          "side": "right",
+          "u": 0.5,
+          "v": 0.5
+        },
+        "fallback": {
+          "x": -157.66666666666666,
+          "y": 7.509456155012849
+        },
+        "status": "normal"
+      },
+      "route": {
+        "type": "orthogonal",
+        "locked": false,
+        "avoidance": true,
+        "constraints": []
+      },
+      "style": {
+        "color": "#475569",
+        "width": 2,
+        "dash": "solid",
+        "start": "none",
+        "end": "arrow"
+      },
+      "labels": [],
+      "relation": "关联",
+      "fieldVersions": {
+        "source": 0,
+        "target": 0,
+        "route": 0,
+        "style": 0,
+        "labels": 0,
+        "relation": 0
+      }
+    }
+  ]
+}

@@ -1,0 +1,30 @@
+const stateRuntime = {
+  worker: null,
+  serial: 0,
+  overlay: undefined,
+  toolbar: undefined,
+  selectionBar: undefined,
+  targetBadge: undefined,
+  draft: null,
+  edit: null,
+  hovered: null,
+  sparse: false,
+  workerBusy: null,
+  workerTimer: 0,
+  routeWarningShown: false,
+  selectedText: null,
+  targetTextMode: false,
+  exactMode: false,
+  continuous: false,
+  lineJumps: false,
+  textRebind: null,
+  scheduled: 0,
+  frameBoard: null,
+  composing: false,
+  lastPointer: null,
+  styleClipboard: null,
+  internalLayer: undefined,
+  jumpsDirty: false
+};
+
+export { stateRuntime };

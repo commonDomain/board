@@ -1,0 +1,319 @@
+.arrange-group svg {
+  width: 16px;
+  height: 16px;
+}
+
+.search-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 220;
+  display: grid;
+  place-items: start center;
+  padding: min(15vh, 120px) 16px 16px;
+  background: rgba(15, 23, 42, 0.32);
+  backdrop-filter: blur(4px);
+}
+
+.search-overlay[hidden] {
+  display: none;
+}
+
+.search-command {
+  width: min(720px, calc(100vw - 32px));
+  overflow: hidden;
+  border: 1px solid rgba(148, 163, 184, 0.36);
+  border-radius: 20px;
+  background: #fff;
+  box-shadow: 0 30px 90px rgba(15, 23, 42, 0.28);
+}
+
+.search-input-row {
+  display: grid;
+  grid-template-columns: 28px 1fr auto;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 15px;
+  border-bottom: 1px solid #e9edf3;
+}
+
+.search-input-row > svg {
+  width: 20px;
+  color: #6957f5;
+}
+
+.search-input-row input {
+  min-width: 0;
+  height: 40px;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: #182033;
+  font-size: 16px;
+}
+
+.search-input-row kbd {
+  padding: 3px 7px;
+  border: 1px solid #dfe3ea;
+  border-radius: 6px;
+  background: #f7f8fa;
+  color: #7a8496;
+  font-size: 10px;
+}
+
+.search-status {
+  display: flex;
+  min-height: 36px;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 17px 3px;
+  color: #8a94a6;
+  font-size: 11px;
+}
+
+.search-status .status-orb {
+  margin-left: -4px;
+}
+
+.search-results {
+  max-height: min(58vh, 520px);
+  overflow: auto;
+  padding: 6px 8px 12px;
+}
+
+.search-result {
+  --result-color: #5f4ce2;
+  --result-bg: #ebe8ff;
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr);
+  align-items: start;
+  gap: 11px;
+  width: 100%;
+  padding: 11px 12px;
+  border: 1px solid transparent;
+  border-radius: 14px;
+  background: transparent;
+  color: #253047;
+  text-align: left;
+  transition:
+    border-color 150ms ease,
+    background-color 150ms ease,
+    transform 150ms ease;
+}
+
+.search-result + .search-result {
+  margin-top: 2px;
+}
+
+.search-result:hover,
+.search-result[aria-selected='true'] {
+  border-color: color-mix(in srgb, var(--result-color) 15%, transparent);
+  background: color-mix(in srgb, var(--result-bg) 55%, #fff);
+  transform: translateX(2px);
+}
+
+.search-result[data-result-kind='canvas'] {
+  --result-color: #2563c9;
+  --result-bg: #e6f0ff;
+}
+
+.search-result[data-result-kind='section'] {
+  --result-color: #b66b09;
+  --result-bg: #fff0cf;
+}
+
+.search-result[data-result-kind='group'] {
+  --result-color: #087f74;
+  --result-bg: #dff6f2;
+}
+
+.search-result[data-result-kind='note'] {
+  --result-color: #a56b00;
+  --result-bg: #fff3bd;
+}
+
+.search-result[data-result-kind='table'] {
+  --result-color: #167348;
+  --result-bg: #ddf4e7;
+}
+
+.search-result[data-result-kind='mindmap'] {
+  --result-color: #8b3db0;
+  --result-bg: #f2e3fb;
+}
+
+.search-result[data-result-kind='kdocs'] {
+  --result-color: #b43a45;
+  --result-bg: #ffe7e9;
+}
+
+.search-result[data-result-kind='text'] {
+  --result-color: #6545d9;
+  --result-bg: #ece7ff;
+}
+
+.search-result[data-result-kind='ink'] {
+  --result-color: #bd4b16;
+  --result-bg: #ffeadf;
+}
+
+.search-result[data-result-kind='image'] {
+  --result-color: #126da0;
+  --result-bg: #e0f1fb;
+}
+
+.search-result[data-result-kind='shape'] {
+  --result-color: #0a7d88;
+  --result-bg: #ddf4f5;
+}
+
+.search-result[data-result-kind='connector'] {
+  --result-color: #596476;
+  --result-bg: #e9edf3;
+}
+
+.search-result[data-result-kind='sticker'] {
+  --result-color: #b83e76;
+  --result-bg: #fce4ef;
+}
+
+.search-result-icon {
+  display: grid;
+  width: 40px;
+  height: 40px;
+  place-items: center;
+  border-radius: 12px;
+  background: var(--result-bg);
+  color: var(--result-color);
+}
+
+.search-result-icon svg {
+  width: 18px;
+  height: 18px;
+}
+
+.search-result-copy {
+  display: grid;
+  min-width: 0;
+  gap: 5px;
+}
+
+.search-result-title-row {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+}
+
+.search-result-title-row strong {
+  min-width: 0;
+  overflow: hidden;
+  color: #202a40;
+  font-size: 13px;
+  font-weight: 760;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.search-result-kind {
+  flex: 0 0 auto;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: var(--result-bg);
+  color: var(--result-color);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+}
+
+.search-result-excerpt {
+  overflow: hidden;
+  color: #697489;
+  font-size: 11px;
+  line-height: 1.4;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.search-result-location {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 4px;
+  color: #8790a1;
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+.search-result-location > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.search-result-location svg {
+  width: 11px;
+  height: 11px;
+  flex: 0 0 auto;
+}
+
+.search-result-location .search-path-canvas {
+  color: #50627f;
+  font-weight: 700;
+}
+
+.search-result-location .search-path-section {
+  color: #8e681f;
+}
+
+.search-result-location .search-path-sheet-cell {
+  color: #5b47c8;
+  font-weight: 750;
+}
+
+.search-location-ring {
+  position: absolute;
+  z-index: 208;
+  pointer-events: none;
+  border: 3px solid #6957f5;
+  border-radius: 16px;
+  background: rgba(105, 87, 245, 0.08);
+  box-shadow:
+    0 0 0 7px rgba(105, 87, 245, 0.13),
+    0 12px 32px rgba(62, 45, 176, 0.22);
+  animation: search-location-pulse 1s ease-in-out 3;
+}
+
+.search-text-highlights {
+  position: absolute;
+  inset: 0;
+  z-index: 210;
+  pointer-events: none;
+}
+
+.search-text-match {
+  position: absolute;
+  border: 2px solid #f59e0b;
+  border-radius: 6px;
+  background: rgba(250, 204, 21, 0.34);
+  box-shadow: 0 0 0 4px rgba(250, 204, 21, 0.12);
+  animation: search-text-match-pulse 0.75s ease-in-out 4;
+}
+
+.search-text-match[hidden] {
+  display: none;
+}
+
+.search-location-indicator {
+  position: absolute;
+  z-index: 211;
+  display: grid;
+  min-width: 36px;
+  justify-items: center;
+  pointer-events: none;
+  color: #fff;
+  transform: translate(-50%, -50%);
+  animation:
+    search-location-enter 0.18s ease-out both,
+    search-location-bob 0.62s ease-in-out 0.18s 4,
+    search-location-exit 0.24s ease-in 2.76s forwards;
+}

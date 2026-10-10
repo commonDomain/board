@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="referrer" content="no-referrer">
+  <title>邮箱验证 · Muse Board</title>
+  <link rel="icon" href="favicon.ico?v=10" sizes="any">
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png?v=10">
+  <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png?v=10">
+  <script src="api-transport.js"></script>
+  <script src="app-security.js"></script>
+  <link rel="stylesheet" href="email-auth.css">
+</head>
+<body>
+  <main class="email-auth-shell">
+    <section class="email-auth-card" aria-labelledby="emailAuthTitle">
+      <span id="emailAuthIcon" class="email-auth-icon"><i data-lucide="loader-circle" aria-hidden="true"></i></span>
+      <div class="email-auth-heading">
+        <span class="eyebrow">Muse Board 安全验证</span>
+        <h1 id="emailAuthTitle">正在验证魔法链接</h1>
+        <p id="emailAuthDescription" role="status" aria-live="polite">请稍候，不要关闭此页面。</p>
+      </div>
+      <p id="emailAuthError" class="email-auth-error" role="alert" hidden></p>
+      <button id="retryEmailAuthButton" class="email-auth-retry" type="button" hidden>重新验证</button>
+      <button id="closeEmailAuthButton" class="email-auth-retry" type="button" hidden>关闭此页</button>
+    </section>
+  </main>
+  <script src="vendor/icons.min.js" defer></script>
+  <script src="email-auth.js" defer></script>
+</body>
+</html>

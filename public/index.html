@@ -1,0 +1,765 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#f3f5f8">
+    <title>Muse Board · 实时共享画板</title>
+    <link rel="icon" href="favicon.ico?v=10" sizes="any">
+    <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png?v=10">
+    <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png?v=10">
+    <script src="api-transport.js"></script>
+    <script src="app-security.js"></script>
+    <link rel="stylesheet" href="styles.css?v=mindmap-xmind-audit-20260920">
+    <link rel="stylesheet" href="toolbar-pet.css">
+    <link rel="stylesheet" href="connector.css">
+    <link rel="stylesheet" href="connector-impact.css">
+  </head>
+  <body>
+    <main class="app">
+      <header class="document-bar" aria-label="画板文档栏">
+        <h1 class="visually-hidden">共享画板</h1>
+        <button id="documentBarToggle" class="document-bar-toggle" type="button" title="收起顶部栏" aria-label="收起顶部栏" aria-controls="documentBarContent" aria-expanded="true">
+          <i data-lucide="chevron-right" aria-hidden="true"></i>
+        </button>
+        <div id="documentBarContent" class="document-bar-content">
+        <div class="canvas-controls" aria-label="画布管理">
+          <button id="canvasSwitcherButton" class="canvas-switcher-button" type="button" aria-label="切换画布" aria-haspopup="menu" aria-controls="canvasMenu" aria-expanded="false">
+            <i data-lucide="layers-3" aria-hidden="true"></i>
+            <span id="currentCanvasName" class="current-canvas-name">加载中</span>
+            <i class="canvas-chevron" data-lucide="chevron-down" aria-hidden="true"></i>
+          </button>
+          <button id="newCanvasButton" class="new-canvas-button" type="button" title="新建画布" aria-label="新建画布">
+            <i data-lucide="plus" aria-hidden="true"></i>
+            <span>新建画布</span>
+          </button>
+        </div>
+        <div id="workspaceModeSwitch" class="workspace-mode-switch" role="group" aria-label="工作方式">
+          <button type="button" data-workspace-mode="canvas" aria-pressed="true"><i data-lucide="layers-3" aria-hidden="true"></i><span>画布</span></button>
+          <button type="button" data-workspace-mode="notebook" aria-pressed="false" disabled title="笔记工作区准备中"><i data-lucide="book-open" aria-hidden="true"></i><span>笔记</span></button>
+        </div>
+        <div class="status" aria-live="polite" aria-atomic="true">
+          <span class="connection-chip">
+            <canvas id="connectionOrb" class="status-orb" width="20" height="20" hidden aria-hidden="true"></canvas>
+            <span id="connectionDot" class="status-dot" aria-hidden="true"></span>
+            <span id="connectionText">连接中</span>
+          </span>
+          <span class="presence-chip" title="当前在线人数">
+            <i data-lucide="users" aria-hidden="true"></i>
+            <span id="presenceText">0/25</span>
+          </span>
+          <span id="saveText" class="save-state">未保存</span>
+          <button id="syncIssueButton" type="button" hidden aria-label="查看同步问题">同步问题</button>
+        </div>
+
+        <div class="tool-group toolbar-actions" aria-label="文档操作">
+          <button id="globalSearchButton" class="action-button action-button-icon" type="button" title="全局搜索 Ctrl+Shift+F" aria-label="全局搜索">
+            <i data-lucide="search" aria-hidden="true"></i>
+            <span class="button-label compact-label">搜索</span>
+          </button>
+          <button id="navigatorButton" class="action-button action-button-icon" type="button" title="内容导航器" aria-label="打开内容导航器" aria-controls="navigatorPanel" aria-expanded="false">
+            <i data-lucide="panel-right-open" aria-hidden="true"></i>
+            <span class="button-label compact-label">导航</span>
+          </button>
+          <span class="action-divider" aria-hidden="true"></span>
+          <button id="undoButton" class="action-button action-button-icon" type="button" title="撤销 Ctrl+Z" aria-label="撤销">
+            <i data-lucide="undo-2" aria-hidden="true"></i>
+            <span class="button-label compact-label">撤销</span>
+          </button>
+          <button id="redoButton" class="action-button action-button-icon" type="button" title="重做 Ctrl+Shift+Z" aria-label="重做">
+            <i data-lucide="redo-2" aria-hidden="true"></i>
+            <span class="button-label compact-label">重做</span>
+          </button>
+          <span class="action-divider" aria-hidden="true"></span>
+          <button id="saveButton" class="action-button primary" type="button" title="保存 Ctrl+S" aria-label="保存画板">
+            <i data-lucide="save" aria-hidden="true"></i>
+            <span class="button-label">保存</span>
+          </button>
+          <button id="exportPngButton" class="action-button" type="button" title="导出 PNG 图片" aria-label="导出 PNG 图片">
+            <i data-lucide="download" aria-hidden="true"></i>
+            <canvas id="exportOrb" class="button-orb" width="20" height="20" hidden aria-hidden="true"></canvas>
+            <span class="button-label export-label">导出</span>
+          </button>
+          <span class="action-divider" aria-hidden="true"></span>
+          <button id="accountButton" class="account-button" type="button" data-tooltip="游客" aria-label="打开用户菜单" aria-haspopup="menu" aria-controls="accountMenu" aria-expanded="false">
+            <span id="accountAvatar" class="account-avatar"><i data-lucide="user" aria-hidden="true"></i></span>
+          </button>
+        </div>
+        </div>
+      </header>
+
+      <div id="accountMenu" class="account-menu" role="menu" hidden>
+        <div class="account-menu-identity"><strong id="accountMenuName">游客</strong><span id="accountMenuId">仅保存在当前浏览器</span></div>
+        <button id="openProfileButton" type="button" role="menuitem"><i data-lucide="user-round-cog" aria-hidden="true"></i><span>修改用户信息</span></button>
+        <button id="logoutButton" class="danger" type="button" role="menuitem"><i data-lucide="log-out" aria-hidden="true"></i><span>退出登录</span></button>
+      </div>
+
+      <div id="canvasMenu" class="canvas-menu" role="menu" aria-label="画布列表" hidden>
+        <div class="canvas-menu-heading">
+          <strong>所有画布</strong>
+          <span id="canvasCount">0/10</span>
+        </div>
+        <div id="canvasList" class="canvas-list"></div>
+      </div>
+      <div id="canvasPreview" class="canvas-preview-card" aria-live="polite" hidden>
+        <div class="canvas-preview-frame">
+          <img id="canvasPreviewImage" alt="">
+          <div id="canvasPreviewPlaceholder" class="canvas-preview-placeholder">
+            <i data-lucide="image" aria-hidden="true"></i>
+            <span>暂无预览</span>
+          </div>
+        </div>
+        <strong id="canvasPreviewName"></strong>
+      </div>
+
+      <nav id="toolDock" class="tool-dock" aria-label="画板工具">
+        <div class="dock-section-label">绘制</div>
+        <div class="tool-group toolbar-primary dock-group">
+          <button id="panButton" class="tool-button" type="button" data-tool="pan" title="平移画布，直接选择或移动对象（H，按住空格临时平移）" aria-label="智能平移与选择">
+            <i data-lucide="hand" aria-hidden="true"></i>
+            <span class="tool-label">平移</span>
+          </button>
+          <button id="selectButton" class="tool-button split-tool" type="button" data-tool="select" title="选择、框选和移动（V）" aria-label="选择和移动" aria-haspopup="dialog" aria-controls="selectMenu" aria-expanded="false">
+            <i data-lucide="mouse-pointer-2" aria-hidden="true"></i>
+            <span id="selectLabel" class="tool-label">选择</span>
+            <i class="tool-chevron" data-lucide="chevron-down" aria-hidden="true"></i>
+          </button>
+          <button id="brushButton" class="tool-button split-tool" type="button" data-tool="pen" title="画笔" aria-label="画笔" aria-haspopup="dialog" aria-controls="brushMenu" aria-expanded="false">
+            <i data-lucide="pen-tool" aria-hidden="true"></i>
+            <span id="brushLabel" class="tool-label">画笔</span>
+            <i class="tool-chevron" data-lucide="chevron-down" aria-hidden="true"></i>
+          </button>
+          <button id="eraserButton" class="tool-button eraser-button split-tool" type="button" data-tool="eraser" title="橡皮擦设置" aria-label="橡皮擦设置" aria-haspopup="dialog" aria-controls="eraserMenu" aria-expanded="false">
+            <i data-lucide="eraser" aria-hidden="true"></i>
+            <span class="tool-label">橡皮</span>
+            <i class="tool-chevron" data-lucide="chevron-down" aria-hidden="true"></i>
+          </button>
+          <button class="tool-button" type="button" data-tool="smudge" title="涂抹墨迹" aria-label="涂抹墨迹">
+            <i data-lucide="blend" aria-hidden="true"></i>
+            <span class="tool-label">涂抹</span>
+          </button>
+          <button id="shapeButton" class="tool-button split-tool" type="button" data-tool="shape" title="图形" aria-label="图形工具" aria-haspopup="dialog" aria-controls="shapeMenu" aria-expanded="false">
+            <i data-lucide="shapes" aria-hidden="true"></i>
+            <span id="shapeLabel" class="tool-label">图形</span>
+            <i class="tool-chevron" data-lucide="chevron-down" aria-hidden="true"></i>
+          </button>
+        </div>
+
+        <div class="dock-divider" aria-hidden="true"></div>
+        <div class="dock-section-label">创作</div>
+        <div class="tool-group toolbar-insert dock-group">
+          <button id="layerButton" class="tool-button split-tool" type="button" title="图层" aria-label="图层" aria-haspopup="dialog" aria-controls="layerMenu" aria-expanded="false">
+            <i data-lucide="layers-3" aria-hidden="true"></i>
+            <span id="layerLabel" class="tool-label">图层</span>
+            <i class="tool-chevron" data-lucide="chevron-down" aria-hidden="true"></i>
+          </button>
+          <button id="sectionButton" class="tool-button" type="button" data-tool="section" title="画框 / 分区 Shift+S" aria-label="创建画框">
+            <i data-lucide="panel-top" aria-hidden="true"></i>
+            <span class="tool-label">画框</span>
+          </button>
+          <button id="textButton" class="tool-button" type="button" data-tool="text" title="文本" aria-label="文本工具" aria-haspopup="dialog" aria-controls="textMenu" aria-expanded="false">
+            <i data-lucide="type" aria-hidden="true"></i>
+            <span id="textLabel" class="tool-label">文本</span>
+          </button>
+          <button class="tool-button" type="button" data-tool="note" title="便签" aria-label="便签">
+            <i data-lucide="sticky-note" aria-hidden="true"></i>
+            <span class="tool-label">便签</span>
+          </button>
+          <button id="tableButton" class="tool-button split-tool" type="button" data-tool="table" title="表格工具" aria-label="打开表格工具" aria-haspopup="dialog" aria-controls="tableMenu" aria-expanded="false">
+            <i data-lucide="table-2" aria-hidden="true"></i>
+            <span class="tool-label">表格</span>
+            <i class="tool-chevron" data-lucide="chevron-down" aria-hidden="true"></i>
+          </button>
+          <button class="tool-button" type="button" data-tool="connector" title="连接线（先点起点，再点终点）" aria-label="连接线">
+            <i data-lucide="workflow" aria-hidden="true"></i>
+            <span class="tool-label">连线</span>
+          </button>
+          <button id="mindmapButton" class="tool-button split-tool" type="button" data-tool="mindmap" title="脑图" aria-label="脑图" aria-haspopup="dialog" aria-controls="mindmapMenu" aria-expanded="false">
+            <i data-lucide="network" aria-hidden="true"></i>
+            <span id="mindmapLabel" class="tool-label">脑图</span>
+            <i class="tool-chevron" data-lucide="chevron-down" aria-hidden="true"></i>
+          </button>
+          <button id="navigationButton" class="tool-button split-tool" type="button" title="地图、搜索和路线规划" aria-label="地图工具" aria-haspopup="dialog" aria-controls="navigationMenu" aria-expanded="false">
+            <i data-lucide="map-pinned" aria-hidden="true"></i>
+            <span class="tool-label">地图</span>
+            <i class="tool-chevron" data-lucide="chevron-down" aria-hidden="true"></i>
+          </button>
+          <button id="backgroundButton" class="tool-button split-tool" type="button" title="画板背景" aria-label="画板背景" aria-haspopup="dialog" aria-controls="backgroundMenu" aria-expanded="false">
+            <i data-lucide="image" aria-hidden="true"></i>
+            <span id="backgroundLabel" class="tool-label">背景</span>
+            <i class="tool-chevron" data-lucide="chevron-down" aria-hidden="true"></i>
+          </button>
+        </div>
+        <button id="dockCollapseButton" class="dock-collapse-button" type="button" title="隐藏工具栏" aria-label="隐藏左侧工具栏" aria-controls="toolDock" aria-expanded="true">
+          <i data-lucide="chevron-left" aria-hidden="true"></i>
+        </button>
+      </nav>
+
+      <button id="dockExpandButton" class="dock-expand-button" type="button" title="展开工具栏" aria-label="展开左侧工具栏" aria-controls="toolDock" aria-expanded="false" hidden>
+        <i data-lucide="chevron-right" aria-hidden="true"></i>
+      </button>
+
+      <div id="brushMenu" class="tool-popover brush-menu" hidden></div>
+      <div id="eraserMenu" class="tool-popover eraser-menu" hidden></div>
+      <div id="selectMenu" class="tool-popover select-menu" hidden></div>
+      <div id="shapeMenu" class="tool-popover shape-sticker-menu" hidden>
+        <div class="shape-sticker-tabs" role="tablist" aria-label="图形和贴纸">
+          <button id="shapeLibraryTab" class="shape-sticker-tab active" type="button" role="tab" aria-selected="true" aria-controls="shapeMenuPanel"><i data-lucide="shapes" aria-hidden="true"></i><span>图形</span></button>
+          <button id="stickerLibraryTab" class="shape-sticker-tab" type="button" role="tab" aria-selected="false" aria-controls="stickerMenu"><i data-lucide="sparkles" aria-hidden="true"></i><span>贴纸</span></button>
+        </div>
+        <div id="shapeMenuPanel" class="shape-menu" role="tabpanel" aria-labelledby="shapeLibraryTab"></div>
+        <div id="stickerMenu" class="sticker-menu" role="tabpanel" aria-labelledby="stickerLibraryTab" hidden></div>
+      </div>
+      <div id="textMenu" class="tool-popover text-menu" hidden></div>
+      <div id="tableMenu" class="tool-popover table-menu" hidden></div>
+      <div id="layerMenu" class="tool-popover layer-menu" hidden></div>
+      <div id="navigationMenu" class="tool-popover navigation-menu" hidden>
+        <div class="navigation-menu-section">
+          <div class="mindmap-section-title navigation-section-title"><span>创建</span><strong>添加地图组件</strong></div>
+          <div class="popover-choice-grid navigation-choice-grid">
+            <button class="navigation-choice" type="button" data-navigation-action="amap-map">
+              <span class="navigation-choice-icon"><i data-lucide="map-pinned" aria-hidden="true"></i></span>
+              <span><strong>地图</strong><small>浏览与定位街道地图</small></span>
+              <i class="navigation-choice-arrow" data-lucide="chevron-right" aria-hidden="true"></i>
+            </button>
+            <button class="navigation-choice" type="button" data-navigation-action="amap-search">
+              <span class="navigation-choice-icon"><i data-lucide="search" aria-hidden="true"></i></span>
+              <span><strong>地点搜索</strong><small>查找地点与周边信息</small></span>
+              <i class="navigation-choice-arrow" data-lucide="chevron-right" aria-hidden="true"></i>
+            </button>
+            <button class="navigation-choice" type="button" data-navigation-action="amap-route">
+              <span class="navigation-choice-icon"><i data-lucide="route" aria-hidden="true"></i></span>
+              <span><strong>路线规划</strong><small>驾车、公交、步行与骑行</small></span>
+              <i class="navigation-choice-arrow" data-lucide="chevron-right" aria-hidden="true"></i>
+            </button>
+          </div>
+        </div>
+        <p id="navigationMenuStatus" class="navigation-menu-status" role="status"></p>
+      </div>
+
+      <div id="mindmapMenu" class="tool-popover mindmap-menu" hidden>
+        <div class="mindmap-menu-section is-first">
+          <div class="mindmap-section-title"><span>创建</span><strong>新建脑图</strong></div>
+          <div class="popover-choice-grid">
+            <button class="mindmap-choice" type="button" data-mindmap-action="blank">
+              <i data-lucide="plus" aria-hidden="true"></i>
+              <span>空白脑图</span>
+            </button>
+            <button class="mindmap-choice" type="button" data-mindmap-action="sample">
+              <i data-lucide="network" aria-hidden="true"></i>
+              <span>示例脑图</span>
+            </button>
+            <button class="mindmap-choice" type="button" data-mindmap-action="task">
+              <i data-lucide="list-checks" aria-hidden="true"></i>
+              <span>任务分解</span>
+            </button>
+            <button class="mindmap-choice" type="button" data-mindmap-action="balanced">
+              <i data-lucide="git-branch" aria-hidden="true"></i>
+              <span>双向规划</span>
+            </button>
+          </div>
+        </div>
+        <div class="mindmap-menu-section">
+          <div class="mindmap-section-title"><span>本地</span><strong>导入脑图</strong></div>
+          <div class="popover-choice-grid">
+            <button id="importXmindButton" class="mindmap-choice" type="button"><i data-lucide="upload" aria-hidden="true"></i><span>XMind 文件</span></button>
+            <button id="importMarkdownButton" class="mindmap-choice" type="button"><i data-lucide="file-text" aria-hidden="true"></i><span>Markdown</span></button>
+          </div>
+          <input id="xmindFileInput" type="file" accept=".xmind,application/x-xmind" hidden>
+          <input id="mindmapMarkdownInput" type="file" accept=".md,.markdown,text/markdown,text/plain" hidden>
+        </div>
+        <div class="mindmap-menu-section">
+          <div class="mindmap-section-title"><span>云端</span><strong>连接 XMind</strong></div>
+          <button id="connectXmindButton" class="mindmap-connect-button" type="button"><i data-lucide="link-2" aria-hidden="true"></i><span><strong id="xmindConnectionLabel">XMind个人账户</strong><small id="xmindConnectionHint">安全授权后读取最近脑图</small></span></button>
+          <button id="disconnectXmindButton" class="mindmap-disconnect-button" type="button" hidden><i data-lucide="unlink" aria-hidden="true"></i><span>管理并断开连接</span></button>
+        </div>
+      </div>
+
+      <div id="backgroundMenu" class="tool-popover background-menu" hidden>
+        <div class="popover-heading">
+          <span class="popover-eyebrow">画布外观</span>
+          <strong>选择背景</strong>
+        </div>
+        <div class="background-grid">
+          <div class="background-category"><span>基础纸张</span></div>
+          <button class="background-choice" type="button" data-background="blank"><span class="background-preview preview-blank"></span><span>空白</span></button>
+          <button class="background-choice" type="button" data-background="dots"><span class="background-preview preview-dots"></span><span>点阵</span></button>
+          <button class="background-choice" type="button" data-background="grid"><span class="background-preview preview-grid"></span><span>网格</span></button>
+          <button class="background-choice" type="button" data-background="lines"><span class="background-preview preview-lines"></span><span>横线</span></button>
+          <button class="background-choice" type="button" data-background="dark"><span class="background-preview preview-dark"></span><span>深色</span></button>
+          <button class="background-choice" type="button" data-background="warm"><span class="background-preview preview-warm"></span><span>暖纸</span></button>
+          <button class="background-choice" type="button" data-background="blueprint"><span class="background-preview preview-blueprint"></span><span>蓝图</span></button>
+          <button class="background-choice" type="button" data-background="isometric"><span class="background-preview preview-isometric"></span><span>等距</span></button>
+          <button class="background-choice" type="button" data-background="paper"><span class="background-preview preview-paper"></span><span>纸张</span></button>
+          <button class="background-choice" type="button" data-background="cross"><span class="background-preview preview-cross"></span><span>十字点</span></button>
+          <button class="background-choice" type="button" data-background="graph"><span class="background-preview preview-graph"></span><span>工程纸</span></button>
+          <button class="background-choice" type="button" data-background="rice"><span class="background-preview preview-rice"></span><span>米字格</span></button>
+          <button class="background-choice" type="button" data-background="mist"><span class="background-preview preview-mist"></span><span>雾蓝</span></button>
+          <button class="background-choice" type="button" data-background="sage"><span class="background-preview preview-sage"></span><span>鼠尾草</span></button>
+          <button class="background-choice" type="button" data-background="dawn"><span class="background-preview preview-dawn"></span><span>晨曦</span></button>
+          <div class="background-category image-category">
+            <span>高清图景</span>
+            <span class="background-drift-control">
+              <button id="backgroundDriftToggle" class="switch-control" type="button" role="switch" aria-checked="true" aria-labelledby="backgroundDriftLabel">
+                <span class="switch-track" aria-hidden="true"></span>
+              </button>
+              <span id="backgroundDriftLabel" class="switch-label">关闭背景漂移</span>
+            </span>
+          </div>
+          <button class="background-choice image-background" type="button" data-background="alpine-lake" title="晨雾湖泊"><span class="background-preview preview-alpine-lake"></span><span>晨雾湖泊</span></button>
+          <button class="background-choice image-background" type="button" data-background="coastline" title="浅色海岸"><span class="background-preview preview-coastline"></span><span>浅色海岸</span></button>
+          <button class="background-choice image-background" type="button" data-background="sage-watercolor" title="鼠尾草水彩"><span class="background-preview preview-sage-watercolor"></span><span>鼠尾草水彩</span></button>
+          <button class="background-choice image-background" type="button" data-background="twilight-sky" title="暮色天空"><span class="background-preview preview-twilight-sky"></span><span>暮色天空</span></button>
+          <button class="background-choice image-background" type="button" data-background="botanical-paper" title="植物影纸"><span class="background-preview preview-botanical-paper"></span><span>植物影纸</span></button>
+          <button class="background-choice image-background" type="button" data-background="desert-dunes" title="日出沙丘"><span class="background-preview preview-desert-dunes"></span><span>日出沙丘</span></button>
+          <button class="background-choice image-background" type="button" data-background="navy-night" title="深蓝夜色"><span class="background-preview preview-navy-night"></span><span>深蓝夜色</span></button>
+          <button class="background-choice image-background" type="button" data-background="thousand-li" title="王希孟《千里江山图》局部"><span class="background-preview preview-thousand-li"></span><span>千里江山</span></button>
+          <button class="background-choice image-background" type="button" data-background="calligraphy" title="《兰亭序》冯承素摹本"><span class="background-preview preview-calligraphy"></span><span>兰亭书法</span></button>
+          <button class="background-choice image-background" type="button" data-background="starfield" title="詹姆斯·韦布空间望远镜深空场"><span class="background-preview preview-starfield"></span><span>深空星野</span></button>
+          <button class="background-choice image-background" type="button" data-background="great-wave" title="葛饰北斋《神奈川冲浪里》"><span class="background-preview preview-great-wave"></span><span>浮世绘浪</span></button>
+          <button class="background-choice image-background" type="button" data-background="water-lilies" title="克劳德·莫奈《睡莲》"><span class="background-preview preview-water-lilies"></span><span>莫奈睡莲</span></button>
+        </div>
+      </div>
+
+      <aside id="contextPanel" class="context-panel" aria-label="所选元素属性" hidden></aside>
+      <aside id="floatingFormatBar" class="floating-format-bar" aria-label="浮动文字工具栏" hidden></aside>
+
+      <section id="viewport" class="viewport" aria-label="共享画板">
+        <div id="boardLockNotice" class="board-lock-notice" role="status" aria-live="polite" hidden>其他成员正在编辑，画布暂时只读</div>
+        <div id="gridLayer" class="grid-layer" aria-hidden="true"></div>
+        <section id="canvasStart" class="canvas-start" aria-labelledby="canvasStartTitle" aria-describedby="canvasStartDescription" hidden>
+          <div class="canvas-start-card">
+            <span class="canvas-start-icon" aria-hidden="true"><i data-lucide="sparkles"></i></span>
+            <div class="canvas-start-copy">
+              <span class="canvas-start-eyebrow">从一个想法开始</span>
+              <h2 id="canvasStartTitle">这块画布正等你落下第一笔</h2>
+              <p id="canvasStartDescription">用便签快速记录，创建画框组织主题，或直接拿起画笔自由探索。</p>
+            </div>
+            <div class="canvas-start-actions" aria-label="快速开始">
+              <button class="canvas-start-action primary" type="button" data-start-tool="note">
+                <i data-lucide="sticky-note" aria-hidden="true"></i><span>添加便签</span>
+              </button>
+              <button class="canvas-start-action" type="button" data-start-tool="section">
+                <i data-lucide="panel-top" aria-hidden="true"></i><span>创建画框</span>
+              </button>
+              <button class="canvas-start-action" type="button" data-start-tool="pen">
+                <i data-lucide="pen-tool" aria-hidden="true"></i><span>开始绘制</span>
+              </button>
+            </div>
+            <p class="canvas-start-shortcuts"><kbd>H</kbd> 平移 <span aria-hidden="true">·</span> <kbd>V</kbd> 选择 <span aria-hidden="true">·</span> <kbd>Space</kbd> 临时平移</p>
+          </div>
+        </section>
+        <section id="noCanvasStart" class="canvas-start no-canvas-start" aria-labelledby="noCanvasStartTitle" aria-describedby="noCanvasStartDescription" hidden>
+          <div class="canvas-start-card">
+            <span class="canvas-start-icon" aria-hidden="true"><i data-lucide="sparkles"></i></span>
+            <div class="canvas-start-copy">
+              <span class="canvas-start-eyebrow">从第一块画布开始</span>
+              <h2 id="noCanvasStartTitle">还没有可访问的画布</h2>
+              <p id="noCanvasStartDescription">创建“画布 1”，开始记录和分享你的想法。</p>
+            </div>
+            <div class="canvas-start-actions">
+              <button id="createFirstCanvasButton" class="canvas-start-action primary" type="button">
+                <i data-lucide="plus" aria-hidden="true"></i><span>创建画布 1</span>
+              </button>
+            </div>
+          </div>
+        </section>
+        <div id="cursorsLayer" class="cursors-layer" aria-hidden="true"></div>
+        <div id="guidesLayer" class="guides-layer" aria-hidden="true"></div>
+        <div id="sectionHoverLabel" class="section-hover-label" aria-hidden="true" hidden></div>
+        <div id="board" class="board">
+
+          <svg id="drawSurface" class="draw-surface" width="1" height="1" aria-hidden="true"></svg>
+          <div id="sectionLayer" class="section-layer"></div>
+          <div id="itemsLayer" class="items-layer"></div>
+        </div>
+      </section>
+
+
+
+      <div class="canvas-view-controls" aria-label="画布视图控制">
+        <div class="canvas-zoom-cluster">
+          <div class="canvas-zoom-controls" role="group" aria-label="画布缩放">
+            <button type="button" data-zoom="out" title="缩小" aria-label="缩小画布">
+              <i data-lucide="minus" aria-hidden="true"></i>
+            </button>
+            <label class="zoom-slider-control" for="canvasZoomSlider" title="拖动调节画布缩放">
+              <input id="canvasZoomSlider" type="range" min="0" max="4" step="1" value="2" aria-label="画布缩放比例" aria-valuetext="100%">
+              <span class="zoom-percent-value" aria-hidden="true">100%</span>
+            </label>
+            <button type="button" data-zoom="in" title="放大" aria-label="放大画布">
+              <i data-lucide="plus" aria-hidden="true"></i>
+            </button>
+          </div>
+        </div>
+        <button class="canvas-fit-view" type="button" data-zoom="fit" title="适应画布内容" aria-label="适应画布内容">
+          <i data-lucide="maximize-2" aria-hidden="true"></i>
+        </button>
+      </div>
+
+      <aside id="navigatorPanel" class="navigator-panel" aria-label="内容导航器" hidden>
+        <div class="navigator-header">
+          <div class="navigator-heading"><span class="navigator-eyebrow">当前画布</span><strong>内容导航器</strong></div>
+          <div class="navigator-header-actions">
+            <div id="navigatorSearch" class="navigator-search">
+              <button id="navigatorSearchButton" type="button" title="搜索当前画布内容" aria-label="展开内容搜索" aria-controls="navigatorSearchInput" aria-expanded="false"><i data-lucide="search" aria-hidden="true"></i></button>
+              <label class="visually-hidden" for="navigatorSearchInput">搜索当前画布内容</label>
+              <input id="navigatorSearchInput" type="search" autocomplete="off" placeholder="搜索画框、分组和元素" tabindex="-1">
+            </div>
+            <button id="navigatorCloseButton" class="panel-icon-button" type="button" title="关闭" aria-label="关闭内容导航器"><i data-lucide="x" aria-hidden="true"></i></button>
+          </div>
+        </div>
+        <div class="navigator-summary"><span id="navigatorSummary">0 个内容</span><button id="navigatorExpandAll" type="button">全部展开</button></div>
+        <div id="navigatorTree" class="navigator-tree" role="tree" aria-label="画布内容"></div>
+      </aside>
+
+      <div id="arrangeBar" class="arrange-bar" role="toolbar" aria-label="对齐和布局" hidden>
+        <span class="arrange-count" id="arrangeCount">0 个对象</span>
+        <div class="arrange-group" aria-label="对齐">
+          <button type="button" data-arrange="align-left" title="左对齐"><i data-lucide="align-start-vertical" aria-hidden="true"></i></button>
+          <button type="button" data-arrange="align-center-x" title="水平居中"><i data-lucide="align-center-vertical" aria-hidden="true"></i></button>
+          <button type="button" data-arrange="align-right" title="右对齐"><i data-lucide="align-end-vertical" aria-hidden="true"></i></button>
+          <button type="button" data-arrange="align-top" title="顶部对齐"><i data-lucide="align-start-horizontal" aria-hidden="true"></i></button>
+          <button type="button" data-arrange="align-center-y" title="垂直居中"><i data-lucide="align-center-horizontal" aria-hidden="true"></i></button>
+          <button type="button" data-arrange="align-bottom" title="底部对齐"><i data-lucide="align-end-horizontal" aria-hidden="true"></i></button>
+        </div>
+        <div class="arrange-group" aria-label="分布">
+          <button type="button" data-arrange="distribute-x" title="水平等间距"><i data-lucide="between-horizontal-start" aria-hidden="true"></i></button>
+          <button type="button" data-arrange="distribute-y" title="垂直等间距"><i data-lucide="between-vertical-start" aria-hidden="true"></i></button>
+        </div>
+        <div class="arrange-group" aria-label="组织">
+          <button type="button" data-arrange="group" title="组合 Ctrl+G"><i data-lucide="group" aria-hidden="true"></i></button>
+          <button type="button" data-arrange="ungroup" title="取消组合 Ctrl+Shift+G"><i data-lucide="ungroup" aria-hidden="true"></i></button>
+          <button type="button" data-arrange="layout-grid" title="网格布局"><i data-lucide="grid-2x2" aria-hidden="true"></i></button>
+          <button type="button" data-arrange="layout-flow-right" title="流程图：从左到右"><i data-lucide="workflow" aria-hidden="true"></i></button>
+          <button type="button" data-arrange="layout-flow-down" title="流程图：从上到下"><i data-lucide="git-branch" aria-hidden="true"></i></button>
+        </div>
+      </div>
+    </main>
+
+    <div id="privacyShield" class="privacy-shield" role="button" tabindex="0" aria-label="显示画布" hidden>
+      <div class="privacy-lock" aria-hidden="true">
+        <i class="privacy-lock-closed" data-lucide="lock-keyhole" aria-hidden="true"></i>
+        <i class="privacy-lock-open" data-lucide="unlock" aria-hidden="true"></i>
+      </div>
+      <strong>画布已隐藏</strong>
+    </div>
+
+    <div id="globalSearchDialog" class="search-overlay" role="dialog" aria-modal="true" aria-labelledby="globalSearchTitle" hidden>
+      <div class="search-command">
+        <div class="search-input-row"><i data-lucide="search" aria-hidden="true"></i><label id="globalSearchTitle" class="visually-hidden" for="globalSearchInput">搜索所有画布</label><input id="globalSearchInput" type="search" autocomplete="off" placeholder="搜索所有画布中的文字、便签、表格、脑图……"><kbd>Esc</kbd></div>
+        <div class="search-status"><canvas id="searchOrb" class="status-orb" width="20" height="20" hidden aria-hidden="true"></canvas><span id="globalSearchStatus">输入关键词开始搜索</span></div>
+        <div id="globalSearchResults" class="search-results" role="listbox"></div>
+      </div>
+    </div>
+
+    <div id="mindmapImportDialog" class="search-overlay" role="dialog" aria-modal="true" aria-labelledby="mindmapImportTitle" hidden>
+      <div class="search-command mindmap-import-command">
+        <div class="mindmap-dialog-heading"><div><span class="popover-eyebrow">导入预览</span><h2 id="mindmapImportTitle">选择要导入的 Sheet</h2></div><button id="closeMindmapImportButton" class="panel-icon-button" type="button" aria-label="关闭"><i data-lucide="x" aria-hidden="true"></i></button></div>
+        <p id="mindmapImportSummary" class="mindmap-dialog-summary"></p>
+        <div class="mindmap-import-selection-actions" aria-label="Sheet 批量选择"><button id="selectAllMindmapSheetsButton" type="button">全选</button><button id="clearMindmapSheetsButton" type="button">全不选</button></div>
+        <div id="mindmapImportSheets" class="mindmap-import-sheets"></div>
+        <div id="mindmapImportWarnings" class="mindmap-import-warnings" role="status"></div>
+        <div class="mindmap-dialog-actions">
+          <button id="cancelMindmapImportButton" class="mindmap-import-cancel" type="button"><i data-lucide="x" aria-hidden="true"></i><span>取消</span></button>
+          <button id="confirmMindmapImportButton" class="primary mindmap-import-confirm" type="button"><i data-lucide="file-input" aria-hidden="true"></i><span data-import-confirm-label>导入所选 Sheet</span></button>
+        </div>
+      </div>
+    </div>
+
+    <div id="xmindBrowserDialog" class="search-overlay" role="dialog" aria-modal="true" aria-labelledby="xmindBrowserTitle" hidden>
+      <div class="search-command xmind-browser-command">
+        <div class="mindmap-dialog-heading"><div><h2 id="xmindBrowserTitle">最近脑图</h2></div><div class="xmind-heading-actions"><button id="refreshXmindMapsButton" class="panel-icon-button" type="button" aria-label="刷新最近脑图" title="刷新最近脑图"><i data-lucide="refresh-cw" aria-hidden="true"></i></button><button id="closeXmindBrowserButton" class="panel-icon-button" type="button" aria-label="关闭"><i data-lucide="x" aria-hidden="true"></i></button></div></div>
+        <div id="xmindConnectionSummary" class="xmind-connection-summary" role="status"></div>
+        <div class="search-input-row"><i data-lucide="search" aria-hidden="true"></i><label class="visually-hidden" for="xmindSearchInput">搜索最近脑图</label><input id="xmindSearchInput" type="search" autocomplete="off" placeholder="搜索 XMind 最近打开的脑图"></div>
+        <div class="xmind-loading-row"><span id="xmindBrowserLoading" class="xmind-loading-spinner" aria-hidden="true"></span><div id="xmindBrowserStatus" class="search-status" role="status">正在读取最近脑图…</div></div>
+        <div id="xmindRecentMaps" class="xmind-recent-maps" role="listbox"></div>
+        <div class="mindmap-dialog-actions xmind-connection-actions"><button id="reauthorizeXmindButton" type="button" hidden>重新授权</button></div>
+      </div>
+    </div>
+
+    <div id="xmindProviderDialog" class="search-overlay" role="dialog" aria-modal="true" aria-labelledby="xmindProviderTitle" hidden>
+      <div class="xmind-provider-card">
+        <button id="closeXmindProviderButton" class="panel-icon-button xmind-provider-close" type="button" aria-label="关闭"><i data-lucide="x" aria-hidden="true"></i></button>
+        <span class="xmind-provider-icon"><i data-lucide="link-2" aria-hidden="true"></i></span>
+        <h2 id="xmindProviderTitle">选择 XMind 账号站点</h2>
+        <p>国际版与中文版账号相互独立。本站同一时间只保存一个站点的授权，重新选择会在授权成功后替换原连接。</p>
+        <div class="xmind-provider-options">
+          <button type="button" data-xmind-provider="global"><strong>授权 xmind.com</strong><small>国际官网 · app.xmind.com</small></button>
+          <button type="button" data-xmind-provider="china"><strong>授权 xmind.cn</strong><small>中文官网 · app.xmind.cn</small></button>
+        </div>
+      </div>
+    </div>
+
+    <div id="mindmapPlacementLoading" class="mindmap-placement-loading" role="status" aria-live="polite" hidden>
+      <span class="xmind-loading-spinner" aria-hidden="true"></span><strong>正在读取并放置脑图…</strong>
+    </div>
+
+    <div id="contextMenu" class="context-menu" role="menu" hidden></div>
+
+    <div id="newCanvasDialog" class="canvas-dialog-overlay" role="dialog" aria-modal="true" aria-labelledby="newCanvasTitle" hidden>
+      <form id="newCanvasForm" class="canvas-dialog-card" novalidate>
+        <div class="canvas-dialog-heading">
+          <span class="canvas-dialog-icon"><i data-lucide="layers-3" aria-hidden="true"></i></span>
+          <div>
+            <h2 id="newCanvasTitle">新建画布</h2>
+          </div>
+        </div>
+        <label for="newCanvasName">画布名称</label>
+        <input id="newCanvasName" name="canvasName" type="text" autocomplete="off" aria-describedby="newCanvasHint newCanvasError">
+        <div class="canvas-name-meta">
+          <span id="newCanvasHint">名称区分大小写</span>
+          <span id="newCanvasNameCount">0/30</span>
+        </div>
+        <p id="newCanvasError" class="canvas-dialog-error" role="alert" hidden></p>
+        <div id="newCanvasVisibilityField">
+          <label for="newCanvasVisibility">访问范围</label>
+          <select id="newCanvasVisibility" name="visibility" aria-describedby="newCanvasVisibilityHint">
+            <option value="private">私有 · 仅自己可访问</option>
+            <option value="shared" selected>共享 · 同一共享组成员可访问并编辑</option>
+          </select>
+          <p id="newCanvasVisibilityHint" class="canvas-visibility-hint">创建后可在画布菜单中调整访问范围。</p>
+        </div>
+        <div class="canvas-dialog-actions">
+          <button id="cancelNewCanvas" type="button">取消</button>
+          <button id="confirmNewCanvas" class="primary" type="submit">创建</button>
+        </div>
+      </form>
+    </div>
+
+    <div id="renameCanvasDialog" class="canvas-dialog-overlay" role="dialog" aria-modal="true" aria-labelledby="renameCanvasTitle" hidden>
+      <form id="renameCanvasForm" class="canvas-dialog-card" novalidate>
+        <div class="canvas-dialog-heading">
+          <span class="canvas-dialog-icon"><i data-lucide="type" aria-hidden="true"></i></span>
+          <div>
+            <h2 id="renameCanvasTitle">重命名画布</h2>
+            <p>名称区分大小写且不能与现有画布重复</p>
+          </div>
+        </div>
+        <label for="renameCanvasName">画布名称</label>
+        <input id="renameCanvasName" name="canvasName" type="text" autocomplete="off" aria-describedby="renameCanvasError">
+        <div class="canvas-name-meta">
+          <span id="renameCanvasNameCount">0/30</span>
+        </div>
+        <p id="renameCanvasError" class="canvas-dialog-error" role="alert" hidden></p>
+        <div class="canvas-dialog-actions">
+          <button id="cancelRenameCanvas" type="button">取消</button>
+          <button id="confirmRenameCanvas" class="primary" type="submit">保存</button>
+        </div>
+      </form>
+    </div>
+
+    <div id="deleteCanvasDialog" class="canvas-dialog-overlay" role="alertdialog" aria-modal="true" aria-labelledby="deleteCanvasTitle" aria-describedby="deleteCanvasDescription" hidden>
+      <div class="canvas-dialog-card canvas-delete-card">
+        <div class="canvas-dialog-heading">
+          <span class="canvas-dialog-icon danger"><i data-lucide="trash-2" aria-hidden="true"></i></span>
+          <div>
+            <h2 id="deleteCanvasTitle">删除画布？</h2>
+            <p id="deleteCanvasDescription">“<strong id="deleteCanvasName"></strong>”中的全部内容和操作记录都将永久删除，无法撤销。</p>
+          </div>
+        </div>
+        <p class="canvas-delete-warning">如果其他人正在使用此画布，他们会自动回到列表中的第一块画布。</p>
+        <div class="canvas-dialog-actions">
+          <button id="cancelDeleteCanvas" type="button">取消</button>
+          <button id="confirmDeleteCanvas" class="danger" type="button">删除画布</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="adaptiveDialog" class="canvas-dialog-overlay" role="dialog" aria-modal="true" aria-labelledby="adaptiveDialogTitle" aria-describedby="adaptiveDialogMessage" hidden>
+      <form id="adaptiveDialogForm" class="canvas-dialog-card adaptive-dialog-card" novalidate>
+        <div class="canvas-dialog-heading">
+          <span id="adaptiveDialogIcon" class="canvas-dialog-icon"><i data-lucide="circle-help" aria-hidden="true"></i></span>
+          <div>
+            <h2 id="adaptiveDialogTitle">操作确认</h2>
+            <p id="adaptiveDialogMessage"></p>
+          </div>
+        </div>
+        <label id="adaptiveDialogInputLabel" for="adaptiveDialogInput" hidden>名称</label>
+        <input id="adaptiveDialogInput" type="text" autocomplete="off" hidden>
+        <p id="adaptiveDialogError" class="canvas-dialog-error" role="alert" hidden></p>
+        <div class="canvas-dialog-actions">
+          <button id="adaptiveDialogCancel" type="button">取消</button>
+          <button id="adaptiveDialogConfirm" class="primary" type="submit">确定</button>
+        </div>
+      </form>
+    </div>
+
+    <div id="authDialog" class="account-overlay" role="dialog" aria-modal="true" aria-labelledby="authTitle" aria-describedby="authDescription" hidden>
+      <div class="account-card auth-card">
+        <span class="account-card-icon"><i data-lucide="mail" aria-hidden="true"></i></span>
+        <div class="account-card-heading"><span class="account-eyebrow">Muse Board 安全访问</span><h2 id="authTitle">保存并随时找回你的画布</h2><p id="authDescription" hidden></p></div>
+        <div class="auth-mode-switch" role="tablist" aria-label="账号操作">
+          <button id="authLoginTab" type="button" role="tab" aria-selected="true" tabindex="0">登录</button>
+          <button id="authRegisterTab" type="button" role="tab" aria-selected="false" tabindex="-1">注册</button>
+        </div>
+        <p id="authError" class="account-error" role="alert" hidden></p>
+        <form id="emailAuthForm" class="email-auth-form" novalidate>
+          <label for="authEmail">邮箱地址</label>
+          <div class="email-input-shell"><i data-lucide="at-sign" aria-hidden="true"></i><input id="authEmail" type="email" inputmode="email" autocomplete="email" maxlength="254" placeholder="name@example.com" required></div>
+          <button id="emailAuthSubmit" class="primary" type="submit"><i data-lucide="send" aria-hidden="true"></i><span>发送登录链接</span></button>
+        </form>
+        <section id="emailSentState" class="email-sent-state" aria-live="polite" hidden>
+          <span class="email-sent-icon"><i data-lucide="mail-check" aria-hidden="true"></i></span>
+          <div><strong id="emailSentTitle">请检查你的邮箱</strong><p id="emailSentDescription">魔法链接已发送至 <span id="emailSentAddress"></span>，请保持此页面打开。</p></div>
+          <div class="email-sent-actions"><button id="resendEmailButton" type="button" disabled>60 秒后可重新发送</button><button id="changeEmailButton" class="text-button" type="button">修改邮箱</button></div>
+        </section>
+        <section id="emailAccountSwitchState" class="email-account-switch-state" aria-live="polite" hidden>
+          <span class="email-sent-icon"><i data-lucide="refresh-cw" aria-hidden="true"></i></span>
+          <div><strong>确认切换账号</strong><p>当前浏览器已登录其他账号，是否切换到此邮箱对应的账号？</p></div>
+          <div class="email-sent-actions"><button id="confirmEmailAccountSwitch" class="primary" type="button">确认切换</button><button id="cancelEmailAccountSwitch" class="text-button" type="button">取消</button></div>
+        </section>
+        <div id="otherAuthMethods" class="other-auth-methods">
+          <button id="otherAuthMethodsToggle" class="other-auth-methods-toggle" type="button" aria-expanded="false" aria-controls="otherAuthMethodsContent">
+            <span>其他登录方式</span><i data-lucide="chevron-down" aria-hidden="true"></i>
+          </button>
+          <div id="otherAuthMethodsContent" class="other-auth-methods-content" aria-hidden="true" inert>
+            <div class="auth-actions">
+            <button id="registerPasskeyButton" type="button" hidden><i data-lucide="key-round" aria-hidden="true"></i><span>使用 Passkey 创建账号</span></button>
+            <button id="loginPasskeyButton" type="button"><i data-lucide="key-round" aria-hidden="true"></i><span>使用 Passkey 登录</span></button>
+            <button id="openRecoveryButton" class="text-button" type="button">忘记登录方式</button>
+            </div>
+          </div>
+        </div>
+        <div id="guestAuthDivider" class="auth-divider"><span>临时使用</span></div>
+        <button id="continueGuestButton" class="guest-button" type="button"><i data-lucide="paintbrush" aria-hidden="true"></i><span>以游客身份继续</span></button>
+        <p id="guestAuthFootnote" class="auth-footnote">游客数据仅保存在当前浏览器；清除浏览器数据或更换浏览器后无法找回。</p>
+      </div>
+    </div>
+
+    <div id="pairingDialog" class="account-overlay" role="dialog" aria-modal="true" aria-labelledby="pairingTitle" aria-describedby="pairingDescription" hidden>
+      <div class="account-card pairing-card">
+        <div class="account-card-heading"><span class="account-eyebrow">手机安全授权</span><h2 id="pairingTitle">用手机扫码继续</h2><p id="pairingDescription">使用系统相机扫描二维码，在手机浏览器中完成 Passkey 验证。</p></div>
+        <div class="pairing-qr-frame"><img id="pairingQrImage" width="240" height="240" alt="手机授权二维码"></div>
+        <div class="pairing-code"><span>核对码</span><strong id="pairingVerificationCode"></strong></div>
+        <p id="pairingStatus" class="pairing-status" role="status" aria-live="polite">正在生成二维码…</p>
+        <p id="pairingError" class="account-error" role="alert" hidden></p>
+        <div class="pairing-actions"><button id="copyPairingLinkButton" type="button">复制手机链接</button><button id="cancelPairingButton" type="button">取消</button></div>
+      </div>
+    </div>
+
+    <div id="recoveryKitDialog" class="account-overlay" role="dialog" aria-modal="true" aria-labelledby="recoveryKitTitle" hidden>
+      <div class="account-card recovery-kit-card">
+        <span class="account-card-icon success"><i data-lucide="badge-check" aria-hidden="true"></i></span>
+        <div class="account-card-heading"><span class="account-eyebrow">账号创建成功</span><h2 id="recoveryKitTitle">保存账号恢复资料</h2><p>恢复码只显示这一次，服务器不保存明文。</p></div>
+        <dl class="recovery-kit"><div><dt>账号 ID</dt><dd id="recoveryKitAccountId"></dd></div><div><dt>当前用户名</dt><dd id="recoveryKitUsername"></dd></div><div><dt>恢复码</dt><dd id="recoveryKitCode"></dd></div></dl>
+        <p class="recovery-warning"><i data-lucide="triangle-alert" aria-hidden="true"></i><span>请妥善保存。丢失所有 Passkey、账号 ID 或恢复码后无法恢复。</span></p>
+        <div class="recovery-kit-actions"><button id="copyRecoveryKitButton" type="button"><i data-lucide="copy" aria-hidden="true"></i><span>一键复制恢复资料</span></button><button id="downloadRecoveryKitButton" type="button"><i data-lucide="download" aria-hidden="true"></i><span>下载恢复资料</span></button></div><p id="recoveryCopyStatus" class="field-hint" role="status" aria-live="polite"></p>
+        <label class="recovery-ack"><input id="recoveryKitAcknowledged" type="checkbox"><span>我已将恢复资料保存在安全位置</span></label>
+        <button id="finishRecoveryKitButton" class="primary full-width" type="button" disabled>进入画板</button>
+      </div>
+    </div>
+
+    <div id="profileDialog" class="account-overlay" role="dialog" aria-modal="true" aria-labelledby="profileTitle" hidden>
+      <div class="account-card profile-card">
+        <div class="profile-heading"><div><span class="account-eyebrow">账号与共享</span><h2 id="profileTitle">用户信息</h2></div><button id="closeProfileButton" class="icon-button" type="button" title="关闭" aria-label="关闭用户信息"><i data-lucide="x" aria-hidden="true"></i></button></div>
+        <form id="profileForm" class="profile-form" novalidate>
+          <div class="profile-avatar-row"><label id="profileAvatarLabel" class="profile-avatar-picker" for="profileAvatarInput"><span id="profileAvatarPreview" class="account-avatar large"><i data-lucide="camera" aria-hidden="true"></i></span><span>修改头像<small id="profileAvatarHint">JPEG / PNG / WebP</small></span></label><button id="removeAvatarButton" class="avatar-remove-button" type="button">移除头像</button></div><input id="profileAvatarInput" type="file" accept="image/jpeg,image/png,image/webp" hidden>
+          <div class="profile-username-heading"><label for="profileUsername">用户名</label><button class="primary profile-save" type="submit">保存用户信息</button></div><input id="profileUsername" maxlength="30" autocomplete="nickname" aria-describedby="profileUsernameHint"><p id="profileUsernameHint" class="field-hint">用户名必须包含 1–30 个有效字符</p>
+          <span class="profile-field-label">账号 ID</span><div class="account-id-display"><code id="profileAccountId"></code><button id="copyAccountIdButton" class="copy-value-button" type="button" title="复制账号 ID" aria-label="复制账号 ID"><i data-lucide="copy" aria-hidden="true"></i><span>复制</span></button></div>
+          <p id="profileError" class="account-error" role="alert" hidden></p>
+        </form>
+        <section id="sharingProfileSection" class="profile-section" aria-labelledby="sharingHeading">
+          <div class="section-heading"><div><h3 id="sharingHeading">实时共享</h3><p id="sharingDescription">一个共享组最多 5 人，共享码在重新生成前持续有效。</p></div></div>
+          <div id="sharingStatus" class="sharing-status" role="status" aria-live="polite" hidden><span class="sharing-status-icon"><i data-lucide="users-round" aria-hidden="true"></i></span><span class="sharing-status-copy"><strong id="sharingStatusLabel">等待成员加入</strong><small id="sharingStatusHint">共享码已生效，发送给需要协作的人</small></span><span id="sharingMemberCount" class="sharing-member-count">1/5</span></div>
+          <div id="shareCodePanel" class="share-code-panel" hidden><code id="shareCodeValue"></code><button id="copyShareCodeButton" type="button" title="复制共享码" aria-label="复制共享码"><i data-lucide="copy" aria-hidden="true"></i></button></div>
+          <form id="joinShareForm" class="join-share-form" hidden><label for="joinShareCode">输入共享码</label><div><input id="joinShareCode" autocomplete="off" placeholder="ABCD-EFGH-JKMP"><button class="primary" type="submit">加入</button></div></form>
+          <div id="memberChain" class="member-chain" aria-label="共享成员"></div>
+          <div id="sharingSectionActions" class="sharing-section-actions is-ungrouped"><button id="generateShareCodeButton" class="secondary-wide" type="button"><i data-lucide="link-2" aria-hidden="true"></i><span>生成共享码</span></button><button id="joinShareButton" type="button"><i data-lucide="user-round-plus" aria-hidden="true"></i><span>加入共享</span></button><button id="endShareGroupButton" class="sharing-end-button" type="button" hidden><i data-lucide="log-out" aria-hidden="true"></i><span>结束共享组</span></button></div>
+        </section>
+        <section class="profile-section" aria-labelledby="emailHeading"><div class="section-heading"><div><h3 id="emailHeading">邮箱登录</h3><p id="profileEmailDescription">绑定验证邮箱后，可随时通过魔法链接登录。</p></div><span id="profileEmailBadge" class="credential-badge" hidden>已验证</span></div><div class="profile-email-summary"><p id="profileEmailValue" class="profile-email-value">未绑定邮箱</p><button id="openEmailManageButton" type="button"><i data-lucide="mail" aria-hidden="true"></i><span>绑定邮箱</span></button></div></section>
+        <section id="passkeyProfileSection" class="profile-section" aria-labelledby="passkeyHeading"><div class="section-heading"><div><h3 id="passkeyHeading">Passkey</h3><p id="passkeyDescription">可使用本机认证器或安全密钥验证。</p></div><button id="addPasskeyButton" type="button"><i data-lucide="plus" aria-hidden="true"></i><span>添加</span></button></div><div id="passkeyList" class="passkey-list"></div><button id="rotateRecoveryButton" class="secondary-wide" type="button"><i data-lucide="refresh-cw" aria-hidden="true"></i><span>重新生成恢复码</span></button></section>
+        <section class="profile-section" aria-labelledby="sessionsHeading"><div class="section-heading"><div><h3 id="sessionsHeading">登录会话</h3><p id="sessionsDescription">查看并撤销已登录设备。</p></div><div class="session-heading-actions"><button id="refreshSessionsButton" type="button"><i data-lucide="refresh-cw" aria-hidden="true"></i><span>刷新</span></button><button id="logoutOtherSessionsButton" class="danger-text" type="button">退出其他设备</button></div></div><div id="sessionList" class="passkey-list"></div></section>
+        <section class="profile-section danger-zone" aria-labelledby="deleteAccountHeading"><h3 id="deleteAccountHeading">删除账号</h3><p>永久删除账号及其全部画布，操作完成后无法恢复。</p><button id="openDeleteAccountButton" class="danger" type="button">永久删除账号</button></section>
+      </div>
+    </div>
+
+    <div id="avatarCropDialog" class="account-overlay" role="dialog" aria-modal="true" aria-labelledby="avatarCropTitle" hidden>
+      <div class="account-card avatar-editor-card">
+        <div class="profile-heading"><div><span class="account-eyebrow">头像编辑器</span><h2 id="avatarCropTitle">调整头像</h2></div><button id="closeAvatarCropButton" class="icon-button" type="button" title="关闭" aria-label="关闭头像编辑器"><i data-lucide="x" aria-hidden="true"></i></button></div>
+        <p class="avatar-editor-help">拖动图片调整位置，拖动控制点或使用滑块缩放和旋转。</p>
+        <div id="avatarCropStage" class="avatar-crop-stage"><div class="avatar-crop-viewport"><img id="avatarCropPreview" alt="头像裁剪预览" draggable="false"><span class="crop-handle crop-handle-nw"></span><span class="crop-handle crop-handle-n"></span><span class="crop-handle crop-handle-ne"></span><span class="crop-handle crop-handle-e"></span><span class="crop-handle crop-handle-se"></span><span class="crop-handle crop-handle-s"></span><span class="crop-handle crop-handle-sw"></span><span class="crop-handle crop-handle-w"></span><output id="avatarCropDimensions" class="avatar-crop-dimensions">512 × 512</output></div></div>
+        <output id="avatarRotationValue" class="avatar-rotation-value" for="avatarRotation">0°</output>
+        <div class="avatar-slider-row"><i data-lucide="rotate-ccw" aria-hidden="true"></i><input id="avatarRotation" class="avatar-ticked-range" type="range" min="-180" max="180" value="0" step="1" aria-label="旋转头像"><i data-lucide="rotate-cw" aria-hidden="true"></i></div>
+        <div class="avatar-slider-row avatar-zoom-row"><i data-lucide="minus" aria-hidden="true"></i><input id="avatarZoom" type="range" min="100" max="300" value="100" step="1" aria-label="缩放头像"><i data-lucide="plus" aria-hidden="true"></i></div>
+        <div class="account-dialog-actions"><button id="cancelAvatarCropButton" type="button">取消</button><button id="confirmAvatarCropButton" class="primary" type="button">完成</button></div>
+      </div>
+    </div>
+
+    <div id="emailManageDialog" class="account-overlay" role="dialog" aria-modal="true" aria-labelledby="emailManageTitle" hidden>
+      <div class="account-card compact-account-card"><div class="profile-heading"><div><span class="account-eyebrow">邮箱登录</span><h2 id="emailManageTitle">绑定邮箱</h2></div><button id="closeEmailManageButton" class="icon-button" type="button" aria-label="关闭邮箱设置"><i data-lucide="x" aria-hidden="true"></i></button></div><p id="emailManageDescription" class="modal-description">验证后可通过魔法链接登录。</p><form id="emailBindForm" class="modal-form" novalidate><label for="profileEmailInput">新邮箱</label><input id="profileEmailInput" type="email" inputmode="email" autocomplete="email" maxlength="254" placeholder="name@example.com" aria-describedby="emailManageError"><label id="emailRecoveryLabel" for="emailRecoveryCode" hidden>恢复码</label><input id="emailRecoveryCode" autocomplete="one-time-code" placeholder="输入恢复码确认更换" hidden><p id="emailManageError" class="account-error" role="alert" hidden></p><p id="emailManageStatus" class="field-hint" role="status" aria-live="polite"></p><div class="account-dialog-actions"><button id="removeEmailButton" class="danger-text" type="button" hidden>解绑当前邮箱</button><button id="cancelEmailManageButton" type="button">取消</button><button id="bindEmailButton" class="primary" type="submit"><span>发送验证链接</span></button></div></form></div>
+    </div>
+
+    <div id="deleteAccountDialog" class="account-overlay" role="alertdialog" aria-modal="true" aria-labelledby="deleteAccountDialogTitle" hidden>
+      <div class="account-card compact-account-card"><div class="account-card-heading"><span class="account-card-icon danger"><i data-lucide="triangle-alert" aria-hidden="true"></i></span><h2 id="deleteAccountDialogTitle">永久删除账号？</h2><p>这会删除账号及全部画布，且无法恢复。请输入账号 ID 和恢复码确认。</p></div><form id="deleteAccountForm" class="modal-form" autocomplete="off" novalidate><label for="deleteAccountId">账号 ID</label><input id="deleteAccountId" name="account-id-confirmation" autocomplete="one-time-code" autocapitalize="characters" spellcheck="false" placeholder="输入完整账号 ID"><label for="deleteAccountRecoveryCode">恢复码</label><input id="deleteAccountRecoveryCode" name="recovery-code-confirmation" autocomplete="one-time-code" autocapitalize="characters" spellcheck="false" placeholder="输入恢复码"><p id="deleteAccountError" class="account-error" role="alert" hidden></p><div class="account-dialog-actions"><button id="cancelDeleteAccountButton" type="button">取消</button><button id="confirmDeleteAccountButton" class="danger" type="submit">永久删除账号</button></div></form></div>
+    </div>
+
+    <div id="sessionConfirmDialog" class="account-overlay" role="alertdialog" aria-modal="true" aria-labelledby="sessionConfirmTitle" aria-describedby="sessionConfirmDescription" hidden>
+      <div class="account-card confirm-member-card"><span class="account-card-icon warning"><i data-lucide="log-out" aria-hidden="true"></i></span><div class="account-card-heading"><h2 id="sessionConfirmTitle">确认退出会话？</h2><p id="sessionConfirmDescription"></p></div><p id="sessionConfirmError" class="account-error" role="alert" hidden></p><div class="account-dialog-actions"><button id="cancelSessionConfirmButton" type="button">取消</button><button id="confirmSessionButton" class="danger" type="button">确认退出</button></div></div>
+    </div>
+
+    <div id="recentAuthDialog" class="account-overlay" role="dialog" aria-modal="true" aria-labelledby="recentAuthTitle" aria-describedby="recentAuthDescription" hidden>
+      <div class="account-card compact-account-card recent-auth-card"><span class="account-card-icon warning"><i data-lucide="shield-check" aria-hidden="true"></i></span><div class="account-card-heading"><span class="account-eyebrow">安全确认</span><h2 id="recentAuthTitle">确认是你本人</h2><p id="recentAuthDescription">此操作会新增登录方式，请输入恢复码继续。</p></div><form id="recentAuthForm" class="modal-form" autocomplete="off" novalidate><label for="recentAuthRecoveryCode">恢复码</label><input id="recentAuthRecoveryCode" name="recent-auth-recovery-code" autocomplete="one-time-code" autocapitalize="characters" spellcheck="false" placeholder="输入恢复码"><p id="recentAuthError" class="account-error" role="alert" hidden></p><div class="account-dialog-actions"><button id="cancelRecentAuthButton" type="button">取消</button><button id="confirmRecentAuthButton" class="primary" type="submit">确认并继续</button></div></form></div>
+    </div>
+
+    <div id="sharingConfirmDialog" class="account-overlay" role="alertdialog" aria-modal="true" aria-labelledby="sharingConfirmTitle" aria-describedby="sharingConfirmDescription sharingConfirmImpact" hidden>
+      <div class="account-card confirm-member-card"><div id="sharingConfirmAvatar" class="account-avatar large"></div><div class="account-card-heading"><h2 id="sharingConfirmTitle">取消与该成员共享？</h2><p id="sharingConfirmDescription"></p></div><p id="sharingConfirmImpact">对方拥有的画布会随对方离开，你也将无法继续访问这些画布。此操作不会删除任何人的画布内容。</p><div class="account-dialog-actions"><button id="cancelSharingRemovalButton" type="button">返回</button><button id="confirmSharingRemovalButton" class="danger" type="button">确认取消共享</button></div></div>
+    </div>
+
+    <div id="guestImportDialog" class="account-overlay" role="dialog" aria-modal="true" aria-labelledby="guestImportTitle" hidden>
+      <div class="account-card"><div class="account-card-heading"><span class="account-eyebrow">游客数据</span><h2 id="guestImportTitle">导入本浏览器的画布？</h2><p>选中的画布将以私密画布导入账号，成功后才会删除游客副本。</p></div><div id="guestImportList" class="guest-import-list"></div><p id="guestImportError" class="account-error" role="alert" hidden></p><div class="account-dialog-actions"><button id="skipGuestImportButton" type="button">暂不导入</button><button id="confirmGuestImportButton" class="primary" type="button">导入所选画布</button></div></div>
+    </div>
+
+    <template id="selectionTemplate">
+      <div class="selection-frame" aria-hidden="true">
+        <span class="handle handle-n" data-handle="n"></span>
+        <span class="handle handle-e" data-handle="e"></span>
+        <span class="handle handle-s" data-handle="s"></span>
+        <span class="handle handle-w" data-handle="w"></span>
+        <span class="handle handle-nw" data-handle="nw"></span>
+        <span class="handle handle-ne" data-handle="ne"></span>
+        <span class="handle handle-sw" data-handle="sw"></span>
+        <span class="handle handle-se" data-handle="se"></span>
+        <span class="rotate-handle" data-handle="rotate"></span>
+      </div>
+    </template>
+
+    <dialog id="syncIssueDialog" aria-labelledby="syncIssueTitle">
+      <h2 id="syncIssueTitle">同步问题</h2>
+      <p id="syncIssueDescription"></p>
+      <p>未同步的修改会保存在本机。可导出副本，或在问题解决后重试。</p>
+      <button id="exportSyncDraftButton" type="button">导出副本</button>
+      <button id="retrySyncDraftButton" type="button">重试同步</button>
+      <form method="dialog"><button type="submit">关闭</button></form>
+    </dialog>
+    <script src="vendor/perfect-freehand.min.js" defer></script>
+    <script src="vendor/icons.min.js" defer></script>
+    <script src="vendor/web-office-sdk-solution-v2.0.7.umd.js" defer></script>
+    <script src="vendor/simplewebauthn-browser.min.js" defer></script>
+    <script src="vendor/gsap.min.js" defer></script>
+    <script src="mindmap-layout.js" defer></script>
+    <script src="connector-core.js" defer></script>
+    <script src="notes-workspace.js" defer></script>
+    <script src="planning.js" defer></script>
+    <script src="sync-queue.js" defer></script>
+    <script src="history.js" defer></script>
+    <script src="storage.js" defer></script>
+    <script src="brush-engine.js" defer></script>
+    <script src="brush-preview.js" defer></script>
+    <script src="spatial-index.js" defer></script>
+    <script src="mindmap-markdown.js" defer></script>
+    <script src="canvas-interaction.js" defer></script>
+    <script src="ui-effects.js" defer></script>
+    <script src="account-channel.js" defer></script>
+    <script src="account.js" defer></script>
+    <script src="connector-router.js" defer></script>
+    <script src="font-families.js" defer></script>
+    <script src="sheet-protocol.js" defer></script>
+    <script src="sheet-formula.js" defer></script>
+    <script src="sheet-core.js" defer></script>
+    <script src="sheet-view.js" defer></script>
+    <script src="sheet-editor.js" defer></script>
+    <script src="toolbar-pet.js" defer></script>
+    <script src="app.js" defer></script>
+  </body>
+</html>

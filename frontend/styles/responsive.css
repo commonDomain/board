@@ -1,0 +1,661 @@
+.tool-button:focus-visible,
+.action-button:focus-visible,
+.dock-collapse-button:focus-visible,
+.dock-expand-button:focus-visible,
+.brush-choice:focus-visible,
+.shape-choice:focus-visible,
+.color-swatch:focus-visible,
+.context-btn:focus-visible,
+.mindmap-choice:focus-visible,
+.background-choice:focus-visible,
+.sticker-choice:focus-visible,
+.layer-eye:focus-visible,
+.layer-lock:focus-visible,
+.panel-icon-button:focus-visible,
+.context-menu button:focus-visible {
+  outline: 3px solid rgba(105, 87, 245, 0.36);
+  outline-offset: 2px;
+}
+
+.export-preview {
+  position: fixed;
+  z-index: 600;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: max(16px, var(--safe-top)) max(16px, var(--safe-right)) max(16px, var(--safe-bottom))
+    max(16px, var(--safe-left));
+  background: rgba(14, 18, 28, 0.62);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+.export-preview-card {
+  display: grid;
+  width: min(560px, 100%);
+  max-height: calc(var(--viewport-height, 100dvh) - var(--safe-top) - var(--safe-bottom) - 32px);
+  gap: 14px;
+  padding: 16px;
+  overflow: auto;
+  border: 1px solid rgba(255, 255, 255, 0.74);
+  border-radius: 22px;
+  background: rgba(250, 251, 253, 0.94);
+  box-shadow: var(--shadow-lg);
+}
+
+.export-preview-heading {
+  display: grid;
+  gap: 3px;
+}
+
+.export-preview-heading strong {
+  font-size: 16px;
+}
+
+.export-preview-heading span {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.export-preview-image {
+  display: block;
+  max-width: 100%;
+  max-height: min(62dvh, 660px);
+  justify-self: center;
+  border-radius: 14px;
+  box-shadow: var(--shadow-sm);
+  object-fit: contain;
+  -webkit-touch-callout: default;
+  user-select: auto;
+}
+
+.export-preview-close {
+  min-height: 46px;
+  border: 0;
+  border-radius: 13px;
+  background: var(--accent);
+  color: #fff;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+@media (max-width: 1080px) and (min-width: 761px) {
+  .save-state,
+  .toolbar-actions .compact-label {
+    display: none;
+  }
+
+  .toolbar-actions .action-button {
+    padding: 0 10px;
+  }
+
+  .new-canvas-button span {
+    display: none;
+  }
+
+  .new-canvas-button {
+    width: 42px;
+    padding: 0;
+  }
+}
+
+@media (max-height: 690px) and (min-width: 761px) {
+  .tool-dock {
+    width: 116px;
+    padding: 8px;
+  }
+
+  .tool-button {
+    min-height: 46px;
+  }
+
+  .tool-popover {
+    left: calc(max(16px, var(--safe-left)) + 130px) !important;
+  }
+}
+
+@media (max-width: 1100px), (max-height: 500px) and (orientation: landscape) {
+  .document-bar {
+    top: max(7px, var(--safe-top));
+    right: max(8px, var(--safe-right));
+    left: max(8px, var(--safe-left));
+    width: auto;
+    max-width: none;
+    min-height: 104px;
+    flex-wrap: wrap;
+    gap: 5px;
+    padding: 5px;
+    border-radius: 17px;
+  }
+
+  .canvas-controls {
+    width: 100%;
+    flex: 1 0 100%;
+  }
+
+  .canvas-switcher-button {
+    max-width: none;
+    flex: 1 1 auto;
+  }
+
+  .new-canvas-button {
+    flex: 0 0 auto;
+  }
+
+  .canvas-menu {
+    right: max(8px, var(--safe-right));
+    left: max(8px, var(--safe-left));
+    width: auto;
+  }
+
+  .canvas-list-item {
+    min-height: 52px;
+  }
+
+  .canvas-preview-card {
+    right: max(8px, var(--safe-right));
+    left: max(8px, var(--safe-left));
+    width: auto;
+  }
+
+  .connection-chip > span:not(.status-dot),
+  .save-state,
+  .toolbar-actions .button-label,
+  .action-divider {
+    display: none;
+  }
+
+  .status {
+    height: 42px;
+    flex: 0 0 auto;
+    gap: 1px;
+    margin-left: 0;
+    padding: 3px;
+  }
+
+  .connection-chip,
+  .presence-chip {
+    min-width: 34px;
+    height: 34px;
+    justify-content: center;
+    padding: 0 7px;
+  }
+
+  .presence-chip {
+    gap: 4px;
+    font-size: 10px;
+  }
+
+  .toolbar-actions {
+    min-height: 44px;
+    gap: 2px;
+  }
+
+  .toolbar-actions .action-button {
+    width: 44px;
+    min-width: 44px;
+    height: 44px;
+    padding: 0;
+  }
+
+  .toolbar-actions .action-button svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  .tool-dock {
+    top: auto;
+    right: max(8px, var(--safe-right));
+    bottom: max(8px, var(--safe-bottom));
+    left: max(8px, var(--safe-left));
+    display: flex;
+    width: auto;
+    height: 68px;
+    flex-direction: row;
+    align-items: center;
+    gap: 5px;
+    padding: 7px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    border-radius: 21px;
+    scroll-snap-type: x proximity;
+  }
+
+  .dock-collapse-button,
+  .dock-expand-button {
+    display: none;
+  }
+
+  .dock-section-label {
+    display: none;
+  }
+
+  .dock-group {
+    display: flex;
+    width: max-content;
+    flex: 0 0 auto;
+    gap: 4px;
+  }
+
+  .dock-divider {
+    width: 1px;
+    height: 38px;
+    flex: 0 0 auto;
+    margin: 0 2px;
+  }
+
+  .tool-button {
+    width: 52px;
+    min-width: 52px;
+    min-height: 52px;
+    flex: 0 0 52px;
+    scroll-snap-align: center;
+  }
+
+  .tool-button .tool-chevron {
+    top: 5px;
+    right: 4px;
+  }
+
+  .tool-popover {
+    top: auto !important;
+    right: max(8px, var(--safe-right)) !important;
+    bottom: calc(max(8px, var(--safe-bottom)) + 76px) !important;
+    left: max(8px, var(--safe-left)) !important;
+    width: auto;
+    max-width: none;
+    max-height: min(68dvh, calc(100dvh - max(152px, var(--safe-top) + var(--safe-bottom) + 126px)));
+    border-radius: 22px;
+    transform: none;
+  }
+
+  @keyframes sheet-in {
+    from {
+      opacity: 0;
+      transform: translateY(16px) scale(0.99);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+
+  .brush-menu,
+  .layer-menu,
+  .shape-menu,
+  .select-menu,
+  .text-menu,
+  .mindmap-menu,
+  .background-menu,
+  .sticker-menu {
+    width: auto;
+    max-width: none;
+  }
+
+  .brush-menu {
+    padding: 8px;
+  }
+
+  .brush-choice {
+    min-height: 52px;
+    grid-template-columns: 64px minmax(0, 1fr);
+  }
+
+  .canvas-start {
+    padding: 132px 18px 96px;
+  }
+
+  .canvas-start-card {
+    gap: 14px;
+    padding: 22px 18px 18px;
+    border-radius: 20px;
+  }
+
+  .canvas-start-actions {
+    grid-template-columns: 1fr;
+  }
+  .canvas-start-action {
+    min-height: 46px;
+  }
+  .canvas-start-shortcuts {
+    display: none;
+  }
+
+  .color-palette {
+    grid-template-columns: repeat(10, minmax(18px, 1fr));
+  }
+
+  .color-swatch {
+    width: 22px;
+    height: 22px;
+  }
+
+  .studio-row {
+    grid-template-columns: 66px 42px minmax(90px, 1fr);
+  }
+
+  .layer-row {
+    min-height: 102px;
+    grid-template-columns: 44px 44px minmax(0, 1fr);
+    gap: 7px;
+  }
+
+  .layer-eye,
+  .layer-lock {
+    width: 44px;
+    height: 44px;
+  }
+
+  .layer-name {
+    height: 44px;
+  }
+
+  .layer-row input[type='range'] {
+    grid-column: 1 / 3;
+  }
+
+  .layer-blend {
+    min-height: 44px;
+    grid-column: 3;
+  }
+
+  .layer-controls {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+  }
+
+  .layer-controls .context-btn,
+  .context-btn {
+    min-height: 44px;
+  }
+
+  .shape-menu {
+    grid-template-columns: repeat(6, 1fr);
+  }
+
+  .shape-choice {
+    min-height: 48px;
+  }
+
+  .background-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .sticker-menu,
+  .sticker-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .sticker-search,
+  .sticker-category,
+  .sticker-filter,
+  .sticker-choice,
+  .mindmap-choice,
+  .background-choice {
+    min-height: 44px;
+  }
+
+  .mind-action {
+    width: 44px;
+    height: 44px;
+    border-radius: 10px;
+  }
+
+  .context-panel {
+    top: auto;
+    right: max(8px, var(--safe-right));
+    bottom: calc(max(8px, var(--safe-bottom)) + 76px);
+    left: max(8px, var(--safe-left));
+    width: auto;
+    max-height: min(46dvh, 390px);
+    border-radius: 20px;
+    animation: sheet-in 200ms ease-out;
+  }
+
+  .viewport.drag-over::after {
+    inset: 70px 12px 86px;
+  }
+
+  .toast {
+    right: max(10px, var(--safe-right));
+    bottom: calc(max(8px, var(--safe-bottom)) + 78px);
+    left: max(10px, var(--safe-left));
+    max-width: none;
+    text-align: center;
+  }
+
+  .handle,
+  .rotate-handle {
+    width: 16px;
+    height: 16px;
+  }
+
+  .handle-nw {
+    top: -9px;
+    left: -9px;
+  }
+  .handle-n {
+    top: -9px;
+  }
+  .handle-ne {
+    top: -9px;
+    right: -9px;
+  }
+  .handle-e {
+    right: -9px;
+  }
+  .handle-sw {
+    bottom: -9px;
+    left: -9px;
+  }
+  .handle-s {
+    bottom: -9px;
+  }
+  .handle-se {
+    right: -9px;
+    bottom: -9px;
+  }
+  .handle-w {
+    left: -9px;
+  }
+  .text-item .handle-n,
+  .text-item .handle-s {
+    right: 10px;
+    left: 10px;
+    width: auto;
+  }
+  .text-item .handle-e,
+  .text-item .handle-w {
+    top: 10px;
+    bottom: 10px;
+    height: auto;
+  }
+  .rotate-handle {
+    top: -40px;
+  }
+}
+
+@media (max-width: 760px), (max-height: 500px) and (orientation: landscape) {
+  .canvas-view-controls {
+    right: max(8px, var(--safe-right));
+    bottom: calc(max(8px, var(--safe-bottom)) + 76px);
+    gap: 6px;
+  }
+
+  .canvas-zoom-controls {
+    height: 40px;
+    grid-template-columns: 40px 116px 40px;
+    border-radius: 999px;
+  }
+
+  .canvas-fit-view {
+    width: 40px;
+    height: 40px;
+  }
+
+  .canvas-view-button {
+    min-width: 44px;
+    height: 44px;
+    padding: 0 11px;
+    border-radius: 14px;
+  }
+
+  .canvas-background-button {
+    width: 44px;
+    min-width: 44px;
+  }
+
+  .canvas-background-button span {
+    display: none;
+  }
+}
+
+@media (max-width: 440px) {
+  .status {
+    display: none;
+  }
+
+  .toolbar-actions {
+    margin-left: auto;
+  }
+
+  .toolbar-actions #saveButton {
+    background: var(--accent);
+    color: #fff;
+  }
+
+  .new-canvas-button span {
+    display: none;
+  }
+
+  .new-canvas-button {
+    width: 42px;
+    padding: 0;
+  }
+
+  .shape-menu {
+    grid-template-columns: repeat(4, 1fr);
+  }
+
+  .background-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .sticker-menu,
+  .sticker-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .studio-global {
+    flex-wrap: wrap;
+  }
+
+  .studio-select-label {
+    margin-left: 0;
+  }
+
+  .studio-row {
+    grid-template-columns: 60px 40px minmax(70px, 1fr);
+  }
+
+  .studio-presets {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .studio-presets .studio-select {
+    grid-column: 1 / -1;
+  }
+
+  .canvas-start-copy h2 {
+    font-size: 20px;
+  }
+  .canvas-start-copy p {
+    font-size: 12px;
+  }
+}
+
+@media (max-width: 1024px) and (max-height: 500px) and (orientation: landscape) {
+  .document-bar {
+    min-height: 58px;
+    flex-wrap: nowrap;
+  }
+
+  .canvas-controls {
+    width: auto;
+    flex: 1 1 auto;
+  }
+
+  .canvas-switcher-button {
+    min-width: 112px;
+  }
+
+  .new-canvas-button span,
+  .status {
+    display: none;
+  }
+
+  .tool-dock {
+    height: 62px;
+  }
+
+  .tool-button {
+    min-height: 48px;
+  }
+
+  .tool-popover,
+  .context-panel {
+    bottom: calc(max(7px, var(--safe-bottom)) + 69px) !important;
+    max-height: calc(100dvh - var(--safe-top) - var(--safe-bottom) - 132px);
+  }
+
+  .brush-menu,
+  .layer-menu,
+  .sticker-menu {
+    right: auto !important;
+    width: min(440px, calc(100vw - var(--safe-left) - var(--safe-right) - 16px));
+  }
+
+  .canvas-start {
+    padding-top: 72px;
+    padding-bottom: 78px;
+  }
+
+  .canvas-start-card {
+    width: min(420px, 100%);
+    grid-template-columns: auto minmax(0, 1fr);
+    justify-items: start;
+    gap: 10px 14px;
+    padding: 16px;
+    text-align: left;
+  }
+
+  .canvas-start-copy {
+    align-self: center;
+  }
+  .canvas-start-actions {
+    grid-column: 1 / -1;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .canvas-start-shortcuts {
+    display: none;
+  }
+}
+
+@supports not ((backdrop-filter: blur(2px)) or (-webkit-backdrop-filter: blur(2px))) {
+  .document-bar,
+  .tool-popover,
+  .context-panel,
+  .context-menu {
+    background: rgba(250, 251, 253, 0.98);
+  }
+
+  .tool-dock {
+    background: rgba(20, 23, 31, 0.98);
+  }
+}
+
+.effects-page-hidden .muse-beam::before,
+.effects-page-hidden .muse-beam::after,
+.effects-page-hidden .muse-beam-line::after {
+  animation-play-state: paused !important;
+}

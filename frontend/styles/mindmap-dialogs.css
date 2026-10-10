@@ -1,0 +1,667 @@
+.canvas-zoom-controls button:active,
+.canvas-fit-view:active,
+.canvas-view-button:active {
+  transform: scale(0.94);
+}
+
+.canvas-zoom-controls svg,
+.canvas-fit-view svg,
+.canvas-view-button svg {
+  width: 18px;
+  height: 18px;
+  stroke-width: 2;
+}
+
+.zoom-slider-control {
+  display: flex;
+  min-width: 0;
+  height: 100%;
+  align-items: center;
+  gap: 7px;
+  padding: 0 9px;
+  border: solid rgba(105, 87, 245, 0.1);
+  border-width: 0 1px;
+  background: linear-gradient(145deg, rgba(124, 102, 255, 0.09), rgba(255, 255, 255, 0.25));
+  color: #253149;
+  cursor: pointer;
+}
+.zoom-slider-control input {
+  width: 100%;
+  min-width: 0;
+  height: 18px;
+  margin: 0;
+  appearance: none;
+  background: transparent;
+  cursor: pointer;
+}
+.zoom-slider-control input::-webkit-slider-runnable-track {
+  height: 5px;
+  border-radius: 999px;
+  background: linear-gradient(
+    to right,
+    #6957f5 var(--zoom-slider-progress, 50%),
+    rgba(105, 87, 245, 0.18) var(--zoom-slider-progress, 50%)
+  );
+}
+.zoom-slider-control input::-moz-range-track {
+  height: 5px;
+  border-radius: 999px;
+  background: rgba(105, 87, 245, 0.18);
+}
+.zoom-slider-control input::-moz-range-progress {
+  height: 5px;
+  border-radius: 999px;
+  background: #6957f5;
+}
+.zoom-slider-control input::-webkit-slider-thumb {
+  width: 14px;
+  height: 14px;
+  margin-top: -4.5px;
+  appearance: none;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  background: #6957f5;
+  box-shadow: 0 1px 5px rgba(55, 45, 120, 0.28);
+}
+.zoom-slider-control input::-moz-range-thumb {
+  width: 11px;
+  height: 11px;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  background: #6957f5;
+  box-shadow: 0 1px 5px rgba(55, 45, 120, 0.28);
+}
+.zoom-slider-control input:focus-visible {
+  outline: 2px solid #6957f5;
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+.zoom-slider-control .zoom-percent-value {
+  flex: 0 0 38px;
+  font-size: 11px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.canvas-fit-view {
+  width: 38px;
+  height: 38px;
+  padding: 0;
+  border-radius: 12px;
+  background: var(--canvas-control-glass);
+}
+
+.canvas-fit-view:hover {
+  color: var(--accent-strong);
+  box-shadow:
+    0 11px 30px rgba(32, 39, 56, 0.13),
+    0 1px 0 rgba(255, 255, 255, 0.94) inset;
+  transform: translateY(-1px);
+}
+
+.canvas-view-button {
+  height: 48px;
+  min-width: 52px;
+  padding: 0 14px;
+  gap: 8px;
+  border-radius: 16px;
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.canvas-background-button {
+  width: 100px;
+}
+.canvas-view-button.is-unavailable {
+  opacity: 0.48;
+}
+
+.canvas-zoom-controls button:focus-visible,
+.canvas-fit-view:focus-visible,
+.canvas-view-button:focus-visible {
+  outline: 3px solid rgba(105, 87, 245, 0.36);
+  outline-offset: 2px;
+}
+
+.mindmap-menu {
+  width: 318px;
+  padding: 6px;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.mindmap-menu .popover-choice-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  padding: 5px 6px 7px;
+}
+
+.mindmap-choice {
+  display: flex;
+  min-height: 44px;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  background: rgba(255, 255, 255, 0.76);
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 650;
+  text-align: left;
+  transition:
+    border-color 150ms ease,
+    background 150ms ease,
+    transform 150ms ease;
+}
+
+.mindmap-choice:hover {
+  border-color: rgba(105, 87, 245, 0.25);
+  background: rgba(105, 87, 245, 0.09);
+}
+
+.mindmap-choice svg {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 auto;
+  color: var(--accent);
+}
+
+.mindmap-menu-section {
+  margin-top: 5px;
+  padding-top: 5px;
+  border-top: 1px solid rgba(60, 54, 90, 0.1);
+}
+
+.mindmap-menu-section.is-first {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: 0;
+}
+
+.mindmap-section-title {
+  display: flex;
+  min-height: 30px;
+  align-items: center;
+  gap: 8px;
+  margin: 1px 5px 2px;
+  padding: 4px 7px;
+  border: 1px solid rgba(105, 87, 245, 0.11);
+  border-radius: 9px;
+  background: linear-gradient(90deg, rgba(105, 87, 245, 0.1), rgba(133, 117, 255, 0.035));
+  color: #3f366f;
+}
+
+.mindmap-section-title > span {
+  padding: 3px 6px;
+  border-radius: 999px;
+  background: rgba(105, 87, 245, 0.1);
+  color: var(--accent-strong);
+  font-size: 9px;
+  font-weight: 760;
+  letter-spacing: 0.08em;
+}
+
+.mindmap-section-title > strong {
+  font-size: 13px;
+  font-weight: 760;
+  letter-spacing: 0.01em;
+  color: #3f366f;
+}
+
+.mindmap-connect-button {
+  display: flex;
+  width: calc(100% - 12px);
+  align-items: center;
+  gap: 9px;
+  margin: 5px 6px 6px;
+  padding: 9px 10px;
+  border: 1px solid rgba(105, 87, 245, 0.16);
+  border-radius: 13px;
+  background: linear-gradient(135deg, rgba(105, 87, 245, 0.09), rgba(255, 255, 255, 0.88));
+  color: var(--ink);
+  text-align: left;
+}
+
+.mindmap-connect-button > svg {
+  width: 17px;
+  color: var(--accent);
+}
+.mindmap-connect-button > span {
+  display: grid;
+  gap: 2px;
+}
+.mindmap-connect-button small {
+  color: var(--muted);
+  font-size: 10px;
+}
+.mindmap-connect-button[data-status='reauthorize'] {
+  border-color: rgba(230, 82, 93, 0.28);
+}
+.mindmap-connect-button[data-status='authorizing'],
+.mindmap-connect-button[data-loading='true'] {
+  cursor: progress;
+  opacity: 0.78;
+}
+
+.mindmap-disconnect-button {
+  display: flex;
+  width: calc(100% - 12px);
+  min-height: 34px;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  margin: -1px 6px 5px;
+  padding: 6px 10px;
+  border: 1px solid rgba(208, 63, 78, 0.16);
+  border-radius: 10px;
+  background: rgba(255, 248, 249, 0.82);
+  color: #a83d49;
+  font-size: 11px;
+}
+.mindmap-disconnect-button:hover {
+  border-color: rgba(208, 63, 78, 0.3);
+  background: rgba(255, 240, 242, 0.96);
+}
+.mindmap-disconnect-button svg {
+  width: 14px;
+  height: 14px;
+}
+.mindmap-disconnect-button[hidden] {
+  display: none;
+}
+
+.mindmap-import-command,
+.xmind-browser-command {
+  width: min(680px, calc(100vw - 32px));
+  max-height: min(760px, calc(100vh - 40px));
+  overflow: auto;
+}
+
+.mindmap-dialog-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px 18px 8px;
+}
+
+.mindmap-dialog-heading h2 {
+  margin: 0;
+  font-size: 20px;
+}
+.mindmap-dialog-summary {
+  margin: 0;
+  padding: 0 18px 12px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.mindmap-import-selection-actions {
+  display: flex;
+  gap: 6px;
+  padding: 0 18px 4px;
+}
+.mindmap-import-selection-actions button {
+  min-height: 34px;
+  padding: 0 11px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.62);
+  color: var(--muted-strong);
+}
+.mindmap-import-sheets,
+.xmind-recent-maps {
+  display: grid;
+  gap: 9px;
+  padding: 8px 18px 16px;
+}
+
+.mindmap-sheet-choice,
+.xmind-map-choice {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 12px;
+  min-height: 62px;
+  padding: 11px 13px;
+  border: 1px solid rgba(53, 47, 79, 0.11);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.72);
+  color: var(--ink);
+  text-align: left;
+}
+
+.mindmap-sheet-choice:hover,
+.xmind-map-choice:hover {
+  border-color: rgba(105, 87, 245, 0.35);
+  background: rgba(248, 247, 255, 0.96);
+}
+.mindmap-sheet-choice input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--accent);
+}
+.mindmap-sheet-choice span,
+.xmind-map-choice span {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+.mindmap-sheet-choice small,
+.xmind-map-choice small {
+  color: var(--muted);
+  font-size: 10px;
+}
+.mindmap-sheet-preview,
+.xmind-map-preview {
+  display: grid;
+  width: 48px;
+  height: 38px;
+  place-items: center;
+  border-radius: 10px;
+  background: rgba(105, 87, 245, 0.1);
+  color: var(--accent);
+}
+.xmind-map-preview img {
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  object-fit: cover;
+}
+.mindmap-import-warnings {
+  margin: 0 18px;
+  padding: 0 0 10px;
+  color: #8a5b20;
+  font-size: 11px;
+  line-height: 1.55;
+}
+.mindmap-dialog-actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 3;
+  display: grid;
+  grid-template-columns: minmax(112px, 0.42fr) minmax(190px, 1fr);
+  gap: 10px;
+  padding: 14px 18px 18px;
+  border-top: 1px solid rgba(53, 47, 79, 0.08);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.72), rgba(255, 255, 255, 0.97) 32%);
+  backdrop-filter: blur(18px) saturate(145%);
+}
+.mindmap-dialog-actions button {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 16px;
+  border-radius: 13px;
+  font-weight: 760;
+  transition:
+    transform 150ms ease,
+    box-shadow 180ms ease,
+    border-color 180ms ease,
+    background-color 180ms ease;
+}
+.mindmap-dialog-actions button svg {
+  width: 17px;
+  height: 17px;
+}
+.mindmap-import-cancel {
+  border: 1px solid rgba(71, 78, 96, 0.14);
+  background: rgba(247, 248, 251, 0.82);
+  color: #626b7d;
+}
+.mindmap-import-cancel:hover {
+  border-color: rgba(71, 78, 96, 0.24);
+  background: #f3f4f7;
+  transform: translateY(-1px);
+}
+.mindmap-import-confirm {
+  border: 1px solid rgba(85, 67, 218, 0.38);
+  background: linear-gradient(135deg, #7563fb, #5946e5);
+  color: #fff;
+  box-shadow: 0 10px 24px rgba(83, 65, 221, 0.22);
+}
+.mindmap-import-confirm:hover {
+  box-shadow: 0 13px 30px rgba(83, 65, 221, 0.3);
+  transform: translateY(-1px);
+}
+.mindmap-import-confirm:disabled {
+  border-color: transparent;
+  background: #d8dbe3;
+  color: #9298a5;
+  box-shadow: none;
+  cursor: not-allowed;
+  transform: none;
+}
+.xmind-heading-actions {
+  display: flex;
+  gap: 6px;
+}
+.xmind-connection-summary {
+  margin: 0 18px 7px;
+  padding: 7px 10px;
+  border: 1px solid rgba(105, 87, 245, 0.09);
+  border-radius: 9px;
+  background: rgba(105, 87, 245, 0.055);
+  color: #5748bf;
+  font-size: 10px;
+}
+.xmind-connection-actions {
+  min-height: 0;
+  padding-block: 8px 12px;
+  border-top: 0;
+}
+.xmind-connection-actions:has(button[hidden]) {
+  display: none;
+}
+.xmind-browser-command .search-input-row {
+  margin: 4px 18px 0;
+}
+.xmind-browser-command .search-status {
+  padding: 0;
+}
+
+.xmind-loading-row {
+  display: flex;
+  min-height: 36px;
+  align-items: center;
+  gap: 9px;
+  padding: 8px 18px 2px;
+}
+.xmind-loading-spinner {
+  display: inline-block;
+  width: 22px;
+  height: 22px;
+  flex: 0 0 auto;
+  border: 2.5px solid rgba(105, 87, 245, 0.16);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: xmind-loading-spin 0.75s linear infinite;
+}
+.xmind-loading-spinner[hidden] {
+  display: none;
+}
+.xmind-map-choice[data-loading='true'] {
+  opacity: 0.65;
+  cursor: progress;
+}
+
+.xmind-provider-card {
+  position: relative;
+  width: min(430px, calc(100vw - 32px));
+  padding: 24px;
+  border: 1px solid rgba(105, 87, 245, 0.14);
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.97);
+  box-shadow: 0 28px 90px rgba(38, 31, 91, 0.2);
+  text-align: center;
+}
+.xmind-provider-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+}
+.xmind-provider-icon {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  margin: 0 auto 11px;
+  place-items: center;
+  border-radius: 14px;
+  background: rgba(105, 87, 245, 0.1);
+  color: var(--accent);
+}
+.xmind-provider-icon svg {
+  width: 21px;
+  height: 21px;
+}
+.xmind-provider-card h2 {
+  margin: 0;
+  font-size: 19px;
+}
+.xmind-provider-card > p {
+  margin: 8px auto 17px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.55;
+}
+.xmind-provider-options {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.xmind-provider-options button {
+  display: grid;
+  min-height: 78px;
+  align-content: center;
+  gap: 4px;
+  padding: 12px;
+  border: 1px solid rgba(105, 87, 245, 0.16);
+  border-radius: 14px;
+  background: rgba(248, 247, 255, 0.82);
+  color: var(--ink);
+}
+.xmind-provider-options button:hover {
+  border-color: rgba(105, 87, 245, 0.42);
+  background: #f7f5ff;
+  transform: translateY(-1px);
+}
+.xmind-provider-options small {
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.mindmap-placement-loading {
+  position: fixed;
+  z-index: 1200;
+  left: 50%;
+  top: 50%;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 13px 17px;
+  border: 1px solid rgba(105, 87, 245, 0.14);
+  border-radius: 15px;
+  background: rgba(255, 255, 255, 0.94);
+  color: #40369a;
+  box-shadow: 0 18px 60px rgba(40, 35, 92, 0.18);
+  transform: translate(-50%, -50%);
+  backdrop-filter: blur(12px);
+}
+.mindmap-placement-loading[hidden] {
+  display: none;
+}
+.mindmap-placement-loading strong {
+  font-size: 12px;
+}
+
+@keyframes xmind-loading-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (max-width: 560px) {
+  .xmind-provider-options {
+    grid-template-columns: 1fr;
+  }
+  .xmind-provider-card {
+    padding: 22px 17px 17px;
+  }
+  .mindmap-dialog-actions {
+    grid-template-columns: 1fr;
+    padding: 12px 14px 14px;
+  }
+}
+
+.mindmap-source-badge {
+  position: absolute;
+  z-index: 4;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  top: 8px;
+  right: 9px;
+  padding: 3px 7px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.9);
+  color: #5748bf;
+  font-size: 9px;
+  box-shadow: 0 4px 12px rgba(42, 36, 110, 0.1);
+}
+.mindmap-source-badge svg {
+  width: 12px;
+  height: 12px;
+  opacity: 0;
+}
+.mindmap-source-badge[data-loading='true'] {
+  cursor: wait;
+}
+.mindmap-source-badge[data-loading='true'] svg {
+  opacity: 1;
+  animation: xmind-loading-spin 0.75s linear infinite;
+}
+.mindmap-source-badge[hidden] {
+  display: none;
+}
+
+.mindmap-card[data-sync-state='pending'] .mindmap-source-badge::after {
+  content: ' · 待同步';
+  color: #9a6422;
+}
+.mindmap-card[data-sync-state='remote-changed'] .mindmap-source-badge::after {
+  content: ' · 有更新';
+  color: #2563eb;
+}
+.mindmap-card[data-sync-state='reauthorize'] .mindmap-source-badge::after {
+  content: ' · 需授权';
+  color: #b83d49;
+}
+
+.mind-node-style-controls {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.mind-node-style-controls label {
+  display: grid;
+  gap: 4px;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.mind-node-style-controls input[type='color'] {
+  width: 100%;
+  height: 28px;
+  padding: 2px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--panel);
+}

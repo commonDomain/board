@@ -1,0 +1,13 @@
+Museboard
+Copyright 2026 pengyiming
+
+Original Museboard code and documentation are licensed under the Apache
+License, Version 2.0. See LICENSE for the license text.
+
+Third-party components and assets retain their respective licenses and
+copyright notices. This project's Apache-2.0 license does not replace
+those terms. See the notices included with the relevant dependencies,
+public/vendor/*.LICENSE.txt, public/backgrounds/README.md, and
+THIRD_PARTY_NOTICES.md.
+
+GSAP is provided under its own Standard License.

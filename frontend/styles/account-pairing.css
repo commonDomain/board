@@ -1,0 +1,172 @@
+.pairing-card {
+  width: min(420px, 100%);
+  text-align: center;
+}
+
+.pairing-qr-frame {
+  width: 264px;
+  height: 264px;
+  display: grid;
+  place-items: center;
+  justify-self: center;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 22px;
+  background: #fff;
+  box-shadow: 0 12px 34px rgba(34, 29, 65, 0.1);
+}
+
+.pairing-qr-frame img {
+  width: 240px;
+  height: 240px;
+  display: block;
+  border-radius: 10px;
+}
+
+.pairing-code {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.pairing-code strong {
+  color: var(--text);
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 18px;
+  letter-spacing: 0.16em;
+}
+
+.pairing-status {
+  min-height: 20px;
+  margin: 0;
+  color: var(--muted-strong);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.pairing-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.pairing-actions button {
+  min-height: 44px;
+}
+
+.account-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 9px;
+}
+
+.account-dialog-actions button {
+  min-width: 102px;
+  padding: 0 13px;
+}
+
+.recovery-kit {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+}
+
+.recovery-kit > div {
+  display: grid;
+  grid-template-columns: 110px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  background: var(--surface-muted);
+}
+
+.recovery-kit dt {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.recovery-kit dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-weight: 800;
+}
+
+.recovery-warning {
+  display: flex;
+  gap: 8px;
+  margin: 0;
+  padding: 11px;
+  border-radius: 11px;
+  background: rgba(230, 166, 54, 0.12);
+  color: #875d0d;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.recovery-warning svg {
+  width: 18px;
+  flex: 0 0 auto;
+}
+
+.recovery-kit-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.recovery-ack {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  line-height: 1.45;
+  cursor: pointer;
+}
+
+.recovery-ack input {
+  width: 18px;
+  height: 18px;
+  margin: 1px 0 0;
+  accent-color: var(--accent);
+}
+
+.profile-card {
+  width: min(660px, 100%);
+  max-height: min(820px, calc(100dvh - 32px));
+  padding-top: 0;
+  overflow: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.profile-card::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
+}
+
+.profile-card > .profile-heading {
+  position: sticky;
+  z-index: 20;
+  top: 0;
+  padding: 24px 0 14px;
+  border-bottom: 1px solid rgba(215, 219, 229, 0.72);
+  background: rgba(250, 251, 254, 0.88);
+  backdrop-filter: blur(22px) saturate(150%);
+  -webkit-backdrop-filter: blur(22px) saturate(150%);
+}
+
+.credential-badge {
+  flex: 0 0 auto;
+  padding: 5px 8px;
+  border-radius: 999px;
+  background: rgba(35, 178, 109, 0.12);
+  color: #19824f;
+  font-size: 11px;
+  font-weight: 800;
+}

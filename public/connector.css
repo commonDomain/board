@@ -1,0 +1,69 @@
+/* Connection hit testing belongs to the path, never to its rectangular wrapper. */
+.board-item.connector-item { pointer-events: none !important; z-index: 0 !important; overflow: visible; }
+.connector-item .selection-frame { display: none !important; }
+.connector-item .connection-svg { overflow: visible; width: 100%; height: 100%; pointer-events: none; }
+.connection-line { pointer-events: none; }
+.connection-hit { pointer-events: stroke; cursor: pointer; }
+.connection-label { pointer-events: all; cursor: grab; }
+.connection-label { filter: drop-shadow(0 5px 12px rgba(82,74,150,.17)); }
+.connection-label rect { fill: #f7f6ff; fill-opacity: .96; stroke: #b8b2f4; stroke-width: 1.2; }
+.connection-label-tail { fill: #f7f6ff; stroke: #b8b2f4; stroke-width: 1.2; stroke-linejoin: round; }
+.connection-label-spark { fill: #68d9ba; }
+.connection-label text { fill: #34456a; font: 600 18px system-ui, sans-serif; user-select: none; }
+.connection-warning { fill: #b7791f; font: 16px system-ui, sans-serif; pointer-events: none; }
+.viewport:not([data-tool="select"]):not([data-tool="pan"]):not([data-tool="connector"]) .connection-hit,
+.viewport:not([data-tool="select"]):not([data-tool="pan"]) .connection-label,
+.board:has(.board-item.editing) .connection-hit,
+.board:has(.board-item.editing) .connection-label { pointer-events: none; }
+.connection-controls { position: absolute; left: 0; top: 0; width: 0; height: 0; overflow: visible; z-index: 999999; pointer-events: none; }
+.connection-internal-layer { position: absolute; left: 0; top: 0; width: 1px; height: 1px; overflow: visible; z-index: 999998; pointer-events: none; }
+.connection-preview { position: absolute; left: 0; top: 0; width: 1px; height: 1px; overflow: visible; pointer-events: none; }
+.connection-handle { position: absolute; width: 28px; height: 28px; border: 0; padding: 0; border-radius: 50%; background: transparent; pointer-events: auto; touch-action: none; cursor: crosshair; }
+.connection-handle::after { content: ''; position: absolute; width: 9px; height: 9px; left: 50%; top: 50%; transform: translate(-50%,-50%); border-radius: 50%; background: #fff; border: 1.5px solid var(--accent); }
+.connection-handle:hover::after,.connection-handle:focus-visible::after { background: var(--accent); }
+.connection-handle:focus-visible { outline: 2px solid var(--accent); }
+.connection-target { position: absolute; outline: 1.5px solid var(--accent); border-radius: 6px; background: var(--accent-soft); pointer-events: none; }
+.connection-toolbar,.connection-text-toolbar { position: fixed; display: flex; align-items: center; gap: 5px; z-index: 12000; padding: 7px; border: 1px solid var(--glass-edge,rgba(255,255,255,.7)); border-radius: 14px; background: var(--glass-light,rgba(255,255,255,.78)); box-shadow: 0 10px 30px rgba(15,23,42,.15); backdrop-filter: var(--glass-filter,blur(26px) saturate(150%)); -webkit-backdrop-filter: var(--glass-filter,blur(26px) saturate(150%)); color: #334155; font: 13px system-ui,sans-serif; }
+.connection-toolbar { bottom: 88px; left: 50%; transform: translateX(-50%); max-width: calc(100vw - 24px); flex-wrap: wrap; }
+.connection-toolbar[hidden],.connection-text-toolbar[hidden],.connection-target-badge[hidden] { display: none !important; }
+.connection-toolbar button,.connection-toolbar select,.connection-text-toolbar button,.connection-relations button { min-height: 32px; border: 0; border-radius: 9px; background: transparent; padding: 5px 8px; color: inherit; font: inherit; cursor: pointer; }
+.connection-toolbar select { border: 1px solid rgba(160,169,193,.35); background: rgba(255,255,255,.52); color-scheme: light; }
+.connection-toolbar button:hover,.connection-text-toolbar button:hover,.connection-relations button:hover { background: var(--accent-soft); color: var(--accent); }
+.connection-toolbar input[type="color"] { width: 30px; height: 30px; padding: 1px; border: 0; background: transparent; }
+.connection-toolbar summary { cursor: pointer; padding: 6px; }
+.connection-more { position: absolute; bottom: calc(100% + 8px); right: 0; width: min(248px,calc(100vw - 24px)); max-height: min(64vh,500px); overflow: visible; border: 1px solid var(--glass-edge,rgba(255,255,255,.7)); border-radius: 14px; background: var(--glass-light,rgba(255,255,255,.78)); box-shadow: 0 12px 34px #0f172a24; backdrop-filter: var(--glass-filter,blur(26px) saturate(150%)); -webkit-backdrop-filter: var(--glass-filter,blur(26px) saturate(150%)); padding: 7px; }
+.connection-toolbar:not(.connection-create-mode) .connection-more { right: 120px; }
+.connection-menu-index { display: grid; gap: 4px; }
+.connection-menu-title { display: flex; justify-content: space-between; align-items: center; padding: 8px 10px 10px; color: #334155; font-weight: 700; }
+.connection-menu-title span { color: #77839b; font-size: 11px; font-weight: 500; }
+.connection-toolbar .connection-menu-entry { position: relative; display: block; width: 100%; text-align: left; padding: 10px 30px 10px 10px; font-weight: 600; }
+.connection-menu-entry::after { content: '›'; position: absolute; right: 11px; color: #7d86a4; font-size: 20px; line-height: 14px; }
+.connection-more[data-page] .connection-menu-entry { color: #435177; }
+.connection-menu-side { position: absolute; bottom: 0; left: calc(100% + 9px); width: min(320px,calc(100vw - 24px)); max-height: min(64vh,500px); overflow-y: auto; overscroll-behavior: contain; border: 1px solid var(--glass-edge,rgba(255,255,255,.7)); border-radius: 14px; background: var(--glass-light,rgba(255,255,255,.78)); box-shadow: 0 12px 34px #0f172a24; backdrop-filter: var(--glass-filter,blur(26px) saturate(150%)); -webkit-backdrop-filter: var(--glass-filter,blur(26px) saturate(150%)); padding: 7px; }
+.connection-menu-side[hidden] { display: none !important; }
+.connection-menu-heading { position: sticky; top: -7px; z-index: 1; display: flex; align-items: center; gap: 8px; padding: 6px 5px 9px; border-bottom: 1px solid rgba(145,155,184,.22); background: var(--glass-light,rgba(255,255,255,.85)); backdrop-filter: var(--glass-filter,blur(26px) saturate(150%)); font-weight: 700; }
+.connection-toolbar .connection-menu-back { width: auto; min-height: 30px; color: #6056c4; font-size: 12px; }
+.connection-menu-section-content { display: grid; gap: 3px; padding: 5px 3px 4px; }
+.connection-more button { width: 100%; text-align: left; padding: 8px 9px; }
+.connection-more button small,.connection-menu-field small { display: block; margin-top: 3px; color: #64748b; font-size: 11px; line-height: 1.35; font-weight: 400; }
+.connection-more button:disabled { opacity: .45; cursor: not-allowed; }
+.connection-more button:disabled:hover { background: transparent; color: inherit; }
+.connection-menu-field { display: grid; gap: 4px; padding: 7px 9px; font-weight: 600; }
+.connection-menu-field select { width: 100%; min-height: 34px; padding: 4px 8px; border: 1px solid rgba(160,169,193,.35); border-radius: 9px; background: rgba(255,255,255,.52); color: inherit; font: inherit; }
+.connection-route-hint { padding: 0 3px 0 0; color: #675fc0; font-size: 11px; font-weight: 650; white-space: nowrap; }
+.connection-create-mode::before { content: '新连线'; align-self: center; color: #64748b; font-weight: 650; white-space: nowrap; }
+.connection-target-badge { position: fixed; z-index: 13000; padding: 5px 9px; border-radius: 6px; background: #fff; border: 1px solid var(--accent); color: #475569; font: 12px system-ui,sans-serif; pointer-events: none; }
+.connection-relations { position: fixed; right: 16px; top: 100px; width: min(340px,calc(100vw - 32px)); max-height: 65vh; overflow: auto; z-index: 13000; padding: 14px; border-radius: 12px; border: 1px solid #e2e8f0; background: #fff; box-shadow: 0 4px 20px #0f172a18; }
+.connection-relations>div { display: flex; flex-direction: column; gap: 4px; margin: 8px 0; }
+.connection-relations>div button { text-align: left; overflow-wrap: anywhere; }
+@supports (appearance: base-select) {
+  .connection-toolbar select { appearance: base-select; }
+  .connection-toolbar select::picker(select) { appearance: base-select; border: 1px solid var(--glass-edge,rgba(255,255,255,.7)); border-radius: 12px; background: var(--glass-light,rgba(255,255,255,.86)); box-shadow: 0 14px 32px rgba(26,29,36,.18); backdrop-filter: var(--glass-filter,blur(26px) saturate(150%)); -webkit-backdrop-filter: var(--glass-filter,blur(26px) saturate(150%)); padding: 5px; }
+  .connection-toolbar select option { padding: 7px 10px; border-radius: 7px; }
+  .connection-toolbar select option:hover,.connection-toolbar select option:checked { background: rgba(111,95,245,.14); }
+}
+#contextConnectorSection { display: none !important; }
+@media (pointer: coarse) { .connection-handle { width: 44px; height: 44px; } .connection-toolbar button,.connection-toolbar select,.connection-text-toolbar button { min-height: 44px; } }
+@media (max-width: 850px) { .connection-menu-side { left: 0; right: 0; top: auto; bottom: 0; width: auto; min-height: min(46vh,380px); max-height: 52vh; } .connection-more:has(.connection-menu-side:not([hidden])) .connection-menu-index { visibility: hidden; } }
+@media (max-width: 600px) { .connection-toolbar { bottom: max(88px,calc(env(safe-area-inset-bottom,0px) + 72px)); justify-content: center; } .connection-more,.connection-toolbar:not(.connection-create-mode) .connection-more { left: 50%; right: auto; transform: translateX(-50%); width: min(320px,calc(100vw - 24px)); max-height: 52vh; } }
+.connection-handle::after { transition: background 120ms ease; }

@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="referrer" content="no-referrer">
+  <title>Muse Board · 手机授权</title>
+  <link rel="icon" href="favicon.ico?v=10" sizes="any">
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png?v=10">
+  <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png?v=10">
+  <script src="api-transport.js"></script>
+  <script src="app-security.js"></script>
+  <link rel="stylesheet" href="pair.css">
+</head>
+<body>
+  <main class="pair-shell">
+    <section class="pair-card" aria-labelledby="pairTitle">
+      <div class="pair-mark" aria-hidden="true">M</div>
+      <header>
+        <span class="eyebrow">Muse Board</span>
+        <h1 id="pairTitle">授权电脑登录</h1>
+        <p id="pairDescription">正在验证二维码…</p>
+      </header>
+
+      <div class="verification-code"><span>电脑核对码</span><strong id="verificationCode">——</strong></div>
+      <p id="compatibilityStatus" class="notice" role="status">正在检测手机 Passkey…</p>
+      <p id="pairError" class="error" role="alert" hidden></p>
+      <button id="retryPairButton" type="button" hidden>重新连接</button>
+
+      <section id="signedOutActions" class="action-stack" aria-label="手机登录方式" hidden>
+        <button id="phoneLoginButton" class="primary" type="button">使用手机 Passkey 登录</button>
+        <button id="phoneRegisterButton" type="button">在手机上创建账号</button>
+      </section>
+
+      <form id="phoneRecoveryForm" class="recovery-form" hidden>
+        <h2>恢复账号</h2>
+        <label for="phoneRecoveryAccountId">账号 ID</label>
+        <input id="phoneRecoveryAccountId" autocomplete="username" placeholder="MB-7K3P-XQ92-6LMN" required>
+        <label for="phoneRecoveryCode">恢复码</label>
+        <input id="phoneRecoveryCode" autocomplete="one-time-code" placeholder="K8DF-7H3P-XQ92-6LMN" required>
+        <button class="primary" type="submit">验证并创建新 Passkey</button>
+      </form>
+
+      <section id="accountMismatchPanel" class="approval-panel" hidden>
+        <h2>当前手机已登录其他账号</h2>
+        <p>当前账号：<strong id="mismatchAccount"></strong></p>
+        <p>本次操作需要先退出当前账号，再按二维码指定的“注册或恢复”流程验证，避免误把电脑授权给错误账号。</p>
+        <button id="switchPairAccountButton" type="button">退出并继续本次操作</button>
+      </section>
+
+      <section id="recoveryKit" class="recovery-kit" hidden aria-labelledby="recoveryKitTitle">
+        <h2 id="recoveryKitTitle">保存恢复资料</h2>
+        <p>恢复码只显示这一次。</p>
+        <dl><div><dt>账号 ID</dt><dd id="kitAccountId"></dd></div><div><dt>恢复码</dt><dd id="kitRecoveryCode"></dd></div></dl>
+        <div class="kit-actions"><button id="copyRecoveryButton" type="button">复制恢复资料</button><button id="downloadRecoveryButton" type="button">下载</button></div>
+        <label class="ack"><input id="recoveryAcknowledged" type="checkbox"><span>我已安全保存恢复资料</span></label>
+      </section>
+
+      <section id="approvalPanel" class="approval-panel" hidden>
+        <div class="identity"><span id="identityAvatar" aria-hidden="true"></span><div><small>将使用以下账号授权</small><strong id="identityName"></strong><span id="identityAccountId"></span></div></div>
+        <p>确认后，显示上述核对码的电脑将获得一个新的 14 天登录会话。</p>
+        <button id="approveComputerButton" class="primary" type="button">确认授权这台电脑</button>
+      </section>
+
+      <section id="successPanel" class="success" hidden tabindex="-1">
+        <strong>授权完成</strong>
+        <p id="pairSuccessMessage">电脑正在进入画板，本页即将关闭。</p>
+        <button id="closePairButton" type="button">关闭此页</button>
+        <a class="back-link" href="./">在手机上进入画板</a>
+      </section>
+
+      <a class="back-link" href="./">返回 Muse Board</a>
+    </section>
+  </main>
+  <script src="vendor/simplewebauthn-browser.min.js" defer></script>
+  <script src="pair.js" defer></script>
+</body>
+</html>

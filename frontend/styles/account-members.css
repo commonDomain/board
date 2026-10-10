@@ -1,0 +1,355 @@
+.sharing-status-icon {
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(105, 87, 245, 0.15);
+  border-radius: 11px;
+  background: rgba(255, 255, 255, 0.68);
+  color: var(--accent-strong);
+}
+
+.sharing-status-icon svg {
+  width: 18px;
+  height: 18px;
+}
+
+.sharing-status-copy {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.sharing-status-copy strong {
+  font-size: 12.5px;
+  line-height: 1.3;
+}
+
+.sharing-status-copy small {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 10.5px;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sharing-member-count {
+  padding: 5px 8px;
+  border: 1px solid rgba(105, 87, 245, 0.16);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.68);
+  color: var(--accent-strong);
+  font-size: 11px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.sharing-section-actions {
+  width: 80%;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  justify-self: center;
+  gap: 8px;
+  transition: width 240ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.sharing-section-actions.is-ungrouped {
+  width: 100%;
+}
+
+.sharing-section-actions > button {
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+}
+
+.sharing-end-button {
+  width: 100%;
+  padding: 0 13px;
+  border-color: rgba(216, 63, 76, 0.26);
+  background: rgba(216, 63, 76, 0.055);
+  color: var(--danger);
+  white-space: nowrap;
+}
+
+.sharing-end-button:hover {
+  border-color: rgba(216, 63, 76, 0.42);
+  background: rgba(216, 63, 76, 0.095);
+}
+
+.sharing-end-button svg {
+  width: 17px;
+  height: 17px;
+}
+
+.member-chain {
+  min-height: 58px;
+  display: flex;
+  align-items: center;
+  overflow-x: auto;
+  padding: 6px 3px;
+}
+
+.member-node {
+  position: relative;
+  flex: 0 0 auto;
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+}
+
+.member-node .account-avatar {
+  box-shadow:
+    0 0 0 3px #fff,
+    0 0 0 4px var(--line-strong);
+}
+
+.member-node small {
+  max-width: 76px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.member-lock {
+  position: relative;
+  width: 42px;
+  height: 48px;
+  flex: 0 0 42px;
+  padding: 0;
+  border: 0 !important;
+  background: transparent !important;
+  color: var(--muted-strong);
+}
+
+.member-lock::before,
+.member-lock::after {
+  content: '';
+  position: absolute;
+  top: 23px;
+  width: 13px;
+  height: 2px;
+  background: var(--line-strong);
+}
+
+.member-lock::before {
+  left: 0;
+}
+
+.member-lock::after {
+  right: 0;
+}
+
+.member-lock-glyph {
+  position: absolute;
+  top: 13px;
+  left: 11px;
+  width: 20px;
+  height: 20px;
+  transform-origin: 38% 70%;
+}
+
+.member-lock-open {
+  opacity: 0;
+  visibility: hidden;
+}
+
+.member-lock.is-waiting {
+  color: var(--accent-strong);
+  cursor: wait;
+}
+
+.member-lock-tip {
+  position: fixed;
+  z-index: 1100;
+  max-width: 220px;
+  padding: 7px 9px;
+  border-radius: 8px;
+  background: var(--surface-dark-strong);
+  color: #fff;
+  font-size: 11px;
+  pointer-events: none;
+}
+
+.member-empty {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.confirm-member-card {
+  width: min(430px, 100%);
+}
+
+.confirm-member-card > .account-avatar {
+  justify-self: start;
+}
+
+.confirm-member-card > p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.guest-import-list {
+  max-height: 280px;
+  display: grid;
+  gap: 7px;
+  overflow: auto;
+}
+
+.guest-import-option {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.guest-import-option input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--accent);
+}
+
+.guest-storage-warning {
+  position: fixed;
+  z-index: 500;
+  left: 50%;
+  bottom: max(86px, calc(var(--safe-bottom) + 76px));
+  transform: translateX(-50%);
+  width: min(620px, calc(100vw - 24px));
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 9px 11px;
+  border: 1px solid rgba(230, 166, 54, 0.35);
+  border-radius: 12px;
+  background: rgba(255, 249, 232, 0.96);
+  box-shadow: var(--shadow-md);
+  color: #76520d;
+  font-size: 12px;
+}
+
+.guest-storage-warning > span {
+  flex: 1;
+}
+
+.guest-storage-warning button {
+  min-height: 36px;
+  padding: 0 10px;
+  border: 1px solid rgba(118, 82, 13, 0.24);
+  border-radius: 9px;
+  background: #fff;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.privacy-shield {
+  position: fixed;
+  z-index: 40000;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 8px;
+  background: rgba(235, 239, 246, 0.52);
+  color: var(--ink);
+  cursor: pointer;
+  backdrop-filter: blur(26px) saturate(78%);
+  -webkit-backdrop-filter: blur(26px) saturate(78%);
+  touch-action: none;
+  isolation: isolate;
+}
+
+.privacy-locked .sheet-editor {
+  visibility: hidden !important;
+}
+
+.privacy-shield:focus-visible {
+  outline: 4px solid var(--accent);
+  outline-offset: -6px;
+}
+
+.privacy-shield > span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.privacy-lock {
+  position: relative;
+  width: 64px;
+  height: 64px;
+  color: var(--surface-dark-strong);
+  filter: drop-shadow(0 8px 10px rgba(23, 26, 34, 0.18));
+}
+
+.privacy-lock svg {
+  position: absolute;
+  inset: 0;
+  width: 64px;
+  height: 64px;
+}
+
+.privacy-lock-open {
+  opacity: 0;
+  transform-origin: 38% 70%;
+}
+
+.canvas-privacy-action.is-private {
+  color: var(--accent-strong);
+  background: var(--accent-soft);
+}
+
+.canvas-owner-badge {
+  margin-left: 5px;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 600;
+}
+
+@media (max-width: 760px) {
+  .account-button {
+    width: 42px;
+    height: 42px;
+    flex-basis: 42px;
+  }
+  .profile-card {
+    max-height: calc(100dvh - 16px);
+    padding: 0 18px 18px;
+  }
+  .profile-card > .profile-heading {
+    padding-top: 18px;
+  }
+  .recovery-kit-actions,
+  .share-actions,
+  .email-bind-form > div {
+    grid-template-columns: 1fr;
+  }
+  .email-bind-form button {
+    width: 100%;
+  }
+  .account-dialog-actions {
+    flex-direction: column-reverse;
+  }
+  .account-dialog-actions button {
+    width: 100%;
+  }
+  .account-menu {
+    top: 78px;
+  }
+}
+
+@media (max-width: 520px) {
+  .sharing-status-copy small {
+    white-space: normal;
+  }
+}
