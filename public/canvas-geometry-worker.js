@@ -86,6 +86,10 @@ function pointsBounds(points) {
 }
 
 function intersectsRect(item, rect) {
+  if (item.rotation && item.type !== 'connector') return intersectsLasso(item, [
+    { x: rect.x, y: rect.y }, { x: rect.x + rect.w, y: rect.y },
+    { x: rect.x + rect.w, y: rect.y + rect.h }, { x: rect.x, y: rect.y + rect.h }
+  ]);
   const bounds = rotatedBounds(item);
   return bounds.x < rect.x + rect.w && bounds.x + bounds.w > rect.x &&
     bounds.y < rect.y + rect.h && bounds.y + bounds.h > rect.y;
@@ -124,9 +128,14 @@ function intersectsLasso(item, polygon) {
     { x: item.x + item.w, y: item.y },
     { x: item.x + item.w, y: item.y + item.h },
     { x: item.x, y: item.y + item.h }
-  ];
+  ].map(point => {
+    const angle = (Number(item.rotation) || 0) * Math.PI / 180;
+    const cx = item.x + item.w / 2, cy = item.y + item.h / 2;
+    return { x: cx + (point.x - cx) * Math.cos(angle) - (point.y - cy) * Math.sin(angle),
+      y: cy + (point.x - cx) * Math.sin(angle) + (point.y - cy) * Math.cos(angle) };
+  });
   if (corners.some((point) => pointInPolygon(point, polygon)) ||
-    polygon.some((point) => point.x >= item.x && point.x <= item.x + item.w && point.y >= item.y && point.y <= item.y + item.h)) return true;
+    polygon.some((point) => pointInPolygon(point, corners))) return true;
   const rectangleEdges = corners.map((corner, index) => [corner, corners[(index + 1) % corners.length]]);
   for (let index = 0; index < polygon.length; index += 1) {
     const edge = [polygon[index], polygon[(index + 1) % polygon.length]];
@@ -160,7 +169,11 @@ self.onmessage = (event) => {
   for (const id of queryIds(candidateBounds)) {
     const item = items.get(id);
     if (!item.selectable) continue;
-    const selected = message.mode === 'lasso'
+    // Connector rectangles only supply candidates; the main thread owns the
+    // actual rendered route and refines these candidates before selecting.
+    const selected = item.type === 'connector'
+        ? intersectsRect(item, candidateBounds)
+        : message.mode === 'lasso'
         ? intersectsLasso(item, message.points)
         : intersectsRect(item, rect);
     if (selected) {
@@ -175,5 +188,6 @@ self.onmessage = (event) => {
         : { x: item.x, y: item.y, w: item.w, h: item.h };
     }
   }
-  self.postMessage({ type: 'selection', sequence: message.sequence, ids, bounds: selectionBounds });
+  self.postMessage({ type: 'selection', sequence: message.sequence, dataVersion: message.dataVersion, ids, bounds: selectionBounds,
+    marquee: { mode: message.mode, start: message.start, current: message.current, points: message.points } });
 };

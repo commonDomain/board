@@ -11,6 +11,9 @@ import { getWritableLayer } from './layers-model.js';
 import { updateCanvasStartState } from './toolbar.js';
 import { locateNoteSource, captureNoteRegion, wireNoteReferences } from './note-references.js';
 import { clearNoteReturnAnchor } from './note-return-anchor.js';
+import { getCanvasRenderPolicy } from './render-resources-model.js';
+import { renderAll } from './rendering.js';
+import { mountManagedImage, releaseManagedImages, scheduleManagedImageRefresh } from './image-rendering.js';
 
 function wireNotesWorkspace() {
   const workspace = window.MuseNotebook;
@@ -18,10 +21,13 @@ function wireNotesWorkspace() {
   const switcher = document.getElementById('workspaceModeSwitch');
   workspace.initialize({
     isGuest: isGuestMode,
+    mountImage: mountManagedImage,
+    releaseImages: releaseManagedImages,
+    refreshImages: scheduleManagedImageRefresh,
     locateSource: locateNoteSource,
     captureRegion: captureNoteRegion,
-    leaveCanvas() { finishEditing(); cancelActiveGesture(); closePopovers(); document.getElementById('noteActionsMenu')?.removeAttribute('open'); switcher?.querySelectorAll('[data-workspace-mode]').forEach(button => button.setAttribute('aria-pressed', String(button.dataset.workspaceMode === 'notebook'))); },
-    returnCanvas() { switcher?.querySelectorAll('[data-workspace-mode]').forEach(button => button.setAttribute('aria-pressed', String(button.dataset.workspaceMode === 'canvas'))); },
+    leaveCanvas() { finishEditing(); cancelActiveGesture(); closePopovers(); if (getCanvasRenderPolicy().bounded) renderAll({ rebuildIndexes: false }); document.getElementById('noteActionsMenu')?.removeAttribute('open'); switcher?.querySelectorAll('[data-workspace-mode]').forEach(button => button.setAttribute('aria-pressed', String(button.dataset.workspaceMode === 'notebook'))); },
+    returnCanvas() { if (getCanvasRenderPolicy().bounded) renderAll({ rebuildIndexes: false }); switcher?.querySelectorAll('[data-workspace-mode]').forEach(button => button.setAttribute('aria-pressed', String(button.dataset.workspaceMode === 'canvas'))); },
     async guestCanvases() {
       const canvases = await window.WhiteboardStorage.exportGuestCanvases();
       const current = { id: state.boardId, name: document.getElementById('currentCanvasName')?.textContent || '当前画布', snapshot: { items: structuredClone([...state.items.values()]), sections: structuredClone([...state.sections.values()]), layers: structuredClone(state.layers), background: state.background } };
@@ -34,10 +40,13 @@ function wireNotesWorkspace() {
   if(notebookSwitch){notebookSwitch.disabled=false;notebookSwitch.removeAttribute('title');}
   const trigger = document.createElement('button'); trigger.id = 'noteOriginalsButton'; trigger.type = 'button'; trigger.className = 'action-button'; trigger.textContent = '从笔记添加'; trigger.title = '复制到画布'; switcher?.after(trigger);
   const menu = document.createElement('details'); menu.id = 'noteActionsMenu'; menu.className = 'note-actions-menu';
-  const summary = document.createElement('summary'); summary.textContent = '笔记操作';
+  const summary = document.createElement('summary'); summary.textContent = '笔记';
   const panel = document.createElement('div'); panel.id = 'noteActionsPanel'; panel.className = 'note-actions-panel'; panel.setAttribute('aria-label', '笔记操作'); panel.hidden = true;
   summary.setAttribute('aria-controls', panel.id);
-  menu.append(summary); switcher?.after(menu); document.body.append(panel);
+  summary.setAttribute('aria-label', '笔记');
+  summary.className = 'tool-button';
+  summary.innerHTML = '<i data-lucide="notebook-pen" aria-hidden="true"></i><span class="tool-label">笔记</span>';
+  menu.append(summary); document.querySelector('#toolDock .toolbar-insert')?.insertBefore(menu, document.getElementById('petButton')); document.body.append(panel); refreshIcons(summary);
   panel.append(trigger, document.getElementById('noteRegionButton'), document.getElementById('noteReferencesButton'));
   menu.addEventListener('toggle', () => { panel.hidden = !menu.open; if (menu.open) { for (const id of ['noteRegionButton','noteReferencesButton']) document.getElementById(id).disabled = !state.selectedIds.size; placeAnchoredMenu(panel, summary); panel.querySelector('button:not(:disabled)')?.focus(); } });
   const dismissMenu = event => { if (event.key === 'Escape') { menu.open = false; panel.hidden = true; summary.focus(); } };

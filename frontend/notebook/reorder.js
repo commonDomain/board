@@ -1,3 +1,5 @@
+import { isPhoneViewer } from '../../public/app/phone-view-model.js';
+
 const rowKey = row => `${row.dataset.bookId}:${row.dataset.pageId}`;
 
 export function beginPageReorder(app, source) {
@@ -57,11 +59,13 @@ export function endPageReorder(app, commit = false) {
 }
 
 export function capturePagePositions(app) {
+  if (isPhoneViewer()) return new Map();
   const list = app.$('.nt-page-list');
   return new Map([...list.querySelectorAll('.nt-page-entry')].map(row => [rowKey(row), row.getBoundingClientRect().top + list.scrollTop]));
 }
 
 export function animatePagePositions(app, previous) {
+  if (isPhoneViewer()) return;
   if (app.root.hidden || app.printing || !previous.size) return;
   const list = app.$('.nt-page-list');
   app.motionAnimations ||= new Map();

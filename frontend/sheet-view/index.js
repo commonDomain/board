@@ -66,7 +66,7 @@ function createGridRenderer(canvas, options = {}) {
 
   function resize(width, height, pixelRatio) {
     const ratio = Math.max(
-      1,
+      options.allowDownsample ? 1 / Math.max(1, width, height) : 1,
       Math.min(3, Number(pixelRatio) || (typeof window !== 'undefined' ? window.devicePixelRatio : 1) || 1)
     );
     const nextWidth = Math.max(1, Math.floor(width));
@@ -75,8 +75,8 @@ function createGridRenderer(canvas, options = {}) {
     state.width = nextWidth;
     state.height = nextHeight;
     state.pixelRatio = ratio;
-    canvas.width = Math.floor(state.width * ratio);
-    canvas.height = Math.floor(state.height * ratio);
+    canvas.width = Math.max(1, Math.floor(state.width * ratio));
+    canvas.height = Math.max(1, Math.floor(state.height * ratio));
     canvas.style.width = `${state.width}px`;
     canvas.style.height = `${state.height}px`;
     requestDraw();

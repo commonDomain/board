@@ -16,6 +16,10 @@ import { rememberTextSelection } from './text-input.js';
 import { cssEscape } from './utilities.js';
 
 function handleGlobalPointerDown(event) {
+  // The pet consumes the canvas gesture later in document capture. Preserve any
+  // editor draft instead of treating that gesture as a click outside the editor.
+  if (els.viewport?.dataset.petPlacement && els.viewport.contains(event.target) &&
+    !event.target.closest?.('button,input,textarea,select,[contenteditable="true"],[role="dialog"],.floating-format-bar,.tool-popover,.context-menu,.planning-toplevel,.amap-map-frame')) return;
   if (interfaceRuntime.adaptiveDialogRequest?.keepBrushMenuOpen && els.adaptiveDialog?.contains(event.target)) return;
   if (!event.target.closest?.('.floating-format-bar')) {
     setFloatingMoreOpen(false);
@@ -140,7 +144,8 @@ function closePopovers(options = {}) {
     els.layerMenu,
     els.mindmapMenu,
     els.navigationMenu,
-    els.backgroundMenu
+    els.backgroundMenu,
+    els.petMenu
   ].forEach((popover) => {
     if (popover) {
       shouldRestoreFocus ||= popover.contains(document.activeElement);

@@ -1,3 +1,4 @@
+import { getCanvasRenderPolicy } from '../../public/app/render-resources-model.js';
 const mobile = () => matchMedia('(max-width:1100px)').matches;
 const contentNames = {image:'图片',ink:'手写内容',shape:'图形',mindmap:'脑图',callout:'便签',tag:'标签',text:'文字'};
 export function pageSummary(page) {
@@ -16,6 +17,20 @@ export function setupNotebookInterface(app, button, el) {
   const canvas = button('画布','panels-top-left',()=>app.hide()); canvas.setAttribute('aria-pressed','false'); mode.append(canvas);
   const active=button('笔记','notebook-pen',()=>{}); active.setAttribute('aria-pressed','true'); mode.append(active);
   app.$('.nt-brand').after(mode);
+  const account = button('个人资料', 'user', () => document.getElementById('openProfileButton')?.click(), 'nt-account-button');
+  account.dataset.accountProfile = '';
+  const avatar = el('span','account-avatar'); avatar.dataset.accountIdentity = ''; account.prepend(avatar);
+  account.querySelector('svg,i')?.remove();
+  const syncIdentity = () => {
+    const user = window.MuseAccount?.session?.user;
+    avatar.replaceChildren();
+    if (user?.avatarUrl) { const image=el('img');image.src=user.avatarUrl;image.alt='';avatar.append(image); }
+    else avatar.textContent=(user?.username || '游客').slice(0,1);
+    account.title=`查看个人资料 · ${user?.username || '游客'}`;
+    account.setAttribute('aria-label',account.title);
+  };
+  syncIdentity();window.addEventListener('muse:identity-changed',syncIdentity);
+  app.$('.nt-app-actions').append(account);
   const save=app.$('.nt-save'), compact=matchMedia('(max-width:1100px)');
   const placeSave=()=>{if(compact.matches)app.$('.nt-status').prepend(save);else app.$('.nt-app-actions').before(save);};
   placeSave();compact.addEventListener('change',()=>{placeSave();app.syncNavigationInteraction();});
@@ -34,7 +49,7 @@ export function setupNotebookInterface(app, button, el) {
     nav.inert=!mobile()||!open;
   };
   app.closeNavigation=()=>{app.root.classList.remove('nt-navigation-open');app.$('.nt-mobile-nav').setAttribute('aria-expanded','false');app.syncNavigationInteraction();};
-  app.showNavigation=(stage='pages')=>{ app.dismissSearch?.();app.$('.nt-materials').hidden=true;app.root.classList.remove('nt-materials-open'); app.root.dataset.navigation=stage;app.root.classList.add('nt-navigation-open');app.$('.nt-mobile-nav').setAttribute('aria-expanded','true');app.syncNavigationInteraction(); };
+  app.showNavigation=(stage='pages')=>{ app.dismissSearch?.();app.$('.nt-materials').hidden=true;if(getCanvasRenderPolicy().tablet)app.releaseViewSurfaces?.(app.$('.nt-materials'));app.root.classList.remove('nt-materials-open'); app.root.dataset.navigation=stage;app.root.classList.add('nt-navigation-open');app.$('.nt-mobile-nav').setAttribute('aria-expanded','true');app.syncNavigationInteraction(); };
   app.$('.nt-shortcuts').addEventListener('click',()=>{if(mobile()) app.showNavigation('pages');});
   const panel=app.$('.nt-materials'); const filters=el('details','nt-material-filters'); const summary=el('summary','','筛选画布与类型');filters.append(summary);
   for(const select of panel.querySelectorAll('select'))filters.append(select);
@@ -49,7 +64,7 @@ export function setupNotebookInterface(app, button, el) {
     if(event.defaultPrevented || event.isComposing || event.keyCode===229)return;
     if(event.key==='Escape'){
       const navigation=app.root.classList.contains('nt-navigation-open'), materials=!panel.hidden;
-      app.closeNavigation();panel.hidden=true;app.root.classList.remove('nt-materials-open');
+      app.closeNavigation();panel.hidden=true;if(getCanvasRenderPolicy().tablet)app.releaseViewSurfaces?.(panel);app.root.classList.remove('nt-materials-open');
       if(navigation)app.$('.nt-mobile-nav').focus();else if(materials)materialsButton.focus();
       if(navigation||materials){event.preventDefault();event.stopImmediatePropagation();return;}
     }
@@ -90,10 +105,13 @@ export function compactRibbon(app, button) {
     control.dataset.toolGroup=/撤销|重做/.test(label)?'history':/段落|字号|颜色|加粗|斜体|下划线|高亮|列表|清单|链接/.test(label)?'format':/文本|图片|表格|脑图|便签|标签|素材|快速插入/.test(label)?'insert':'view';
   }
 }
-export function materialPreview(row, material, el) {
+export function materialPreview(row, material, el, app) {
   const item=material.item||material.preview;
   if(material.type==='image'&&item?.src&&/^(\/assets\/|data:image\/)/.test(item.src)){
-    const image=el('img','nt-material-preview');image.src=item.src;image.alt=material.label||'图片素材';image.loading='lazy';image.addEventListener('error',()=>image.remove());row.prepend(image);
+    const image=el('img','nt-material-preview');image.alt=material.label||'图片素材';image.loading='lazy';image.addEventListener('error',()=>image.remove());row.prepend(image);
+    if(getCanvasRenderPolicy().tablet){
+      app.bridge.mountImage?.({...item,id:`material:${material.boardId}:${material.id}`,type:'image',w:64,h:64},image,{resolveItem:()=>!app.root.hidden&&!app.$('.nt-materials').hidden?{...item,type:'image',w:64,h:64}:null,getZoom:()=>1});
+    }else image.src=item.src;
   }else if(material.type==='mindmap'&&item?.tree){
     const preview=el('div','nt-material-mindmap');preview.append(el('strong','',item.tree.text||'脑图'));
     const children=el('div');for(const child of (item.tree.children||[]).slice(0,3))children.append(el('span','',child.text||''));preview.append(children);row.prepend(preview);

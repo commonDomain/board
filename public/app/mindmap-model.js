@@ -139,7 +139,8 @@ function measureMindNodeHeight(node, width, isRoot) {
       if (used && used + width > available) { lines++; used = 0; } used += width;
     }
   }
-  return Math.ceil(lines * fontSize * 1.55 + 18);
+  const summaryHeight = window.MusePlanning?.enabled && node.collapsed && window.MusePlanning.branchProgress?.(node)?.total ? 22 : 0;
+  return Math.ceil(lines * fontSize * 1.55 + 18 + summaryHeight);
 }
 
 function estimateMindNodeWidth(text, isRoot = false) {

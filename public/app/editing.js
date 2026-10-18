@@ -10,6 +10,7 @@ import { showToast } from './interface-model.js';
 import { canMutateItem, explainUnwritableLayer } from './layers-model.js';
 
 import { state } from './state.js';
+import { canStartItemGesture, trackPointer } from './pan-model.js';
 
 import {
   clearTableCellSelection,
@@ -264,23 +265,25 @@ function onTablePointerDown(event) {
   }
   const cell = event.target.closest('td, th');
   if (item && state.editingId === item.id && cell) {
-    startTableCellDrag(event, item, cell);
-    event.stopPropagation();
+    if (startTableCellDrag(event, item, cell)) event.stopPropagation();
   }
 }
 
 function startTableCellDrag(event, item, cell) {
+  if (!canMutateItem(item) || !canStartItemGesture(event, ['select', 'pan', 'table'])) return;
   const point = getTableCellCoordinates(cell);
   if (!point || event.button !== 0) {
     return;
   }
   state.tableFocus = { itemId: item.id, ...point };
+  trackPointer(event);
   updateContextPanel();
   const existing = getNormalizedTableCellSelection();
   const extending = event.shiftKey && existing?.itemId === item.id;
   state.tableCellDrag = {
     itemId: item.id,
     pointerId: event.pointerId,
+    pointerType: event.pointerType || 'mouse',
     start: extending ? { row: existing.startRow, column: existing.startColumn } : point,
     current: point,
     startClientX: event.clientX,
@@ -295,6 +298,7 @@ function startTableCellDrag(event, item, cell) {
   } else if (state.tableCellSelection?.itemId === item.id) {
     clearTableCellSelection(item.id);
   }
+  return true;
 }
 
 function continueTableCellDrag(event) {
@@ -358,16 +362,18 @@ function onTableMoveHandlePointerDown(event) {
 }
 
 function onTableColumnHandlePointerDown(event) {
+  if (!canStartItemGesture(event, ['select', 'pan', 'table'])) return;
   if (isTemporaryPanGestureEvent(event)) {
     return;
   }
   const itemElement = event.currentTarget.closest('.board-item');
   const item = itemElement && state.items.get(itemElement.dataset.itemId);
-  if (!item || item.type !== 'table') {
+  if (!canMutateItem(item) || item.type !== 'table') {
     return;
   }
   event.preventDefault();
   event.stopPropagation();
+  trackPointer(event);
   const columnCount = getTableColumnCount(item);
   state.interaction = {
     id: item.id,
@@ -444,7 +450,7 @@ function onEditableInput(event) {
     return;
   }
   const item = state.items.get(itemElement.dataset.itemId);
-  if (!item) {
+  if (!item || !canMutateItem(item)) {
     return;
   }
   if ((item.type === 'text' || item.type === 'note') && event.target.matches('.text-card, .note-card')) {

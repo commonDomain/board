@@ -1,4 +1,5 @@
 import { state } from './state.js';
+import { getItemRectBounds } from './rendering-model.js';
 
 function getSelectedIds() {
   return state.selectedIds.size ? Array.from(state.selectedIds) : state.selectedId ? [state.selectedId] : [];
@@ -18,10 +19,11 @@ function getBoundsOfItems(ids) {
     if (!item) {
       continue;
     }
-    minX = Math.min(minX, item.x);
-    minY = Math.min(minY, item.y);
-    maxX = Math.max(maxX, item.x + item.w);
-    maxY = Math.max(maxY, item.y + item.h);
+    const bounds = getItemRectBounds(item);
+    minX = Math.min(minX, bounds.x);
+    minY = Math.min(minY, bounds.y);
+    maxX = Math.max(maxX, bounds.x + bounds.w);
+    maxY = Math.max(maxY, bounds.y + bounds.h);
   }
   if (!Number.isFinite(minX)) {
     return null;

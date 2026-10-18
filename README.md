@@ -159,8 +159,6 @@ Windows PowerShell 中，将复制配置的命令改为 `Copy-Item .env.example 
 | 协作、操作队列与保存确认 | [同步机制](docs/sync-mechanism.md) |
 | 连线、端点与兼容规则 | [连接线系统](docs/connector-system.md) |
 | 规划组件与数据生命周期 | [规划说明](docs/planning.md) |
-| 笔记存储、权限与恢复 | [笔记可靠性](docs/notes-workspace-reliability.md) |
-| 手机与平板交互 | [移动端适配](docs/mobile-adaptation.md) |
 
 <details>
 <summary><strong>展开部署、配置与数据维护说明</strong></summary>
@@ -276,8 +274,6 @@ XMIND_TOKEN_ENCRYPTION_PREVIOUS_KEYS=轮换期间使用的逗号分隔旧密钥
 - 画布文字等放置工具通过轻点确认，滑动不会立即创建内容；选中后可用触控操作栏进入编辑或更多操作。
 - 电子表格默认单指滚动，双击单元格输入；“拖动选择区域”可切换为区域选择，长按打开单元格菜单。
 - 第二根手指加入绘写时，未完成笔画会取消并转为视图操作。系统取消手势时不提交未完成的笔画或变换。
-
-实现和验证范围见 [移动端适配与验收](docs/mobile-adaptation.md)。浏览器触控模拟已覆盖主要交互；iPad/安卓真机的手写笔、系统输入法、文件选择与下载仍需设备验收。
 
 PowerShell 下可这样临时指定配置：
 
@@ -457,7 +453,7 @@ data/
 | `ASSET_GC_INTERVAL_MS` | `21600000` | 孤儿资源清理周期 |
 | `ASSET_GC_ENABLED` | `1` | 孤儿资源自动清理开关 |
 | `BACKUP_INTERVAL_MS` | `86400000` | 自动在线备份周期（24 小时） |
-| `BACKUP_RETENTION_COUNT` | `7` | 保留的备份份数 |
+| `BACKUP_RETENTION_COUNT` | `100` | 保留的备份份数 |
 | `BACKUP_INITIAL_DELAY_MS` | `5000` | 启动后首次备份延迟 |
 | `AUTOMATIC_BACKUPS_ENABLED` | `1` | 自动在线备份开关 |
 | `SNAPSHOT_CHUNK_THRESHOLD_BYTES` | `4194304` | 超过此大小改用分片快照 |
@@ -524,7 +520,7 @@ npm run check
 3. 从最近一次经过验证的整目录备份恢复到新的 `DATA_DIR`。
 4. 使用新目录启动服务，并先执行健康检查和测试画板验证。
 
-项目只使用严格 v2 在线备份：服务端每 `BACKUP_INTERVAL_MS`（默认 24 小时）通过 SQLite 在线备份 API生成同名 `.sqlite`、`.assets.json` 和 `.assets` 独立资源目录，逐个校验原图 SHA-256，并把 `.sqlite` 最后发布为完成标记。启动后 `BACKUP_INITIAL_DELAY_MS`（默认 5 秒）内执行首次备份，并按 `BACKUP_RETENTION_COUNT`（默认 7 份）轮换清理。旧版清单不会参与恢复，也不会阻塞服务启动；损坏的 v2 清单会暂停资源 GC，避免误删。恢复命令只接受完整 v2 包：
+项目只使用严格 v2 在线备份：服务端每 `BACKUP_INTERVAL_MS`（默认 24 小时）通过 SQLite 在线备份 API生成同名 `.sqlite`、`.assets.json` 和 `.assets` 独立资源目录，逐个校验原图 SHA-256，并把 `.sqlite` 最后发布为完成标记。启动后 `BACKUP_INITIAL_DELAY_MS`（默认 5 秒）内执行首次备份，并按 `BACKUP_RETENTION_COUNT`（默认 100 份）轮换清理。旧版清单不会参与恢复，也不会阻塞服务启动；损坏的 v2 清单会暂停资源 GC，避免误删。恢复命令只接受完整 v2 包：
 
 ```powershell
 npm.cmd run recover:backup -- --backup "D:\museboard-data\backups\whiteboard-时间.sqlite" --target-data-dir "D:\museboard-recovery"

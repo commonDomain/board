@@ -34,6 +34,11 @@ function wireEditorEvents({
   doc,
   dismissToolbarMenus
 }) {
+  for (const type of ['beforeinput', 'paste', 'cut', 'keydown']) root.addEventListener(type, event => {
+    if (!state.safetyBlocked || event.key === 'Escape' ||
+        type === 'keydown' && (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'c') return;
+    event.preventDefault(); event.stopImmediatePropagation();
+  }, true);
   const touchSelect = doc.createElement('button'); touchSelect.type = 'button'; touchSelect.className = 'sheet-touch-select';
   touchSelect.textContent = '拖动选择区域'; touchSelect.setAttribute('aria-pressed', 'false');
   touchSelect.addEventListener('click', () => { state.touchSelect = !state.touchSelect; touchSelect.setAttribute('aria-pressed', String(state.touchSelect)); touchSelect.textContent = state.touchSelect ? '选择模式 · 点击切换滚动' : '拖动选择区域'; });

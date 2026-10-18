@@ -26,6 +26,19 @@
   let overflowHintSurface = null;
   let animationFrame = null;
   let lastPaintAt = 0;
+  let overflowObserver = null;
+  const phoneViewer = () => doc?.documentElement?.dataset.formFactor === 'phone';
+  const tabletViewer = () => doc?.documentElement?.dataset.formFactor === 'tablet';
+
+  function configureForDevice() {
+    if (!phoneViewer()) return;
+    overflowObserver?.disconnect();
+    pendingOverflowMenus.clear();
+    if (overflowHintFrame !== null) global.cancelAnimationFrame(overflowHintFrame);
+    overflowHintFrame = null;
+    removeMenuOverflowHint();
+    syncAnimationLoop();
+  }
 
   function clamp(value, minimum, maximum) {
     return Math.min(maximum, Math.max(minimum, Number(value) || 0));
@@ -181,13 +194,13 @@
   }
 
   function shouldAnimate() {
-    if (doc?.hidden) return false;
+    if (phoneViewer() || doc?.hidden) return false;
     return Array.from(instances).some((instance) => instance.active && instance.visible && instance.canvas?.isConnected);
   }
 
   function tick(now) {
     animationFrame = null;
-    if (now - lastPaintAt >= 30) {
+    if (now - lastPaintAt >= (tabletViewer() ? 70 : 30)) {
       lastPaintAt = now;
       for (const instance of instances) paintOrb(instance, now);
     }
@@ -208,6 +221,7 @@
   }
 
   function mountOrb(canvas, options = {}) {
+    if (phoneViewer()) return null;
     if (!canvas || typeof canvas.getContext !== 'function') return null;
     const instance = {
       canvas,
@@ -260,6 +274,7 @@
   }
 
   function createLiquidMove(dock, options = {}) {
+    if (phoneViewer()) return null;
     if (!dock) return null;
     const indicator = doc.createElement('span');
     indicator.className = options.className || 'liquid-tool-indicator';
@@ -356,6 +371,7 @@
   }
 
   function createToolLiquid(dock) {
+    if (phoneViewer()) return null;
     return createLiquidMove(dock, {
       activeSelector: '[data-tool].active',
       className: 'liquid-tool-indicator'
@@ -462,6 +478,7 @@
   }
 
   function showMenuOverflowHint(menu) {
+    if (phoneViewer()) return false;
     if (!menu?.isConnected || menu.hidden || menu.dataset?.menuClosing === 'true') {
       if (menu) panelOverflowStates.delete(menu);
       if (overflowHintMenu === menu) removeMenuOverflowHint();
@@ -544,7 +561,7 @@
   }
 
   function scheduleMenuOverflowHint(menu) {
-    if (!menu) return;
+    if (phoneViewer() || !menu) return;
     pendingOverflowMenus.add(menu);
     if (overflowHintFrame !== null) return;
     // Two paints let hidden menus finish their opening layout and async menu
@@ -555,14 +572,16 @@
   }
 
   function scanVisibleMenus() {
+    if (phoneViewer()) return;
     for (const menu of doc.querySelectorAll?.(OVERFLOW_MENU_SELECTOR) || []) {
       scheduleMenuOverflowHint(menu);
     }
   }
 
   function installMenuOverflowHints() {
+    if (phoneViewer()) return;
     if (!doc?.documentElement || typeof global.MutationObserver !== 'function') return;
-    const observer = new global.MutationObserver(scanVisibleMenus);
+    const observer = overflowObserver = new global.MutationObserver(scanVisibleMenus);
     observer.observe(doc.documentElement, {
       attributes: true,
       attributeFilter: ['hidden', 'style', 'class'],
@@ -582,6 +601,7 @@
   }
 
   function openMenu(menu, anchor) {
+    if (phoneViewer()) return null;
     if (!menu || !anchor) return null;
     cancelMenuMotion(menu);
     scheduleMenuOverflowHint(menu);
@@ -592,11 +612,11 @@
     if (typeof menu.animate !== 'function') return null;
     let animation;
     try {
-      animation = menu.animate([
+      animation = menu.animate(tabletViewer() ? [{ opacity: 0 }, { opacity: 1 }] : [
         { opacity: 0, transform: `translate3d(${origin.offsetX}px, ${origin.offsetY}px, 0) scale(.985)` },
         { opacity: 1, transform: 'translate3d(0, 0, 0) scale(1)' }
       ], {
-        duration: 350,
+        duration: tabletViewer() ? 120 : 350,
         easing: 'cubic-bezier(.22,1,.36,1)'
       });
     } catch {
@@ -612,6 +632,7 @@
   }
 
   function closeMenu(menu, onFinish) {
+    if (phoneViewer()) { onFinish?.(); return null; }
     if (!menu) return null;
     const computed = global.getComputedStyle?.(menu);
     const startOpacity = computed?.opacity || '1';
@@ -633,11 +654,11 @@
     menu.style.transformOrigin = origin.css;
     let animation;
     try {
-      animation = menu.animate([
+      animation = menu.animate(tabletViewer() ? [{ opacity: startOpacity }, { opacity: 0 }] : [
         { opacity: startOpacity, transform: startTransform },
         { opacity: 0, transform: `translate3d(${origin.offsetX * .45}px, ${origin.offsetY * .45}px, 0) scale(.992)` }
       ], {
-        duration: 220,
+        duration: tabletViewer() ? 100 : 220,
         easing: 'cubic-bezier(.4,0,.2,1)'
       });
     } catch {
@@ -657,7 +678,9 @@
   }
 
   function morphPopover(popover, anchor) {
+    if (phoneViewer()) return null;
     if (!popover || !anchor) return null;
+    if (tabletViewer()) return revealPreview(popover);
     cancelPopoverMorph(popover);
     if (typeof popover.animate !== 'function') return null;
     const anchorRect = typeof anchor.getBoundingClientRect === 'function' ? anchor.getBoundingClientRect() : anchor;
@@ -697,13 +720,14 @@
   }
 
   function revealPreview(surface) {
+    if (phoneViewer()) return null;
     if (!surface) return null;
     cancelPopoverMorph(surface);
     if (!surface.animate) return null;
-    const animation = surface.animate([
+    const animation = surface.animate(tabletViewer() ? [{ opacity: 0 }, { opacity: 1 }] : [
       { opacity: 0, transform: 'translateY(4px)' },
       { opacity: 1, transform: 'translateY(0)' }
-    ], { duration: 200, easing: 'cubic-bezier(.22,.61,.36,1)' });
+    ], { duration: tabletViewer() ? 120 : 200, easing: 'cubic-bezier(.22,.61,.36,1)' });
     popoverAnimations.set(surface, animation);
     const cleanup = () => {
       if (popoverAnimations.get(surface) === animation) popoverAnimations.delete(surface);
@@ -722,6 +746,7 @@
   doc?.addEventListener('visibilitychange', handleVisibilityChange);
   installMenuOverflowHints();
   global.MuseEffects = Object.freeze({
+    configureForDevice,
     ORB_STATES,
     cancelMenuMotion,
     computeOrbPoints,

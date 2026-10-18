@@ -1,11 +1,13 @@
+import { isPhoneViewer } from './phone-view-model.js';
 import { pushUndoSnapshot, redoLastChange, undoLastChange } from './history-controller.js';
 import { snapshotItems } from './history-controller-model.js';
 
 import { exitAmapInteraction } from './amap-rendering-model.js';
 import { closeCanvasMenu } from './catalog.js';
 import { copySelection, cutSelection, duplicateSelection } from './clipboard.js';
-import { isRemoteBoardLocked } from './connection-model.js';
+import { isLocalEditingBlocked, isRemoteBoardLocked } from './connection-model.js';
 import { cancelConnectorDraft } from './drawing-model.js';
+import { translatedConnectorGeometry } from './connector/translation-model.js';
 import { cancelEditing } from './editing.js';
 import { els } from './elements.js';
 import { cancelActiveGesture } from './gestures.js';
@@ -122,8 +124,14 @@ function handleMindMapKeyDown(event) {
 }
 
 function onKeyDown(event) {
+  if (event.defaultPrevented || isImeEvent(event)) return;
   if (window.__independentNotesActive) return;
-  if (isRemoteBoardLocked()) {
+  if (isPhoneViewer()) return;
+  // Dialogs and focused controls own their keys, even while a canvas object
+  // remains selected behind them. Escape still closes canvas popovers.
+  if (event.target.closest?.('dialog,[role="dialog"],[role="alertdialog"]')) return;
+  if (event.key !== 'Escape' && event.target.closest?.('button,a,summary,[role="button"],[role="menu"],[role="menuitem"],[role="menuitemradio"],[role="menuitemcheckbox"]')) return;
+  if (isRemoteBoardLocked() || isLocalEditingBlocked()) {
     if (els.viewport.contains(event.target) || event.target.closest?.('#navigatorTree'))
       event.preventDefault();
     return;
@@ -197,7 +205,7 @@ function onKeyDown(event) {
     setActiveCursorState('grab');
     return;
   }
-  if (event.shiftKey && event.key.toLowerCase() === 's') {
+  if (event.shiftKey && !event.ctrlKey && !event.metaKey && !event.altKey && event.key.toLowerCase() === 's') {
     event.preventDefault();
     if (getSelectedIds().length) createSectionAroundSelection();
     else setTool('section');
@@ -243,7 +251,8 @@ function onKeyDown(event) {
       els.layerMenu,
       els.mindmapMenu,
       els.navigationMenu,
-      els.backgroundMenu
+      els.backgroundMenu,
+      els.petMenu
     ].find((popover) => popover && !popover.hidden);
     if (openPopover) {
       closePopovers();
@@ -304,6 +313,12 @@ function onKeyDown(event) {
       const item = state.items.get(id);
       if (!canMutateItem(item)) {
         continue;
+      }
+      if (item.type === 'connector') {
+        window.ConnectorCore.apply(item);
+        Object.assign(item, translatedConnectorGeometry(item, move[0] * step, move[1] * step,
+          binding => binding.kind === 'item' && moveIds.includes(binding.id) && canMutateItem(state.items.get(binding.id))));
+        window.ConnectorCore.apply(item);
       }
       item.x += move[0] * step;
       item.y += move[1] * step;

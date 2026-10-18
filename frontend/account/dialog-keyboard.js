@@ -14,7 +14,7 @@ function manageAccountDialogKeyboard(event) {
       event.preventDefault();
       discardPendingAvatar();
       overlay.hidden = true;
-      byId('accountButton').focus({ preventScroll: true });
+      (window.__independentNotesActive ? document.querySelector('[data-account-profile]') : byId('accountButton'))?.focus({ preventScroll: true });
     } else if (overlay.id === 'avatarCropDialog') {
       event.preventDefault();
       closeAvatarCrop(null);

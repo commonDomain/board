@@ -10,6 +10,7 @@ import { createImageDerivatives } from './image-derivatives.js';
 const assetWrites = new Map();
 
 const assetDerivativeWrites = new Map();
+const activeAssetUploads = new Map();
 
 function assetExtensionForMime(mimeType) {
   if (mimeType === 'image/png') return '.png';
@@ -67,9 +68,11 @@ async function writeAssetBuffer(buffer, mimeType) {
   if (sniffImageType(buffer) !== mimeType) {
     throw new ProtocolError('INVALID_ASSET', 'Asset content does not match its declared type.');
   }
-  // Reserve room for the original plus bounded thumbnail/medium derivatives.
-  await assertWriteCapacity(buffer.length * 3);
   const hash = crypto.createHash('sha256').update(buffer).digest('hex');
+  activeAssetUploads.set(hash,(activeAssetUploads.get(hash) || 0)+1);
+  try {
+  // Keep the original protected through derivative generation and DB publication.
+  await assertWriteCapacity(buffer.length * 3);
   const filename = `${hash}${extension}`;
   const filePath = path.join(ASSETS_DIR, filename);
   const key = `${hash}:${extension}`;
@@ -117,7 +120,8 @@ async function writeAssetBuffer(buffer, mimeType) {
       mime_type = excluded.mime_type,
       byte_size = excluded.byte_size,
       width = excluded.width,
-      height = excluded.height
+      height = excluded.height,
+      orphaned_at = excluded.orphaned_at
   `
     )
     .run(hash, filename, mimeType, buffer.length, image.width, image.height, Date.now(), Date.now());
@@ -133,10 +137,15 @@ async function writeAssetBuffer(buffer, mimeType) {
       original: originalVariant
     }
   };
+  } finally {
+    const count=activeAssetUploads.get(hash)-1;
+    if(count)activeAssetUploads.set(hash,count);else activeAssetUploads.delete(hash);
+  }
 }
 export {
   assetWrites,
   assetDerivativeWrites,
+  activeAssetUploads,
   assetExtensionForMime,
   sniffImageType,
   parseDataUrl,

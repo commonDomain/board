@@ -1,4 +1,5 @@
 import { boards, clients } from './board-registry.js';
+import { stopWebPush } from './web-push.js';
 import { SHUTDOWN_GRACE_MS } from './config.js';
 import { server } from './http-server.js';
 import { assetMaintenanceRuntime } from './runtime/asset-maintenance.js';
@@ -31,6 +32,7 @@ async function shutdown(signal, exitCode = 0) {
   forcedExit.unref();
 
   try {
+    await stopWebPush();
     await Promise.all(Array.from(clients, (client) => client.inboundTail.catch(() => {})));
     await Promise.all(Array.from(boards.values(), (board) => board.tail.catch(() => {})));
     await Promise.all(

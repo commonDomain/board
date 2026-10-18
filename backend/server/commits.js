@@ -237,7 +237,7 @@ async function commitSheetDeltaOperation(board, client, message) {
       );
     const activeLock = board.sheetLocks.get(sheetLockKey(itemId, command.sheetId, change.row, change.column));
     if (activeLock && activeLock.clientId !== client.id)
-      throw new ProtocolError('SHEET_CELL_CONFLICT', 'Spreadsheet cell is being edited by another collaborator.');
+      throw new ProtocolError('SHEET_CELL_BUSY', 'Spreadsheet cell is being edited by another collaborator.');
     canonicalCells.push({ ...change, version: currentVersion + 1 });
   }
   if (!renewBoardEditLease(board, client, itemId)) {

@@ -1,5 +1,8 @@
 const eventsRuntime = {
-  editableInputHandler: null
+  editableInputHandler: null,
+  captureDraftInputs: null,
+  renderSyncIssue: null,
+  renderDraftSafety: null
 };
 
 export { eventsRuntime };

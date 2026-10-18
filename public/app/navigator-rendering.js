@@ -1,3 +1,4 @@
+import { isPhoneViewer } from './phone-view-model.js';
 
 
 import { els } from './elements.js';
@@ -143,6 +144,7 @@ function renderNavigator(animateReorder = false, landedKey = '') {
 }
 
 function createNavigatorRow(row) {
+  const viewing = isPhoneViewer();
   const element = document.createElement('div');
   element.className = 'navigator-row';
   element.style.setProperty('--depth', row.depth);
@@ -151,7 +153,7 @@ function createNavigatorRow(row) {
   const dragHandle = document.createElement('button');
   dragHandle.type = 'button';
   dragHandle.className = 'navigator-drag-handle';
-  if (row.canReorder) {
+  if (row.canReorder && !viewing) {
     dragHandle.title = '上下拖拽排序';
     dragHandle.setAttribute('aria-label', '上下拖拽排序');
     const handleIcon = document.createElement('i');
@@ -281,11 +283,11 @@ function createNavigatorRow(row) {
   main.append(icon, label);
   main.addEventListener('click', () => locateNavigatorRow(row));
   main.addEventListener('dblclick', () => {
-    if (row.type !== 'root') renameOrganizationEntry(row.type, row.id);
+    if (!viewing && row.type !== 'root') renameOrganizationEntry(row.type, row.id);
   });
   const actions = document.createElement('div');
   actions.className = 'navigator-actions';
-  if (row.type !== 'root') {
+  if (!viewing && row.type !== 'root') {
     actions.append(
       makeNavigatorAction('pencil', '重命名', () => renameOrganizationEntry(row.type, row.id)),
       makeNavigatorAction(row.hidden ? 'eye-off' : 'eye', row.hidden ? '显示' : '隐藏', () =>

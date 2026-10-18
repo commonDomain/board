@@ -226,7 +226,8 @@ function addStickerItem(icon) {
 function upsertItem(item, options = {}) {
   const existing = state.items.get(item?.id);
   const layerId = item?.layerId || existing?.layerId || state.activeLayerId;
-  if (!item || !item.id || !getWritableLayer(layerId) || (existing && !canMutateItem(existing))) {
+  const safety = { allowConflictRecovery: options.allowConflictRecovery === true };
+  if (!item || !item.id || !getWritableLayer(layerId, safety) || (existing && !canMutateItem(existing, safety))) {
     showToast(explainUnwritableLayer(layerId));
     return false;
   }
@@ -379,8 +380,8 @@ function sendToBack(id) {
     return;
   }
   const siblings = Array.from(state.items.values()).filter((other) => other.layerId === item.layerId);
-  const minZ = Math.min(...siblings.map((other) => Number(other.z || 1)));
-  if (Number(item.z || 1) <= minZ) {
+  const minZ = Math.min(...siblings.map((other) => Number(other.z ?? 1)));
+  if (Number(item.z ?? 1) <= minZ) {
     return;
   }
   pushUndoSnapshot();

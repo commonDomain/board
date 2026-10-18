@@ -20,18 +20,17 @@ try {
     [xml]$markup = @'
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Museboard 项目重启" Width="430" Height="218"
+        Title="Museboard 项目重启" Width="430" Height="185"
         WindowStartupLocation="CenterScreen" ResizeMode="NoResize"
         Background="#F7F9FC" Topmost="True">
   <Grid Margin="28,22">
     <Grid.RowDefinitions>
       <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
-      <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
+      <RowDefinition Height="Auto"/>
     </Grid.RowDefinitions>
     <TextBlock FontSize="21" FontWeight="SemiBold" Foreground="#172033" Text="正在重启 Museboard"/>
     <TextBlock x:Name="Stage" Grid.Row="1" Margin="0,14,0,16" FontSize="14" Foreground="#475569" Text="正在准备，请稍候…"/>
     <ProgressBar Grid.Row="2" Height="7" IsIndeterminate="True" Foreground="#3974ED" Background="#E1E8F4" BorderThickness="0"/>
-    <TextBlock Grid.Row="3" Margin="0,14,0,0" FontSize="12" Foreground="#64748B" Text="完成后将提示结果，并自动打开网页。"/>
   </Grid>
 </Window>
 '@
@@ -73,9 +72,8 @@ try {
     }
     # These files are live UI messages, not logs; delete them before the result popup.
     Remove-Item -LiteralPath $statusFile,$resultFile -Force -ErrorAction SilentlyContinue
-    $shell = New-Object -ComObject WScript.Shell
-    $icon = if ($failed) { 16 } else { 64 }
-    [void]$shell.Popup($notice, 0, 'Museboard 项目重启', ($icon + 4096))
+    . (Join-Path $PSScriptRoot 'restart-desktop-notice.ps1')
+    Show-RestartNotice $notice $failed
 } catch {
     if ($timer) { $timer.Stop() }
     if ($window) { $script:allowClose = $true; $window.Close() }

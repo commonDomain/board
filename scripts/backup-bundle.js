@@ -5,6 +5,7 @@ const fsp = require('node:fs/promises');
 const path = require('node:path');
 const { DatabaseSync, backup } = require('node:sqlite');
 const { backupAssetDirectory, normalizeAsset, verifyAsset } = require('../backend/backup-assets');
+const {prepareChatTextBackup}=require('../backend/backup-chat');
 
 function tableExists(database, name) {
   return Boolean(database.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?").get(name));
@@ -29,7 +30,7 @@ function validateDatabase(file, expectedBoards) {
   }
 }
 
-function listAssets(database) {
+function listAssets(database,dependencies) {
   if (!tableExists(database, 'assets')) return [];
   const count = Number(database.prepare('SELECT COUNT(*) AS count FROM assets').get().count);
   if (!count) return [];
@@ -38,6 +39,7 @@ function listAssets(database) {
     throw new Error('assets 表缺少新备份所需字段');
   }
   return database.prepare('SELECT asset_id, original_filename FROM assets ORDER BY asset_id').all()
+    .filter(row=>dependencies.has(row.asset_id))
     .map((row) => normalizeAsset({ assetId: row.asset_id, originalFilename: row.original_filename }));
 }
 
@@ -60,12 +62,17 @@ async function createBackupBundle(database, { dataDir, backupFile, expectedBoard
 
   try {
     await backup(database, temporaryDatabase);
+    const snapshot=new DatabaseSync(temporaryDatabase);let assets;
+    try{
+      prepareChatTextBackup(snapshot);
+      const {assetDependencyIds}=await import('../backend/server/asset-dependencies.js');
+      assets=listAssets(snapshot,assetDependencyIds(snapshot));
+    }finally{snapshot.close();}
     validateDatabase(temporaryDatabase, expectedBoards);
     await Promise.all([
       fsp.rm(`${temporaryDatabase}-shm`, { force: true }),
       fsp.rm(`${temporaryDatabase}-wal`, { force: true })
     ]);
-    const assets = listAssets(database);
     await fsp.mkdir(temporaryAssetsDir);
     for (const asset of assets) {
       const source = path.join(sourceAssetsDir, asset.originalFilename);
@@ -81,7 +88,7 @@ async function createBackupBundle(database, { dataDir, backupFile, expectedBoard
     await fsp.writeFile(temporaryManifest, `${JSON.stringify({
       version: 2,
       createdAt: new Date().toISOString(),
-      assets
+      assets,chatMediaPolicy:'text-only'
     }, null, 2)}\n`, { flag: 'wx' });
 
     await fsp.rename(temporaryAssetsDir, finalAssetsDir);

@@ -1,9 +1,11 @@
-import { reloadCatalogAfterAccountChange } from './account-lifecycle.js';
-import { schedulePersistPendingOps } from './canvas-session.js';
+import { journalAccountExit, reloadCatalogAfterAccountChange } from './account-lifecycle.js';
+import { persistCurrentCanvasForSwitch, schedulePersistPendingOps } from './canvas-session.js';
 import {
   acceptAuthoritativeSnapshot,
   acceptUnchangedSnapshot,
   applyBoardEditLease,
+  renderBoardLock,
+  sendBoardEditActivity,
   finishSnapshotTransfer
 } from './connection.js';
 import { appendSnapshotChunk, startSnapshotTransfer } from './connection-model.js';
@@ -13,6 +15,7 @@ import { showToast } from './interface-model.js';
 
 import { updatePresence, updateRemoteCursor } from './presence.js';
 import { sheetStoreRuntime } from './runtime/sheet-store.js';
+import { eventsRuntime } from './runtime/events.js';
 import {
   markDirty,
   scheduleCurrentCanvasPreviewRefresh,
@@ -22,11 +25,16 @@ import {
 } from './save-status.js';
 import { sheetCommandCommits, sheetLockRequests, sheetRemoteLocks } from './sheet-store.js';
 import { state } from './state.js';
+import { isTransientSyncError, syncRetryMinimumDelay } from './sync-retry-policy.js';
 import { handleCommittedOperation, pumpSyncQueue, recoverFromDeletedCanvas, scheduleSyncRetry } from './sync-queue.js';
 import { requestResync } from './sync-queue-model.js';
 import { setTool } from './toolbar.js';
 
 function handleSocketMessage(message) {
+  if (message.type === 'chat-changed') {
+    window.dispatchEvent(new CustomEvent('muse:chat-changed',{detail:message}));
+    return;
+  }
   if (['planning-changed', 'planning-access-changed', 'sharing-changed', 'access-revoked', 'canvas-deleted'].includes(message.type)) window.MusePlanning?.refresh(message).catch(()=>{});
   if (message.type === 'planning-changed') return;
   if (state.snapshotTransfer && SNAPSHOT_DEFERRED_TYPES.has(message.type)) {
@@ -38,6 +46,7 @@ function handleSocketMessage(message) {
     return;
   }
   if (message.type === 'hello') {
+    window.dispatchEvent(new CustomEvent('muse:chat-connected'));
     if (typeof message.clientId === 'string' && message.clientId) {
       state.clientId = message.clientId;
     }
@@ -73,11 +82,16 @@ function handleSocketMessage(message) {
     return;
   }
   if (message.type === 'access-revoked') {
+    journalAccountExit();
+    state.accessReadOnly = true;
+    renderBoardLock();
     showToast('该画布已设为私密或共享关系已取消');
     void window.MuseAccount?.refreshSharing?.().catch((error) => {
       console.warn('Could not refresh sharing members', error);
     });
-    void reloadCatalogAfterAccountChange({ selectFirst: true });
+    void persistCurrentCanvasForSwitch().then(saved => {
+      if (saved) return reloadCatalogAfterAccountChange({ selectFirst: true });
+    }).catch(error => console.warn('Could not preserve revoked canvas draft', error));
     return;
   }
   if (message.type === 'sharing-changed') {
@@ -131,6 +145,9 @@ function handleSocketMessage(message) {
     }
     if (!state.dirty) {
       updateSavedLabel(message.savedAt);
+      if (state.previewAfterSave) window.dispatchEvent(new CustomEvent('muse:pet-feedback', {
+        detail: { type: 'save', id: `${state.boardId}:${state.canvasEpoch}:${state.saveChangeSerial}` }
+      }));
     } else {
       updateSaveText();
     }
@@ -157,27 +174,20 @@ function handleSocketMessage(message) {
       state.saveResponseTimer = null;
       state.saveRequestId = null;
       state.saveInFlight = false;
-      const retryable = [
-        'RATE_LIMITED',
-        'INTERNAL_ERROR',
-        'MEMORY_PRESSURE',
-        'STORAGE_LIMIT',
-        'NOT_JOINED',
-        'SERVER_SHUTTING_DOWN'
-      ].includes(message.code);
+      const retryable = isTransientSyncError(message);
       state.saveQueued = retryable;
       if (retryable) {
-        scheduleSyncRetry(message.code === 'STORAGE_LIMIT' ? 60000 : 1200);
+        scheduleSyncRetry(syncRetryMinimumDelay(message));
         if (message.code === 'NOT_JOINED' || message.code === 'SERVER_SHUTTING_DOWN') state.socket?.close();
       }
       updateSaveText();
-      showToast(message.message || '保存暂时失败，修改已保留');
+      if (!retryable) showToast(message.message || '保存暂时失败，修改已保留');
       return;
     }
     if (message.requestId) return;
     const sheetCommit = typeof message.opId === 'string' ? sheetCommandCommits.get(message.opId) : null;
     if (sheetCommit) {
-      if (message.code === 'BOARD_BUSY') {
+      if (isTransientSyncError(message) || message.code === 'REVISION_CONFLICT') {
         clearTimeout(sheetCommit.timeout);
         sheetCommit.timeout = null;
       } else {
@@ -193,6 +203,7 @@ function handleSocketMessage(message) {
     if (message.code === 'CONNECTOR_VERSION') {
       cancelActiveGesture();
       state.compatibilityReadOnly = true;
+      renderBoardLock();
       setTool('pan');
       showToast('连接数据版本不兼容，已进入只读模式。原数据与未提交草稿均保留，请更新后重新打开。');
     }
@@ -201,6 +212,7 @@ function handleSocketMessage(message) {
       return;
     }
     if (typeof message.opId === 'string') {
+      if (!isTransientSyncError(message) && message.code !== 'REVISION_CONFLICT') eventsRuntime.editableInputHandler?.flush?.();
       if (message.opId === state.syncQueue.inflightOpId) {
         clearTimeout(state.operationAckTimer);
         state.operationAckTimer = null;
@@ -210,42 +222,27 @@ function handleSocketMessage(message) {
           schedulePersistPendingOps();
           requestResync();
         }
-      } else if (
-        [
-          'RATE_LIMITED',
-          'INBOUND_QUEUE_LIMIT',
-          'BOARD_BUSY',
-          'INTERNAL_ERROR',
-          'SERVER_SHUTTING_DOWN',
-          'NOT_JOINED',
-          'MEMORY_PRESSURE',
-          'STORAGE_LIMIT'
-        ].includes(message.code)
-      ) {
+      } else if (isTransientSyncError(message)) {
         if (state.syncQueue.retry(message.opId)) {
           schedulePersistPendingOps();
           if (message.code === 'BOARD_BUSY') state.waitingForBoardUnlock = true;
-          scheduleSyncRetry(
-            message.code === 'STORAGE_LIMIT'
-              ? 60000
-              : message.code === 'MEMORY_PRESSURE'
-                ? 5000
-                : message.code === 'BOARD_BUSY'
-                  ? 3600
-                  : 0
-          );
+          scheduleSyncRetry(syncRetryMinimumDelay(message));
           if (message.code === 'NOT_JOINED' || message.code === 'SERVER_SHUTTING_DOWN') {
             state.socket?.close();
           } else if (!['RATE_LIMITED', 'BOARD_BUSY', 'MEMORY_PRESSURE', 'STORAGE_LIMIT'].includes(message.code)) {
             requestResync();
           }
         }
-      } else if (state.syncQueue.block(message.opId, message.message || message.code)) {
+      } else if (state.syncQueue.block(message.opId, message.message || message.code, message.code === 'ASSET_ACCESS_DENIED' ? message.image : null)) {
+        state.localBoardEditGesture = false;
+        sendBoardEditActivity(null, false);
         schedulePersistPendingOps();
         requestResync();
+        renderBoardLock();
       }
     }
-    if (!['BOARD_BUSY', 'INVALID_NOTE_PLACEMENT', 'INVALID_NOTE_ORDER'].includes(message.code))
+    updateSaveText();
+    if (!isTransientSyncError(message) && !['REVISION_CONFLICT', 'INVALID_NOTE_PLACEMENT', 'INVALID_NOTE_ORDER'].includes(message.code))
       showToast(message.message || '协同服务暂时不可用');
   }
 }

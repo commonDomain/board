@@ -10,6 +10,8 @@ import { recoveryStatus } from './recovery-state.js';
 import { assertWriteCapacity } from './resources.js';
 import { backupRuntime } from './runtime/backup.js';
 import { servicesRuntime } from './runtime/services.js';
+import { assetDependencyIds } from './asset-dependencies.js';
+import { prepareChatTextBackup } from '../backup-chat.js';
 
 async function createOnlineBackup() {
   if (backupRuntime.backupInFlight) return backupRuntime.backupInFlight;
@@ -26,15 +28,19 @@ async function createOnlineBackup() {
     let published = false;
     try {
       await backupDatabase(servicesRuntime.database, temporaryPath);
-      const verification = new DatabaseSync(temporaryPath, { readOnly: true });
+      const verification = new DatabaseSync(temporaryPath);
       let assets;
       try {
+        prepareChatTextBackup(verification);
         const result = verification.prepare('PRAGMA quick_check').all();
         if (!result.every((entry) => entry.quick_check === 'ok')) throw new Error('Backup quick_check failed');
-        // Capture all asset metadata in this exact SQLite snapshot, including archives.
+        // Orphan metadata is not a dependency. Including it here would let each
+        // successive backup renew protection indefinitely after withdrawal.
+        const dependencies = assetDependencyIds(verification);
         assets = verification
           .prepare('SELECT asset_id, original_filename FROM assets ORDER BY asset_id')
           .all()
+          .filter(row => dependencies.has(row.asset_id))
           .map((row) =>
             normalizeBackupAsset({
               assetId: row.asset_id,
@@ -64,7 +70,7 @@ async function createOnlineBackup() {
             version: 2,
             createdAt: new Date().toISOString(),
             database: path.basename(finalPath),
-            assets
+            assets,chatMediaPolicy:'text-only'
           },
           null,
           2

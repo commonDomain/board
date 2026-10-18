@@ -1,5 +1,4 @@
 import { state } from '../state.js';
-import { getBoardPointFromClient } from '../camera.js';
 import { cssEscape } from '../utilities.js';
 
 const staticAssetUrl = (relativePath) => {
@@ -70,8 +69,6 @@ const button = (label, action, parent, title = label) => {
   return b;
 };
 
-const world = (x, y) => getBoardPointFromClient(x, y);
-
 const mounted = (id) => document.querySelector(`.board-item[data-item-id="${cssEscape(id)}"]`);
 
 export {
@@ -92,6 +89,5 @@ export {
   pending,
   smartChoices,
   staticAssetUrl,
-  svg,
-  world
+  svg
 };

@@ -1,7 +1,7 @@
 import { pinchStart, pinchMove } from './touch-geometry-model.js';
 import { touchPreferences } from './touch-preferences.js';
 import { cloneHistoryValue } from './history-controller-model.js';
-import { scheduleCameraApply } from './camera.js';
+import { cancelWheelZoomAnimation, scheduleCameraApply } from './camera.js';
 import { MAX_ZOOM, MIN_ZOOM } from './constants.js';
 import { els } from './elements.js';
 import { clearEraserPreview } from './eraser-model.js';
@@ -13,12 +13,12 @@ import { clearGuides } from './presence.js';
 import { floatingToolbarMenuRuntime } from './runtime/floating-toolbar-menu.js';
 import { inkGeometryRuntime } from './runtime/ink-geometry.js';
 import { pointerMoveRuntime } from './runtime/pointer-move.js';
-import { spatialIndexRuntime } from './runtime/spatial-index.js';
+import { invalidateMarqueeSelection } from './runtime/spatial-index.js';
 import { renderSections } from './sections.js';
 import { updateSelectionUI } from './selection.js';
-import { indexUpsertItem } from './spatial-index.js';
 import { state } from './state.js';
-import { refreshConnectorsFor, restoreInteractionItems } from './transform.js';
+import { getCanvasRenderPolicy } from './render-resources-model.js';
+import { refreshConnectorsFor, restoreInteractionItems, updateItemElementGeometry } from './transform.js';
 
 function startPinch(firstPointerId, secondEvent) {
   const first = state.pointerPositions.get(firstPointerId);
@@ -50,14 +50,18 @@ function startPinch(firstPointerId, secondEvent) {
     state.zoom, state.camera, state.rotation
   );
   state.pinch.rotate = touchPreferences().rotate;
+  if (getCanvasRenderPolicy().tablet) els.viewport.classList.add('pinching');
   state.gestureSession = { kind: 'pinch', pointerId: secondEvent.pointerId, targetIds: [] };
   captureViewportPointer(firstPointerId);
   captureViewportPointer(secondEvent.pointerId);
 }
 
 function cancelActiveGesture() {
+  cancelWheelZoomAnimation();
+  invalidateMarqueeSelection();
+  window.ConnectorUI?.cancelInteraction?.();
   stopEdgePan();
-  els.viewport.classList.remove('moving-items', 'moving-section', 'selecting');
+  els.viewport.classList.remove('moving-items', 'moving-section', 'selecting', 'pinching');
   clearTimeout(state.eyedropperTimer);
   state.eyedropperTimer = null;
   state.eyedropperStart = null;
@@ -65,6 +69,7 @@ function cancelActiveGesture() {
   if (state.currentPath) {
     cancelAnimationFrame(state.currentPath.previewFrame || 0);
     state.currentPath.previewController?.dispose();
+    if (getCanvasRenderPolicy().tablet && state.currentPath.previewCanvas) { state.currentPath.previewCanvas.width = 1; state.currentPath.previewCanvas.height = 1; }
     state.currentPath.previewCanvas?.remove();
     state.currentPath = null;
   }
@@ -90,9 +95,6 @@ function cancelActiveGesture() {
     els.viewport.classList.remove('panning');
   }
   if (state.marquee) {
-    spatialIndexRuntime.latestGeometrySelectionSequence = ++spatialIndexRuntime.geometrySelectionSequence;
-    spatialIndexRuntime.pendingGeometrySelection = null;
-    spatialIndexRuntime.geometryMarqueeFinalize = null;
     state.selectedId = state.marquee.beforeSelectedId || null;
     state.selectedIds = new Set(state.marquee.beforeSelectedIds || []);
     state.marquee = null;
@@ -117,8 +119,9 @@ function cancelActiveGesture() {
       const item = state.items.get(id);
       if (!item) continue;
       Object.assign(item, position);
+      if (item.type === 'connector') window.ConnectorCore?.apply(item);
       state.items.set(id, item);
-      indexUpsertItem(item);
+      updateItemElementGeometry(item);
     }
     renderSections();
     refreshConnectorsFor(sectionInteraction.childIds || []);
@@ -155,6 +158,7 @@ function continuePinch(event) {
 
 function finishPinch() {
   state.pinch = null;
+  els.viewport.classList.remove('pinching');
   state.gestureSession = null;
   if (floatingToolbarMenuRuntime.floatingToolbarPositionPending) scheduleFloatingToolbarPosition();
 }

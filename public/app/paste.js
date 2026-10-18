@@ -9,7 +9,7 @@ import {
   treeFromList
 } from './clipboard-model.js';
 import { pasteClipboard } from './clipboard.js';
-import { isRemoteBoardLocked } from './connection-model.js';
+import { isLocalEditingBlocked, isRemoteBoardLocked } from './connection-model.js';
 import { MAX_TABLE_COLUMNS, MAX_TABLE_ROWS } from './constants.js';
 import { getViewportDropPoint } from './geometry.js';
 import { normalizeImageForBoard } from './image-upload-model.js';
@@ -32,8 +32,13 @@ import { cssEscape, isEditableTarget } from './utilities.js';
 import { normalizeClipboardTableRows, getStructuredClipboardTable } from './paste-model.js';
 
 function handlePasteEvent(event) {
+  if (event.defaultPrevented) return;
   if (window.__independentNotesActive) return;
-  if (isRemoteBoardLocked()) {
+  if (event.target.closest?.('dialog,[role="dialog"],[role="alertdialog"]')) return;
+  // Read-only canvas state must not disable native paste in search, chat,
+  // account fields or other independent editors.
+  if (isEditableTarget(event.target) && !event.target.closest?.('.board-table td, .board-table th')) return;
+  if (isRemoteBoardLocked() || isLocalEditingBlocked()) {
     event.preventDefault();
     return;
   }

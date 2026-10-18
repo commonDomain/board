@@ -27,6 +27,7 @@ function sendProtocolError(client, error, correlation = {}) {
     type: 'error',
     code: isProtocol ? error.code : 'INTERNAL_ERROR',
     message: isProtocol ? error.message : 'Server could not process that message.',
+    ...(isProtocol && error.code === 'ASSET_ACCESS_DENIED' && error.image ? { image: error.image } : {}),
     ...correlation
   });
   if (!isProtocol) console.error(error);

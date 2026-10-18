@@ -101,6 +101,8 @@ function isSameOrigin(input) {
 }
 
 global.fetch = async function accountAwareFetch(input, init = {}) {
+  const timeoutMs = Math.max(1000, Number(init.timeoutMs) || ACCOUNT_REQUEST_TIMEOUT_MS);
+  const { timeoutMs: _timeoutMs, ...fetchOptions } = init;
   const requireCurrentAccount = accountGenerationGuard();
   const method = String(init.method || (typeof input !== 'string' && input.method) || 'GET').toUpperCase();
   const headers = new Headers(init.headers || (typeof input !== 'string' ? input.headers : undefined));
@@ -121,10 +123,10 @@ global.fetch = async function accountAwareFetch(input, init = {}) {
     const timeout = setTimeout(() => {
       timedOut = true;
       controller.abort();
-    }, ACCOUNT_REQUEST_TIMEOUT_MS);
+    }, timeoutMs);
     try {
       const response = await nativeFetch(input, {
-        ...init,
+        ...fetchOptions,
         headers,
         credentials: init.credentials || 'same-origin',
         signal: controller.signal

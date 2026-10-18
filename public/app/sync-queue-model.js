@@ -80,9 +80,17 @@ function requestResync() {
     return;
   }
   state.resyncing = true;
-  state.socket.send(JSON.stringify({ type: 'resync', revision: state.revision }));
   const socket = state.socket;
   clearTimeout(state.resyncResponseTimer);
+  try {
+    socket.send(JSON.stringify({ type: 'resync', revision: state.revision }));
+  } catch (error) {
+    state.resyncing = false;
+    state.resyncResponseTimer = null;
+    console.warn('Could not request resync', error);
+    socket.close(4000, 'Resync send failed');
+    return;
+  }
   state.resyncResponseTimer = setTimeout(() => {
     if (state.socket === socket && state.resyncing) socket.close(4000, 'Resync timeout');
   }, 30000);

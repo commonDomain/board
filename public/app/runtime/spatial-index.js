@@ -6,4 +6,10 @@ const spatialIndexRuntime = {
   geometryMarqueeFinalize: null
 };
 
-export { spatialIndexRuntime };
+function invalidateMarqueeSelection() {
+  spatialIndexRuntime.latestGeometrySelectionSequence = ++spatialIndexRuntime.geometrySelectionSequence;
+  spatialIndexRuntime.pendingGeometrySelection = null;
+  spatialIndexRuntime.geometryMarqueeFinalize = null;
+}
+
+export { spatialIndexRuntime, invalidateMarqueeSelection };

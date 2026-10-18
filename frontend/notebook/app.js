@@ -1,4 +1,7 @@
 import { wireNotebookTouch, wirePageReorder } from './touch.js';
+import { addChatMessage as insertChatMessage } from './chat.js';
+import { isPhoneViewer } from '../../public/app/phone-view-model.js';
+import { getCanvasRenderPolicy, getInkPixelRatio, releaseItemSurfaces, shrinkInkSurfaces } from '../../public/app/render-resources-model.js';
 import { capturePagePositions, animatePagePositions, wireNativePageReorder, markPageDropTarget, clearPageDropTargets, findPageReorderTarget, clearPageReorderOffsets } from './reorder.js';
 import { openTouchSettings } from '../../public/app/touch-preferences.js';
 import { brainConnectorIds } from '../../public/app/planning-source-links.js';
@@ -108,13 +111,23 @@ export class NotebookApp {
       window.addEventListener('pointercancel', up, { once: true });
     });
     window.addEventListener('online', () => { if (this.store) this.store.nextDirectoryCheck = 0; this.store?.flush(); this.poll(); });
-    document.addEventListener('visibilitychange', () => { if (!document.hidden) { if (this.store) this.store.nextDirectoryCheck = 0; this.poll(); } });
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) {
+        this.touch?.cancel();
+        this.finishEdit();
+        const store = this.store;
+        store?.persist().catch(error => store.failed(error));
+      } else {
+        if (this.store) this.store.nextDirectoryCheck = 0;
+        this.poll();
+      }
+    });
     this.$('.nt-save').tabIndex = 0; this.$('.nt-save').setAttribute('role','button');
     const retryOpen = () => { if (!this.page) this.show(); else this.workspaceMenu(this.$('.nt-save'), true); };
     this.$('.nt-save').addEventListener('click',retryOpen);
     this.$('.nt-save').addEventListener('keydown',event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); retryOpen(); } });
     window.addEventListener('muse:note-error', event => this.toast(event.detail));
-    window.addEventListener('pagehide', () => { this.finishEdit(); this.store?.persist().catch(() => {}); });
+    window.addEventListener('pagehide', () => { this.touch?.cancel(); this.finishEdit(); this.store?.persist().catch(() => {}); });
     window.addEventListener('beforeunload', event => { if (this.store && [...this.store.dirty].some(id => this.store.durable.get(id) !== (this.store.generations.get(id) || 0))) { event.preventDefault(); event.returnValue = ''; } });
     for (const name of ['muse:account-changing', 'muse:logout', 'muse:auth-expired']) window.addEventListener(name, () => this.resetAccount());
     window.addEventListener('muse:sharing-changed',()=>{if(this.store){this.store.directoryVersion=null;this.store.nextDirectoryCheck=0;this.poll();}});
@@ -125,8 +138,9 @@ export class NotebookApp {
     icons();
   }
   toggleNavigation() { if(this.root.classList.contains('nt-navigation-open'))this.closeNavigation();else {this.showNavigation();this.$('.nt-navigation-header button')?.focus();} }
-  get readOnly() { return Boolean(this._readOnly); }
+  get readOnly() { return isPhoneViewer() || Boolean(this._readOnly); }
   set readOnly(value) {
+    value = isPhoneViewer() || value;
     if (value && !this._readOnly) this.touch?.cancel();
     this._readOnly = Boolean(value); this.editor?.setEditable(!this._readOnly && !this.page?.deleted && !this.book?.deleted);
     this.root?.classList.toggle('nt-readonly', this._readOnly);
@@ -137,6 +151,7 @@ export class NotebookApp {
   context() { return { store: this.store, epoch: this.epoch, bookId: this.book?.id, pageId: this.page?.id }; }
   current(context, page = true) { return context.epoch === this.epoch && context.store === this.store && this.store?.active() && (!page || context.pageId === this.page?.id && context.bookId === this.book?.id); }
   resetAccount() {
+    this.releaseViewSurfaces(getCanvasRenderPolicy().tablet ? this.root : this.surface);
     this.planningEdit = null;
     this.formatPainter=null;
     this.syncFormatPainter?.();
@@ -170,9 +185,17 @@ export class NotebookApp {
     }
     if (this.current(context, false) && token === this.searchToken) { this.searchLoading = false; this.renderNavigation(); this.renderSearch(); }
   }
-  notify(message) { const save=this.$('.nt-save');save.textContent=message;save.title=message;save.dataset.state=/失败|拒绝|冲突|不可用|只读|离线|草稿已保存|待确认/.test(message)?'attention':/正在|确认/.test(message)?'pending':/已同步|已保存到/.test(message)?'saved':'pending'; }
+  notify(message) {
+    const save=this.$('.nt-save'), savedAt=this.store?.savedTimes.get(this.book?.id) || this.book?.access?.savedAt;
+    const confirmed=/已同步|已保存到/.test(message) && savedAt;
+    const time=confirmed ? new Date(savedAt).toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit',second:'2-digit'}) : '';
+    save.textContent=message+(time ? ` · ${time}` : '');
+    save.title=message+(confirmed ? ` · ${new Date(savedAt).toLocaleString('zh-CN')}` : '');
+    save.dataset.state=/失败|拒绝|冲突|不可用|只读|离线|草稿已保存|待确认/.test(message)?'attention':/正在|确认/.test(message)?'pending':/已同步|已保存到/.test(message)?'saved':'pending';
+  }
   // Fade only explicit navigation changes, never editor or scrolling updates.
   fadeIn(node) {
+    if (isPhoneViewer()) return;
     this.motionAnimations ||= new Map();
     this.motionAnimations.get(node)?.cancel();
     if (this.root.hidden || this.printing || !node.animate) return;
@@ -187,6 +210,7 @@ export class NotebookApp {
     this.motionAnimations?.clear();
   }
   animateNavigation(toggle) {
+    if (isPhoneViewer()) { toggle(); return; }
     clearTimeout(this.navigationMotionTimer);
     this.root.classList.add('nt-navigation-animating');
     this.$('.nt-library').getBoundingClientRect();
@@ -219,20 +243,24 @@ export class NotebookApp {
         this.store?.dispose();
         this.scope = scope; this.store = new NotebookStore(scope, this.bridge.isGuest(), message => this.notify(message));
         const store = this.store; await store.load(); if (store !== this.store || store.disposed || !opening()) return;
-        if (![...store.books.values()].some(book => !book.deleted)) { const book = createNotebook(); store.change(book); }
+        if (![...store.books.values()].some(book => !book.deleted)) {
+          const book = createNotebook(isPhoneViewer() ? '暂无笔记' : undefined);
+          if (isPhoneViewer()) store.books.set(book.id, book);
+          else store.change(book);
+        }
         const prefs = await localRecord(`${scope}:view`).catch(() => null); if (store !== this.store || !store.active() || !opening()) return;
         this.book = store.books.get(prefs?.bookId) || [...store.books.values()].find(book => !book.deleted);
         this.book = await store.getBook(this.book.id); if (store !== this.store || !store.active() || !opening()) return;
         this.page = this.book.pages.find(page => page.id === prefs?.pageId && !page.deleted) || this.book.pages.find(page => !page.deleted);
-        if (!this.page) { this.page = createPage(this.book.sections[0].id); this.book.pages.push(this.page); store.change(this.book); }
+        if (!this.page) { this.page = createPage(this.book.sections[0].id); this.book.pages.push(this.page); if (!isPhoneViewer()) store.change(this.book); }
         this.sectionId = this.page.sectionId; this.filter = 'all'; this.tabs = [{ bookId: this.book.id, pageId: this.page.id }];
       }
-      const context = this.context(); this.readOnly=true;this.render();const writable = await this.store.lease(this.book.id,false,this.page.id); if (!this.current(context) || !opening()) { if (writable && context.store.active() && this.root.hidden) await context.store.lease(context.bookId,true,context.pageId); return; } this.readOnly = !writable; this.render();
-      this.notify(this.readOnly ? '编辑锁被占用或尚未确认 · 当前只读' : this.store.summary());
+      const context = this.context(); this.readOnly=true;this.render();const writable = !isPhoneViewer() && await this.store.lease(this.book.id,false,this.page.id); if (!this.current(context) || !opening()) { if (writable && context.store.active() && this.root.hidden) await context.store.lease(context.bookId,true,context.pageId); return; } this.readOnly = !writable; this.render();
+      this.notify(isPhoneViewer() ? '只读浏览' : this.readOnly ? '编辑锁被占用或尚未确认 · 当前只读' : this.store.summary());
       if (this.store.dirty.size && !this.readOnly) this.store.flush();
     } catch (error) { if (!opening()) return; this.book = null; this.page = null; this.notify('打开失败 · 点击重试'); this.toast(error.message); }
   }
-  hide() { this.closeContextMenu?.(); this.cancelMotion(); this.showToken = null; this.touch?.cancel(); this.openToken = null;this.openingPageToken=null; for (const cancel of this.gestures) cancel(); this.finishEdit(); this.saveView(); const store = this.store, id = this.book?.id,pageId=this.page?.id; store?.flush().then(() => { if (id && !store.dirty.has(id) && (this.root.hidden || this.store !== store || this.book?.id !== id || this.page?.id!==pageId)) return store.lease(id,true,pageId); }); this.root.hidden = true; document.documentElement.classList.remove('independent-notes-open'); window.__independentNotesActive = false; this.bridge.returnCanvas?.(); }
+  hide() { this.closeContextMenu?.(); this.cancelMotion(); this.showToken = null; this.touch?.cancel(); this.openToken = null;this.openingPageToken=null; for (const cancel of this.gestures) cancel(); this.finishEdit(); this.saveView(); this.releaseViewSurfaces(getCanvasRenderPolicy().tablet ? this.root : this.surface); const store = this.store, id = this.book?.id,pageId=this.page?.id; store?.flush().then(() => { if (id && !store.dirty.has(id) && (this.root.hidden || this.store !== store || this.book?.id !== id || this.page?.id!==pageId)) return store.lease(id,true,pageId); }); this.root.hidden = true; document.documentElement.classList.remove('independent-notes-open'); window.__independentNotesActive = false; this.bridge.returnCanvas?.(); }
   writable() { if (!this.store?.active() || this.readOnly || !this.store.leaseValid(this.book?.id,this.page?.id) || this.page?.deleted || this.book?.deleted) { this.toast('当前笔记只读'); return false; } return Boolean(this.page && this.book); }
   saveView() {
     if (!this.page || !this.scope) return;
@@ -245,7 +273,7 @@ export class NotebookApp {
     const store = this.store; const id = this.book.id,pageId=this.page.id;
     try {
       const wasReadOnly=this.readOnly;if(wasReadOnly&&!store.dirty.has(id))this.finishEdit();
-      const writable=await store.lease(id,false,pageId,true,wasReadOnly);
+      const writable=!isPhoneViewer() && await store.lease(id,false,pageId,true,wasReadOnly);
       if(store!==this.store||id!==this.book?.id||pageId!==this.page?.id)return;
       // Keep a formerly blocked page read-only until its saved content is refreshed.
       if(this.readOnly&&!store.dirty.has(id))this.finishEdit();
@@ -258,7 +286,7 @@ export class NotebookApp {
       if (fresh) { this.finishEdit(); this.readOnly=true; this.book = fresh; this.page = fresh.pages.find(page => page.id === this.page?.id) || fresh.pages[0]; this.render(); }
       if (store !== this.store || id !== this.book?.id || pageId!==this.page?.id) return; this.readOnly = !store.leaseValid(id,pageId)||store.conflicts.has(id);
       if(wasReadOnly&&!this.readOnly&&!fresh)this.renderPage();
-      this.notify(this.readOnly ? '编辑锁被占用或尚未确认 · 当前只读' : store.summary());
+      this.notify(isPhoneViewer() ? '只读浏览' : this.readOnly ? '编辑锁被占用或尚未确认 · 当前只读' : store.summary());
       if(!this.readOnly&&store.dirty.size)store.flush();
     } catch (error) { if (store === this.store) this.toast(error.message); } finally { this.polling = false; }
   }
@@ -288,6 +316,7 @@ export class NotebookApp {
     else this.surface.focus();
   }
   async newBook() {
+    if (isPhoneViewer()) return;
     const name = await this.ask('新建笔记本', '新笔记本'); if (!name) return;
     this.resetNavigationFilter();
     const book = createNotebook(name); this.store.change(book); await this.openPage(book, book.pages[0]);
@@ -298,6 +327,7 @@ export class NotebookApp {
     if(this.$('.nt-search-clear'))this.$('.nt-search-clear').hidden=true;
   }
   async newSection() {
+    if (isPhoneViewer()) return;
     const name = await this.ask('新建分区', '新分区'); if (!name) return;
     const context=this.context(),book=this.book,token=uid();let page;
     this.openingPageToken=token;
@@ -311,6 +341,7 @@ export class NotebookApp {
     }finally{if(this.openingPageToken===token)this.openingPageToken=null;if(this.current(context))this.readOnly=!context.store.leaseValid(context.bookId,context.pageId)||context.store.conflicts.has(book.id);}
   }
   async newPage() {
+    if (isPhoneViewer()) return;
     if (!this.store?.active()||!this.book||this.book.deleted) return this.toast('当前笔记本不可新建笔记');
     if (this.book.access?.received) return this.toast('请在自己的笔记本中新建笔记');
     this.resetNavigationFilter();
@@ -328,7 +359,7 @@ export class NotebookApp {
     this.finishEdit(); this.saveView();
     this.readOnly=true;
     if(this.book){context.store.flush().then(()=>{if(!context.store.dirty.has(context.bookId)&&(this.book?.id!==context.bookId||this.page?.id!==context.pageId))return context.store.lease(context.bookId,true,context.pageId);});}
-    const lease=context.store.lease(book.id,false,page.id);
+    const lease=isPhoneViewer() ? Promise.resolve(false) : context.store.lease(book.id,false,page.id);
     const cached=context.store.books.get(book.id);
     if(cached?.unloaded)this.notify('正在读取笔记…');
     const releaseUnused=()=>lease.then(writable=>{
@@ -343,14 +374,14 @@ export class NotebookApp {
     if (!this.tabs.some(tab => tab.pageId === page.id)) this.tabs.push({ bookId: book.id, pageId: page.id });
     this.tabVisit = (this.tabVisit || 0) + 1;
     this.tabs.find(tab => tab.pageId === page.id).used = this.tabVisit;
-    this.readOnly = true; this.closeNavigation();this.notify('确认编辑锁…');
+    this.readOnly = true; this.closeNavigation();this.notify(isPhoneViewer() ? '只读浏览' : '确认编辑锁…');
     this.render(); const view = this.views.get(page.id); this.setZoom(view?.zoom || 1); this.$('.nt-scroll').scrollTo(view?.x || 0, view?.y || 0); this.saveView();
     if (context.bookId !== book.id || context.pageId !== page.id) this.fadeIn(this.$('.nt-paper-wrap'));
     let writable=await lease;
     if(writable&&!context.store.leaseValid(book.id,page.id)&&this.current(context,false)&&this.openToken===token)writable=await context.store.lease(book.id,false,page.id);
     completeOpen();
     if(!this.current(context,false)||this.openToken!==token){if(writable&&(this.book?.id!==book.id||this.page?.id!==page.id))await context.store.lease(book.id,true,page.id);return;}
-    this.readOnly=!writable||!context.store.leaseValid(book.id,page.id)||context.store.conflicts.has(book.id);this.renderPage();this.notify(this.readOnly?'其他窗口正在编辑或编辑锁未确认 · 当前只读':context.store.summary());
+    this.readOnly=!writable||!context.store.leaseValid(book.id,page.id)||context.store.conflicts.has(book.id);this.renderPage();this.notify(isPhoneViewer()?'只读浏览':this.readOnly?'其他窗口正在编辑或编辑锁未确认 · 当前只读':context.store.summary());
   }
   render() { if (!this.page) return; this.renderNavigation(); this.renderRibbon(); this.renderTabs(); this.renderPage(); icons(); window.MusePlanning?.notify(); }
   renderNavigation() {
@@ -448,6 +479,7 @@ export class NotebookApp {
   }
   menu(title, actions, anchor = null, options = {}) { return openNotebookMenu(this,title,actions,anchor,button,el,options); }
   async mutateBook(book, action, pageId) {
+    if (isPhoneViewer()) return;
     if (book.access?.received && !pageId) return this.toast('只有所有者可以管理此笔记本');
     const context = this.context(); const loaded = await this.store.getBook(book.id);
     if (!this.current(context, false)) return;
@@ -537,6 +569,7 @@ export class NotebookApp {
     this.menu(recovery ? this.store.failures.get(this.book.id) || this.store.summary() : '笔记工作区', recovery ? actions.slice(0,3) : actions, anchor);
   }
   renderRibbon() {
+    if (isPhoneViewer()) return;
     this.surface.dataset.drawing=String(this.tool!=='text');
     const tabChanged = this.motionRibbonTab !== undefined && this.motionRibbonTab !== this.tab;
     this.motionRibbonTab = this.tab;
@@ -618,12 +651,20 @@ export class NotebookApp {
     }
     const hint=this.$('.nt-ribbon-help'); if(hint){hint.textContent=[...reasons].join(' · ');hint.hidden=!hint.textContent;}
   }
+  releaseViewSurfaces(node) {
+    if (!getCanvasRenderPolicy().bounded) return;
+    this.bridge.releaseImages?.(node);
+    releaseItemSurfaces(node);
+  }
   renderElements() {
-    if (!this.page) return;
-    const scroll = this.$('.nt-scroll'); const top = scroll.scrollTop / this.zoom - this.$('.nt-title-block').offsetHeight - 500; const bottom = top + scroll.clientHeight / this.zoom + 1000;
-    const visible = this.page.elements.filter(element => this.printing || this.page.elements.length < 100 || element.y + (this.measuredHeights.get(element) || element.h) >= top && element.y <= bottom || this.selection.has(element.id) || element.id === this.editingId);
+    if (!this.page || getCanvasRenderPolicy().tablet && this.root.hidden) return;
+    const scroll = this.$('.nt-scroll'); const policy = getCanvasRenderPolicy();
+    const margin = policy.tablet ? policy.renderMargin / this.zoom : 500;
+    const top = scroll.scrollTop / this.zoom - this.$('.nt-title-block').offsetHeight - margin;
+    const bottom = top + scroll.clientHeight / this.zoom + margin * 2;
+    const visible = this.page.elements.filter(element => this.printing || !policy.bounded && this.page.elements.length < 100 || element.y + (this.measuredHeights.get(element) || element.h) >= top && element.y <= bottom || !isPhoneViewer() && (this.selection.has(element.id) || element.id === this.editingId));
     const wanted = new Set(visible.map(element => element.id)); const mounted = new Map([...this.surface.querySelectorAll('[data-element-id]')].map(node => [node.dataset.elementId,node]));
-    for (const [id,node] of mounted) if (!wanted.has(id)) { const body = node.querySelector('.nt-element-body'); if (body) this.contentObserver.unobserve(body); node.remove(); }
+    for (const [id,node] of mounted) if (!wanted.has(id)) { const body = node.querySelector('.nt-element-body'); if (body) this.contentObserver.unobserve(body); this.releaseViewSurfaces(node); node.remove(); }
     for (const element of visible) if (!mounted.has(element.id)) this.renderElement(element);
   }
   async exportBook(book) {
@@ -687,12 +728,12 @@ export class NotebookApp {
   }
   renderPage() {
     renderRecoveryBanner(this,button,el);
-    this.finishEdit(); this.contentObserver.disconnect(); this.surface.replaceChildren(); this.$('.nt-title-block input').value = this.page.title; this.$('.nt-title-block input').readOnly = this.readOnly || this.page.deleted || this.book.deleted;
+    this.finishEdit(); this.contentObserver.disconnect(); this.releaseViewSurfaces(this.surface); this.surface.replaceChildren(); this.$('.nt-title-block input').value = this.page.title; this.$('.nt-title-block input').readOnly = this.readOnly || this.page.deleted || this.book.deleted;
     this.$('.nt-page-meta').textContent = `${new Date(this.page.createdAt).toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' })}${this.page.deleted || this.book.deleted ? '  ·  已删除，可在回收站恢复' : ''}`;
     this.surface.dataset.background = this.page.background || 'plain';
     if (!this.page.elements.length) {
       const deleted=this.page.deleted||this.book.deleted;
-      const empty = el('div', 'nt-empty'); empty.append(el('strong','',deleted?'这篇笔记还没有内容':'从一个想法开始'),el('span','',deleted?'恢复后可开始记录':this.readOnly?'当前页面只读，取得编辑权限后可开始记录':'点击空白处自由记录，或选择一种方式开始'));
+      const empty = el('div', 'nt-empty'); empty.append(el('strong','',isPhoneViewer()||deleted?'这篇笔记还没有内容':'从一个想法开始'),el('span','',isPhoneViewer()?'可以从目录切换到其他笔记':deleted?'恢复后可开始记录':this.readOnly?'当前页面只读，取得编辑权限后可开始记录':'点击空白处自由记录，或选择一种方式开始'));
       if(!deleted){const actions=el('div','nt-empty-actions');actions.append(button('写文字','type',()=>this.insert('text')),button('插入图片','image',()=>this.chooseImage()),button('从画布添加','panels-top-left',()=>this.toggleMaterials()));for(const action of actions.children)setControlAvailability(action,this.readOnly,'当前页面只读');empty.append(actions);}this.surface.append(empty);
     }
     this.renderElements(); this.updateSize(); this.updateSelection(); icons();
@@ -738,7 +779,7 @@ export class NotebookApp {
       }
     }
     if (element.type === 'planning') {
-      const controls = { move: event => this.dragElement(event, element, node), focus:()=>this.focusPlanningComponent(element.id), remove: () => { this.select(element.id); this.removeSelected(); }, writable: () => this.writable() };
+      const controls = { select: () => { if (!this.selection.has(element.id)) this.select(element.id); }, move: event => this.dragElement(event, element, node), focus:()=>this.focusPlanningComponent(element.id), remove: () => { this.select(element.id); this.removeSelected(); }, writable: () => this.writable() };
       const changeView = view => { if (!this.writable()) return; this.remember(); element.planView = view; this.changed(); body.replaceChildren(window.MusePlanning.mount(element, changeView, controls)); };
       body.append(window.MusePlanning.mount(element, changeView, controls));
     } else if (element.taskRef && window.MusePlanning?.enabled) {
@@ -746,7 +787,17 @@ export class NotebookApp {
     } else if (['text', 'callout', 'tag'].includes(element.type)) {
       if (element.fill) node.style.backgroundColor = element.fill;
       renderText(element, body); this.contentObserver.observe(body); body.addEventListener('pointerdown', event => { if (event.button!==0 || this.tool !== 'text') return; event.stopPropagation(); if(event.shiftKey && this.editingId!==element.id || this.touchMultiSelect){event.preventDefault();this.finishEdit();this.select(element.id,true);this.surface.focus({preventScroll:true});return;} if(this.editingId!==element.id)event.preventDefault(); this.startEdit(element, body, event); });
-    } else if (element.type === 'image') { const image = el('img'); image.src = element.src; image.alt = element.alt || '笔记图片'; image.draggable = false; image.loading = 'lazy'; image.addEventListener('error', () => { image.hidden = true; body.append(el('span', 'nt-image-error', '图片暂不可用，请检查网络后重新打开')); }); body.append(image); }
+    } else if (element.type === 'image') {
+      const image = el('img'); image.alt = element.alt || '笔记图片'; image.draggable = false;
+      image.loading = getCanvasRenderPolicy().bounded ? 'eager' : 'lazy';
+      if (!getCanvasRenderPolicy().bounded) image.src = element.src;
+      image.addEventListener('error', () => { image.hidden = true; if (!body.querySelector('.nt-image-error')) body.append(el('span', 'nt-image-error', '图片暂不可用，请检查网络后重新打开')); });
+      image.addEventListener('load', () => { image.hidden = false; body.querySelector('.nt-image-error')?.remove(); }); body.append(image);
+      if (getCanvasRenderPolicy().bounded) {
+        const page = this.page;
+        this.bridge.mountImage?.(element, image, { resolveItem: () => this.page === page && !this.root.hidden ? page.elements.find(entry => entry.id === element.id) : null, getZoom: () => this.zoom });
+      }
+    }
     else if (element.type === 'mindmap') this.renderMindmap(element, body);
     else if (element.type === 'shape') {
       if(element.shape==='triangle'){
@@ -788,17 +839,23 @@ export class NotebookApp {
       if (this.root.hidden || !this.current(context) || !this.writable()) return;
       const src = await this.imageSource(result.blob, context);
       if (!this.current(context) || !this.writable() || !this.page.elements.includes(element)) return;
-      this.remember(); element.src = src; element.origin = result.origin; this.changed();
+      this.remember(); element.src = src; element.origin = result.origin;
+      if (getCanvasRenderPolicy().tablet) { delete element.assetId; delete element.naturalWidth; delete element.naturalHeight; }
+      this.changed();
       const node = [...this.surface.querySelectorAll('[data-element-id]')].find(node => node.dataset.elementId === element.id);
       if (node) {
-        const image = node.querySelector('img'); if (image) image.src = src;
+        const image = node.querySelector('img');
+        if (image) { if (getCanvasRenderPolicy().tablet) this.bridge.refreshImages?.(); else image.src = src; }
         const status = node.querySelector('.nt-reference-status'); if (status) {status.textContent = '预览已是最新';status.dataset.state='current';}
       }
     } catch(error) { if (this.current(context)) {if(initialStatus?.isConnected){initialStatus.textContent=`${error.message} · 保留上次预览`;initialStatus.dataset.state='error';}else this.toast(error.message);} }
     finally { this.refreshingRegion = false; initialStatus?.removeAttribute('aria-busy'); }
   }
   renderInk(element, body) {
-    const canvas = el('canvas'); const ratio = Math.min(2, 2048 / Math.max(element.w, element.h), Math.sqrt(4000000 / (element.w * element.h))); canvas.width = Math.ceil(element.w * ratio); canvas.height = Math.ceil(element.h * ratio); canvas.style.width = '100%'; canvas.style.height = '100%'; body.append(canvas);
+    const policy = getCanvasRenderPolicy();
+    const inkCount = this.page.elements.filter(entry => entry.type === 'ink').length;
+    if (policy.tablet) shrinkInkSurfaces(Math.min(policy.maxRasterPixels, policy.totalInkPixels / Math.max(1, inkCount)));
+    const canvas = el('canvas', policy.tablet ? 'nt-ink-canvas' : ''); const ratio = policy.bounded ? getInkPixelRatio(element.w, element.h, devicePixelRatio, policy, { inkCount, zoom: this.zoom }) : Math.min(2, 2048 / Math.max(element.w, element.h), Math.sqrt(4000000 / (element.w * element.h))); canvas.width = Math.ceil(element.w * ratio); canvas.height = Math.ceil(element.h * ratio); canvas.style.width = '100%'; canvas.style.height = '100%'; body.append(canvas);
     const ctx = canvas.getContext('2d'); ctx.scale(ratio, ratio); ctx.strokeStyle = element.color || '#34313d'; ctx.lineWidth = element.size || 3; ctx.lineJoin = ctx.lineCap = 'round'; ctx.globalAlpha = element.highlighter ? .3 : element.opacity ?? 1; ctx.beginPath();
     element.points.forEach((point, index) => index ? ctx.lineTo(point[0], point[1]) : ctx.moveTo(point[0], point[1])); ctx.stroke();
   }
@@ -812,13 +869,8 @@ export class NotebookApp {
       if (node.taskRef && window.MusePlanning?.enabled) {
         input.value = window.MusePlanning.getTask(node.taskRef)?.title || '无权访问'; input.readOnly = true;
         input.addEventListener('click', () => window.MusePlanning.editTask(node.taskRef));
-        const task = window.MusePlanning.getTask(node.taskRef), status = button(task?.deleted ? '已删除' : window.MusePlanning.statusLabel(task?.status) || '无权访问', '', async () => {
-          const current = window.MusePlanning.getTask(node.taskRef); if (!this.writable() || !current || current.deleted) return;
-          status.disabled = true;
-          try { window.MusePlanning.chooseStatus(node.taskRef); } finally { status.disabled = !this.writable(); }
-        }, 'nt-task-status');
-        status.disabled = !this.writable() || !task || task.deleted; status.dataset.status = task?.status || ''; status.setAttribute('aria-label', `切换任务状态：${task?.title || node.text}`); box.dataset.status = task?.status || ''; box.append(status);
-        box.append(button('任务详情', 'list-checks', () => window.MusePlanning.editTask(node.taskRef), 'nt-icon'));
+        const task = window.MusePlanning.getTask(node.taskRef), status = button(task?.deleted ? '已删除' : window.MusePlanning.statusLabel(task?.status) || '无权访问', '', () => window.MusePlanning.locateTaskFromNode(node.taskRef).catch(error=>window.alert(error.message)), 'nt-task-status');
+        status.disabled = !task || task.deleted; status.dataset.status = task?.status || ''; status.setAttribute('aria-label', `定位关联任务：${task?.title || node.text}`); box.dataset.status = task?.status || ''; box.append(status);
       }
       this.fitMindmapInput(input);
       input.addEventListener('input', () => { if (!this.writable()) return; this.remember(`mind:${node.id}`); node.text = input.value; this.fitMindmapInput(input); this.fitMindmapFrame(element, body); this.changed(); });
@@ -827,7 +879,8 @@ export class NotebookApp {
       box.append(input, button('添加子节点', 'plus', () => add(false), 'nt-icon'));
       if (node.children.length) box.append(button(node.collapsed ? '展开分支' : '折叠分支', node.collapsed ? 'chevron-right' : 'chevron-down', () => { if (!this.writable()) return; this.remember(); node.collapsed = !node.collapsed; this.changed(); this.renderPage(); }, 'nt-icon'));
       if (parent) box.append(button('删除节点', 'x', () => { if (!this.writable()) return; this.remember(); parent.children = parent.children.filter(child => child !== node); this.changed(); this.renderPage(); }, 'nt-icon'));
-      branch.append(box); if (!node.collapsed && node.children.length) { const children = el('div', 'nt-mind-children'); node.children.forEach(child => children.append(render(child, node))); branch.append(children); } return branch;
+      window.MusePlanning?.renderBranchProgress(box,node);
+      branch.append(box); if ((!node.collapsed || window.MusePlanning?.enabled && window.MusePlanning.viewTree(node,element.id)!==node) && node.children.length) { const children = el('div', 'nt-mind-children'); node.children.forEach(child => children.append(render(child, node))); branch.append(children); } return branch;
     };
     root.append(render(element.tree)); body.append(root);
     this.fitMindmapFrame(element, body);
@@ -883,6 +936,7 @@ export class NotebookApp {
     this.$('.nt-zoom-label').textContent = `${Math.round(this.zoom * 100)}%`; this.updateSize();
     scroll.scrollLeft = x * this.zoom - point.x; scroll.scrollTop = y * this.zoom - point.y;
     this.renderElements();
+    if (getCanvasRenderPolicy().bounded) this.bridge.refreshImages?.();
   }
   point(event) { const rect = this.surface.getBoundingClientRect(); return { x: Math.max(0, (event.clientX - rect.left) / this.zoom), y: Math.max(0, (event.clientY - rect.top) / this.zoom) }; }
   visiblePoint() { const point = { x: this.$('.nt-scroll').scrollLeft / this.zoom + 64, y: this.$('.nt-scroll').scrollTop / this.zoom + 48 }; for (let attempt = 0; attempt < 5000; attempt++) { const collision = this.page.elements.find(element => element.x < point.x + 420 && element.x + element.w > point.x && element.y < point.y + 120 && element.y + element.h > point.y); if (!collision) break; point.y = collision.y + collision.h + 32; } return point; }
@@ -1004,9 +1058,9 @@ export class NotebookApp {
     this.page.elements.push(...copies); this.selection = new Set(copies.map(element => element.id)); this.changed(); this.renderPage();
     if(reveal)this.revealElement(copies[0]?.id);else this.surface.focus({preventScroll:true}); this.selection = new Set(copies.map(element => element.id)); this.updateSelection(); return copies;
   }
-  toggleMaterials() { const panel = this.$('.nt-materials'); panel.hidden = !panel.hidden; this.root.classList.toggle('nt-materials-open',!panel.hidden); if (!panel.hidden) {this.dismissSearch?.();this.closeNavigation();this.loadMaterials();} }
+  toggleMaterials() { const panel = this.$('.nt-materials'); panel.hidden = !panel.hidden; this.root.classList.toggle('nt-materials-open',!panel.hidden); if (!panel.hidden) {this.dismissSearch?.();this.closeNavigation();this.loadMaterials();} else if (getCanvasRenderPolicy().tablet) { this.releaseViewSurfaces(panel); } }
   async loadMaterials(offset = 0) {
-    const list = this.$('.nt-material-list'); if (!offset) { this.materialSelectionToken = null; this.pending = null; this.syncMaterialSelection(); } if (!offset) list.textContent = '正在读取画布素材…';
+    const list = this.$('.nt-material-list'); if (!offset) { this.materialSelectionToken = null; this.pending = null; this.syncMaterialSelection(); if (getCanvasRenderPolicy().tablet) this.releaseViewSurfaces(list); } if (!offset) list.textContent = '正在读取画布素材…';
     const context = this.context(); const query = this.$('.nt-materials input').value; const type = this.$('[aria-label="筛选素材类型"]').value; const boardId = this.$('.nt-material-board').value; const token = uid(); this.materialToken = token;
     try {
       let response;
@@ -1014,7 +1068,7 @@ export class NotebookApp {
         const canvases = await this.bridge.guestCanvases(); const all = canvases.filter(canvas => !boardId || canvas.id === boardId).flatMap(canvas => (canvas.snapshot?.items || []).map(item => ({ id: item.id, boardId: canvas.id, boardName: canvas.name, type: item.type, label: sourceText(item), item })));
         const matches = all.filter(item => (!type || item.type === type) && `${item.boardName} ${item.label}`.toLocaleLowerCase().includes(query.toLocaleLowerCase())); response = { canvases: canvases.map(({id,name}) => ({id,name})), materials: matches.slice(offset, offset + 80), next: offset + 80 < matches.length ? offset + 80 : null };
       } else response = await context.store.api(`/materials?boardId=${encodeURIComponent(boardId)}&q=${encodeURIComponent(query)}&type=${encodeURIComponent(type)}&offset=${offset}`);
-      if (!this.current(context, false) || this.materialToken !== token) return;
+      if (!this.current(context, false) || this.materialToken !== token || getCanvasRenderPolicy().tablet && this.$('.nt-materials').hidden) return;
       const selector = this.$('.nt-material-board');
       selector.replaceChildren(new Option('所有画布', ''), ...(response.canvases || []).map(canvas => new Option(canvas.name || '未命名画布', canvas.id)));
       selector.value = boardId;
@@ -1027,7 +1081,7 @@ export class NotebookApp {
             list.querySelectorAll('.nt-material').forEach(node=>{node.classList.toggle('active',node===row);node.setAttribute('aria-pressed',String(node===row));});this.syncMaterialSelection(material.label.slice(0,50)||'已选择素材');
           } catch (error) { this.toast(error.message); }
         }, 'nt-material'); row.append(el('small', '', material.boardName)); row.draggable = true; row.addEventListener('dragstart', event => event.dataTransfer.setData('application/muse-canvas-material', JSON.stringify(material))); list.append(row);
-        row.setAttribute('aria-pressed','false');materialPreview(row,material,el);
+        row.setAttribute('aria-pressed','false');materialPreview(row,material,el,this);
       }
       if (!response.materials.length && !offset) list.append(el('p', 'nt-list-empty', boardId || query || type ? '没有符合筛选条件的素材，试试其他画布或清除筛选。' : '没有可用素材。你可以先在画布创建内容。'));
       if (response.next !== null) list.append(button('加载更多素材', 'chevrons-down', event => { event.currentTarget.remove(); this.loadMaterials(response.next); }));
@@ -1041,15 +1095,26 @@ export class NotebookApp {
     for (const file of event.dataTransfer.files) { if (!this.current(context)) break; if (file.type.startsWith('image/')) await this.uploadImage(file, point); }
   }
   chooseImage() { const context = this.context(); const input = el('input'); input.type = 'file'; input.accept = 'image/png,image/jpeg,image/webp'; input.multiple = true; input.addEventListener('change', async () => { for (const file of input.files) { if (!this.current(context)) break; await this.uploadImage(file); } }); input.click(); }
-  async uploadImage(file, point = this.visiblePoint()) {
-    if (!this.writable()) return; const context = this.context();
+  uploadImage(file, point = this.visiblePoint()) {
+    if (!this.writable()) return Promise.resolve();
+    const context = this.context();
+    if (!getCanvasRenderPolicy().tablet) return this.importImageFile(file, point, context);
+    const run = () => !this.root.hidden && this.current(context) ? this.importImageFile(file, point, context) : undefined;
+    this.imageUploadQueue = (this.imageUploadQueue || Promise.resolve()).then(run, run);
+    return this.imageUploadQueue;
+  }
+  async importImageFile(file, point, context) {
+    const tablet = getCanvasRenderPolicy().tablet;
+    let image, decodeTimer;
     try {
       const element = createElement('image', point); element.src = await this.imageSource(file, context);
       if (!this.current(context)) return;
-      const image = new Image(); image.src = element.src; await Promise.race([image.decode(), new Promise((_, reject) => setTimeout(() => reject(new Error('图片解码超时')), 15000))]);
-      if (!this.current(context)) return;
+      image = new Image(); image.src = element.src; await Promise.race([image.decode(), new Promise((_, reject) => { decodeTimer = setTimeout(() => reject(new Error('图片解码超时')), 15000); })]);
+      if (!this.current(context) || tablet && this.root.hidden) return;
+      if (tablet) { element.naturalWidth = image.naturalWidth; element.naturalHeight = image.naturalHeight; }
       element.h = Math.max(8, Math.min(20000, element.w * image.naturalHeight / image.naturalWidth)); element.alt = file.name; this.place([element], point);
     } catch (error) { if (this.current(context) && error.name !== 'AbortError') this.toast('图片未插入：' + error.message); }
+    finally { if (tablet) { clearTimeout(decodeTimer); image?.removeAttribute('src'); } }
   }
   async imageSource(file, context) {
     if (!['image/png','image/jpeg','image/webp'].includes(file.type) || file.size > 15 * 1024 * 1024) throw new Error('请选择不超过 15 MB 的 PNG、JPEG 或 WebP 图片');
@@ -1091,6 +1156,7 @@ let instance;
 export function initialize(bridge) { instance ||= new NotebookApp(bridge); return instance; }
 export function show() { return instance?.show(); }
 export function hide() { return instance?.hide(); }
+export function addChatMessage(material,read) { return insertChatMessage(instance,material,read); }
 export function rememberSourceReturn() {
   if (!instance?.page || instance.root.hidden) return;
   instance.saveView();

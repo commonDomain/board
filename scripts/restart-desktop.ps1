@@ -1,8 +1,8 @@
 ﻿param([switch]$NoUI, [switch]$NoBrowser, [string]$StatusFile, [string]$ResultFile)
 
+# NoBrowser is retained for compatibility; restarting never opens a browser.
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent $PSScriptRoot
-$browserUrl = $null
 $runtimeDir = Join-Path $env:LOCALAPPDATA 'Museboard\launcher'
 $statePath = Join-Path $runtimeDir 'server.json'
 $mutex = New-Object System.Threading.Mutex($false, 'Local\MuseboardDesktopRestart')
@@ -13,10 +13,8 @@ $completed = $false
 function Show-Notice([string]$Message, [bool]$Failed = $false) {
     if ($ResultFile) { @{ message = $Message; failed = $Failed } | ConvertTo-Json | Set-Content -LiteralPath $ResultFile -Encoding UTF8 }
     if ($NoUI) { Write-Output $Message; return }
-    $shell = New-Object -ComObject WScript.Shell
-    $icon = if ($Failed) { 16 } else { 64 }
-    # System-modal so the notification remains visible when the browser takes focus.
-    [void]$shell.Popup($Message, 0, 'Museboard 项目重启', ($icon + 4096))
+    . (Join-Path $PSScriptRoot 'restart-desktop-notice.ps1')
+    Show-RestartNotice $Message $Failed
 }
 
 function Set-Stage([string]$Message) {
@@ -36,9 +34,13 @@ function Get-Health([int]$Port) {
 function Stop-ManagedServer($State) {
     $existing = Get-CimInstance Win32_Process -Filter "ProcessId=$($State.pid)" -ErrorAction SilentlyContinue
     if (!$existing) { return }
+    # PowerShell 7 can deserialize JSON timestamps as DateTime; compare instants,
+    # so both PowerShell versions retain the exact process identity check.
+    try { $recordedCreationTime = ([DateTimeOffset]$State.createdAt).UtcDateTime }
+    catch { throw '启动记录中的进程创建时间无效，已取消重启。' }
     $wrapper = Join-Path $PSScriptRoot 'desktop-server.cjs'
     if ($existing.Name -ne 'node.exe' -or !$existing.CommandLine.Contains($wrapper) -or
-        $existing.CreationDate.ToUniversalTime().ToString('o') -ne $State.createdAt) {
+        $existing.CreationDate.ToUniversalTime() -ne $recordedCreationTime) {
         throw '启动记录与运行中的进程不匹配，已取消重启。'
     }
     $pipe = New-Object System.IO.Pipes.NamedPipeClientStream('.', "museboard-desktop-$($State.pid)", [System.IO.Pipes.PipeDirection]::Out)
@@ -75,8 +77,6 @@ try {
     try {
         $portValue = & $nodePath --env-file-if-exists=.env -p 'process.env.PORT || 4000'
         if ($LASTEXITCODE -ne 0) { throw '读取 .env 配置失败。' }
-        $browserUrl = & $nodePath --env-file-if-exists=.env -p 'process.env.PUBLIC_BASE_URL || `http://localhost:${process.env.PORT || 4000}/`'
-        if ($LASTEXITCODE -ne 0) { throw '读取访问地址配置失败。' }
     } finally { Pop-Location }
     $port = 0
     if (![int]::TryParse([string]$portValue, [ref]$port) -or $port -lt 1 -or $port -gt 65535) { throw 'PORT 必须是 1 到 65535 之间的固定端口。' }
@@ -165,14 +165,8 @@ try {
     $startedServer.Refresh()
     if ($startedServer.HasExited) { throw '服务意外退出，请检查项目配置。' }
     $completed = $true
-    Set-Stage '服务已就绪，正在打开网页…'
-    $browserMessage = '已自动打开浏览器。'
-    if ($NoBrowser) { $browserMessage = '本次验证未打开浏览器。' }
-    else {
-        try { Start-Process $browserUrl }
-        catch { $browserMessage = "浏览器未能自动打开，请手动访问：`n$browserUrl" }
-    }
-    Show-Notice "项目重启成功，服务健康检查已通过。`n$browserMessage"
+    Set-Stage '服务已就绪。'
+    Show-Notice '项目重启成功，服务健康检查已通过。'
 } catch {
     $message = $_.Exception.Message
     if ($startedServer -and !$completed) {

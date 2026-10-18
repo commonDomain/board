@@ -28,7 +28,7 @@ import { refreshIcons } from './interface-model.js';
 import { buildLayerMenu } from './layers.js';
 import { wireOrganizationFeatures } from './navigator-controller.js';
 
-import { buildContextMenu } from './selection.js';
+import { wirePetControls } from './pet-controls.js';
 import { state } from './state.js';
 import { wireNotesWorkspace } from './notes-bridge.js';
 import {
@@ -45,6 +45,8 @@ import {
 import { buildBackgroundMenu } from './toolbar-model.js';
 import { refreshXmindConnectionStatus } from './xmind-connection.js';
 import { scheduleXmindRemoteCheck } from './xmind-sync.js';
+import { isPhoneViewer } from './phone-view-model.js';
+import { retryFailedManagedImages } from './image-rendering.js';
 
 async function init() {
   configureWebViewRuntime();
@@ -53,28 +55,31 @@ async function init() {
   // Navigation availability is independent from loading the current canvas.
   // Let it resolve alongside the editor bootstrap so a slow upstream check
   // cannot delay the canvas catalog, cached snapshot, or WebSocket join.
-  void refreshAmapCapabilities();
+  if (!isPhoneViewer()) void refreshAmapCapabilities();
   void refreshXmindConnectionStatus();
-  buildBrushMenu();
-  buildEraserMenu();
-  buildSelectMenu();
-  buildLayerMenu();
-  buildShapeMenu();
-  buildStickerMenu();
-  buildBackgroundMenu();
-  buildTextMenu();
-  buildTableMenu();
-  buildContextPanel();
-  buildFloatingFormatBar();
+  if (!isPhoneViewer()) {
+    buildBrushMenu();
+    buildEraserMenu();
+    buildSelectMenu();
+    buildLayerMenu();
+    buildShapeMenu();
+    buildStickerMenu();
+    buildBackgroundMenu();
+    buildTextMenu();
+    buildTableMenu();
+    buildContextPanel();
+    buildFloatingFormatBar();
+  }
   wireAdaptiveDialog();
   wireToolbar();
+  wirePetControls();
   applyDocumentBarVisibility();
   applyToolDockVisibility();
   wireCanvasControls();
   wireBoard();
   wireClipboard();
   wireExtras();
-  wireAmapMessages();
+  if (!isPhoneViewer()) wireAmapMessages();
   wireOrganizationFeatures();
   wireNotesWorkspace();
   wireTouchControls();
@@ -103,6 +108,8 @@ async function init() {
     }
   });
   document.addEventListener('visibilitychange', () => {
+    if (document.hidden) handlePageHide();
+    else retryFailedManagedImages();
     if (document.visibilityState === 'visible' && !isGuestMode()) {
       void refreshXmindConnectionStatus();
       scheduleXmindRemoteCheck(500, true);
@@ -114,18 +121,23 @@ async function init() {
   document.addEventListener('focusin', updateViewportHeight);
   document.addEventListener('focusout', () => requestAnimationFrame(updateViewportHeight));
   window.addEventListener('pagehide', handlePageHide);
+  window.addEventListener('beforeunload', event => {
+    handlePageHide();
+    if (window.WhiteboardStorage?.hasUnsafeOutbox?.() ||
+          state.draftStorageFailed || state.syncQueue.length && state.draftStoragePending) {
+      event.preventDefault();
+      event.returnValue = '';
+    }
+  });
+  window.addEventListener('online', retryFailedManagedImages);
+  window.addEventListener('pageshow', retryFailedManagedImages);
   wireNetworkLifecycle();
   clearLegacyCanvasRoute();
   await loadCanvasCatalog({ selectFirst: true, forceRender: true });
   state.initialized = true;
-  window.ToolbarPet?.init({
-    dock: els.toolDock,
-    showContextMenu: (x, y, hide) => buildContextMenu([{ label: '暂时隐藏柯基', action: hide }], x, y)
-  });
   if (state.boardId) await restoreLocalBoardStateAndConnect();
   else setConnection('idle');
   refreshIcons();
 }
 
 export { init };
-

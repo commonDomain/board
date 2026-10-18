@@ -1,3 +1,5 @@
+import { isPhoneViewer } from './phone-view-model.js';
+import { updateStackInspector, openStackInspector, stackItemsAtPoint } from './stack-inspector.js';
 import { placeAnchoredMenu } from './menu-placement.js';
 
 import { copySelection, copySelectionAsImage, cutSelection, pasteClipboard } from './clipboard.js';
@@ -25,6 +27,7 @@ import {
 
 import { cssEscape } from './utilities.js';
 import { getSelectedIds } from './selection-model.js';
+import { invalidateMarqueeSelection } from './runtime/spatial-index.js';
 
 let getBoardPoint, updateContextPanel, updateArrangeBar, moveSelectionZ, attachSelectionFrame, updateSelectionHandleCursors, hitTestItem, renderItem, deleteTableDimension;
 
@@ -41,10 +44,15 @@ deleteTableDimension} = callbacks);
 }
 
 function showContextMenu(event) {
+  if (isPhoneViewer()) { event.preventDefault(); return; }
   if (!state.boardId || !event.target.closest('#viewport')) {
     return;
   }
   event.preventDefault();
+  const point = getBoardPoint(event);
+  const stack = stackItemsAtPoint(point);
+  const stackActions = stack.length > 1 ? [{ label: `查看此处叠放内容（${stack.length} 项）`, icon: 'layers',
+    action: () => openStackInspector(stack, { x: event.clientX, y: event.clientY }, buildContextMenu, selectItem) }, { type: 'separator' }] : [];
   const tableCell = event.target.closest('.board-table td, .board-table th');
   const tableElement = tableCell?.closest('.board-item');
   const tableItem = tableElement && state.items.get(tableElement.dataset.itemId);
@@ -59,6 +67,7 @@ function showContextMenu(event) {
     updateContextPanel();
     buildContextMenu(
       [
+        ...stackActions,
         {
           label: `删除第 ${tablePoint.row + 1} 行`,
           danger: true,
@@ -73,18 +82,19 @@ function showContextMenu(event) {
         },
         { type: 'separator' },
         { label: '复制表格', action: copySelection },
-        { label: '复制为图片', action: copySelectionAsImage }
+        { label: '复制为图片', action: copySelectionAsImage },
+        ...chatReferenceActions(tableItem)
       ],
       event.clientX,
       event.clientY
     );
     return;
   }
+  // Finishing rich-text editing can replace the event target's DOM ancestry.
+  let itemElement = event.target.closest('.board-item');
   if (state.editingId) {
     finishEditing();
   }
-  const point = getBoardPoint(event);
-  let itemElement = event.target.closest('.board-item');
   if (!itemElement && (state.tool === 'select' || state.tool === 'eraser')) {
     const hit = hitTestItem(point);
     if (hit) {
@@ -97,16 +107,20 @@ function showContextMenu(event) {
     selectItem(item.id);
   }
   const hasSelection = getSelectedIds().length > 0;
-  const items = [];
+  const selected = getSelectedIds().map(id => state.items.get(id));
+  const anyWritable = selected.some(item => canMutateItem(item));
+  const allWritable = selected.length > 0 && selected.every(item => canMutateItem(item));
+  const unavailable = '选中内容已锁定或当前画布只读';
+  const items = [...stackActions];
   if (hasSelection) {
     items.push({ label: '复制', icon:'copy', shortcut:'$mod C', action: copySelection });
-    items.push({ label: '剪切', icon:'scissors', shortcut:'$mod X', action: cutSelection });
-    items.push({ label: '删除', icon:'trash-2', danger:true, action: () => deleteItems(getSelectedIds()) });
+    items.push({ label: '剪切', icon:'scissors', shortcut:'$mod X', action: cutSelection, disabled: !allWritable, reason: unavailable });
+    items.push({ label: '删除', icon:'trash-2', danger:true, action: () => deleteItems(getSelectedIds()), disabled: !anyWritable, reason: unavailable });
     items.push({ type: 'separator' });
-    items.push({ label: '上移一层', action: () => moveSelectionZ('up') });
-    items.push({ label: '下移一层', action: () => moveSelectionZ('down') });
-    items.push({ label: '置顶', action: () => moveSelectionZ('top') });
-    items.push({ label: '置底', action: () => moveSelectionZ('bottom') });
+    items.push({ label: '上移一层', action: () => moveSelectionZ('up'), disabled: !anyWritable, reason: unavailable });
+    items.push({ label: '下移一层', action: () => moveSelectionZ('down'), disabled: !anyWritable, reason: unavailable });
+    items.push({ label: '置顶', action: () => moveSelectionZ('top'), disabled: !anyWritable, reason: unavailable });
+    items.push({ label: '置底', action: () => moveSelectionZ('bottom'), disabled: !anyWritable, reason: unavailable });
     items.push({ type: 'separator' });
     items.push({ label: '复制为图片', action: copySelectionAsImage });
     
@@ -117,17 +131,37 @@ function showContextMenu(event) {
     const planningItems = window.MusePlanning.canvasActions?.(event.target, point) || [];
     if (planningItems.length) items.push({ type: 'separator' }, ...planningItems);
   }
+  items.push(...chatReferenceActions(item));
   buildContextMenu(items, event.clientX, event.clientY);
 }
 
+function chatReferenceActions(item) {
+  if (!item || ['section','frame'].includes(item.type) || !window.MuseAccount?.session?.user) return [];
+  return [{type:'separator'},...(item.chatSource?[{label:'打开来源聊天',icon:'message-circle-more',action:()=>window.dispatchEvent(new CustomEvent('muse:open-chat-source',{detail:item.chatSource}))}]:[]),{label:'加入聊天引用',icon:'message-circle-more',action:()=>window.dispatchEvent(new CustomEvent('muse:chat-reference',{detail:{boardId:state.boardId,itemId:item.id}}))}];
+}
+
 function buildContextMenu(items, x, y) {
+  const boardId = state.boardId, epoch = state.canvasEpoch;
+  const targets = new Map(getSelectedIds().map(id => [id, state.items.get(id)]));
+  const current = () => {
+    const ids = getSelectedIds();
+    return state.boardId === boardId && state.canvasEpoch === epoch &&
+      ids.length === targets.size && ids.every(id => targets.has(id) && state.items.get(id) === targets.get(id));
+  };
   contextMenuFocus=document.activeElement;
   els.contextMenu.setAttribute('role','menu');
   els.contextMenu.textContent = '';
   for (const item of items) {
+    if (item.type === 'heading') {
+      const heading = document.createElement('div'); heading.className = 'context-menu-heading';
+      const title = document.createElement('strong'); title.textContent = item.label;
+      const detail = document.createElement('small'); detail.textContent = item.detail || '';
+      heading.append(title, detail); els.contextMenu.append(heading); continue;
+    }
     if (item.type === 'separator') {
       const separator = document.createElement('div');
       separator.className = 'menu-separator';
+      separator.setAttribute('role', 'separator');
       els.contextMenu.appendChild(separator);
       continue;
     }
@@ -138,12 +172,14 @@ function buildContextMenu(items, x, y) {
     button.setAttribute('aria-label',item.label);
     button.setAttribute('role','menuitem');
     if(item.shortcut){const key=document.createElement('kbd');key.textContent=platformShortcut(item.shortcut);button.append(key);}
+    if(item.detail){const detail=document.createElement('small');detail.className='context-menu-reason';detail.textContent=item.detail;button.append(detail);}
     button.classList.toggle('danger', Boolean(item.danger));
     setControlAvailability(button,Boolean(item.disabled),item.reason || '当前选区不适用，请至少保留一行一列');
     if(item.disabled){const reason=document.createElement('small');reason.className='context-menu-reason';reason.textContent=button.dataset.disabledReason;button.append(reason);}
     button.addEventListener('click', () => {
+      const valid = !button.disabled && current();
       hideContextMenu();
-      item.action();
+      if (valid) item.action();
     });
     els.contextMenu.appendChild(button);
   }
@@ -184,6 +220,7 @@ function hideContextMenu(options = {}) {
 }
 
 function selectItem(id, options = {}) {
+  invalidateMarqueeSelection();
   if (id) {
     const item = state.items.get(id);
     if (!isTransformableItem(item)) {
@@ -232,6 +269,7 @@ function updateSelectionUI(options = {}) {
   if (options.panels !== false) {
     updateContextPanel();
     updateArrangeBar();
+    updateStackInspector(buildContextMenu, selectItem);
   }
 }
 

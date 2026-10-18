@@ -1,6 +1,7 @@
 import { canMutateItem } from './layers-model.js';
 import { intersectsRect } from './rendering-model.js';
 import { state } from './state.js';
+import { getCanvasRenderPolicy } from './render-resources-model.js';
 
 function countMindMapNodes(root) {
   if (!root || typeof root !== 'object') return 0;
@@ -18,7 +19,8 @@ function countMindMapNodes(root) {
 
 function getItemLoadMetrics(item) {
   let complexity = 1;
-  const inkPoints = item?.type === 'ink' && Array.isArray(item.points) ? item.points.length : 0;
+  const points = getCanvasRenderPolicy().bounded ? item?.pts : item?.points;
+  const inkPoints = item?.type === 'ink' && Array.isArray(points) ? points.length : 0;
   if (item?.type === 'table') {
     complexity += (item.rows || []).reduce((sum, row) => sum + (Array.isArray(row) ? row.length : 0), 0) * 2;
   } else if (item?.type === 'mindmap') {
@@ -54,6 +56,7 @@ function updateItemLoadMetrics(item) {
   const previousComplexity = state.renderComplexityByItem.get(item.id) || 0;
   const previousInkPoints = state.inkPointCountByItem.get(item.id) || 0;
   const { complexity, inkPoints } = getItemLoadMetrics(item);
+  state.inkItemCount = (state.inkItemCount || 0) + Number(inkPoints > 0) - Number(previousInkPoints > 0);
   state.renderComplexityByItem.set(item.id, complexity);
   state.inkPointCountByItem.set(item.id, inkPoints);
   state.renderComplexity += complexity - previousComplexity;
@@ -61,6 +64,7 @@ function updateItemLoadMetrics(item) {
 }
 
 function removeItemLoadMetrics(id) {
+  state.inkItemCount = Math.max(0, (state.inkItemCount || 0) - Number((state.inkPointCountByItem.get(id) || 0) > 0));
   state.renderComplexity -= state.renderComplexityByItem.get(id) || 0;
   state.inkPointCount -= state.inkPointCountByItem.get(id) || 0;
   state.renderComplexityByItem.delete(id);
@@ -70,6 +74,7 @@ function removeItemLoadMetrics(id) {
 function rebuildItemLoadMetrics() {
   state.renderComplexity = 0;
   state.inkPointCount = 0;
+  state.inkItemCount = 0;
   state.renderComplexityByItem.clear();
   state.inkPointCountByItem.clear();
   for (const item of state.items.values()) updateItemLoadMetrics(item);
@@ -110,6 +115,7 @@ function rebuildConnectorIndex() {
 function geometryWorkerItem(item) {
   return {
     id: item.id,
+    type: item.type,
     x: Number(item.x) || 0,
     y: Number(item.y) || 0,
     w: Number(item.w) || 0,

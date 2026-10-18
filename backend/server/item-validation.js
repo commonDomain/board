@@ -46,6 +46,10 @@ function sanitizeItem(input) {
   };
 
   const navigatorName = cleanString(input.navigatorName, 100, '').trim();
+  if(input.chatSource){
+    if(!isSafeId(input.chatSource.boardId)||!Number.isSafeInteger(input.chatSource.sequence)||input.chatSource.sequence<1)return null;
+    item.chatSource={boardId:input.chatSource.boardId,sequence:input.chatSource.sequence};
+  }
   if (input.taskRef && ['text', 'note'].includes(type)) {
     if (!isSafeId(input.taskRef.planId) || !isSafeId(input.taskRef.taskId)) return null;
     item.taskRef = { planId: input.taskRef.planId, taskId: input.taskRef.taskId };

@@ -193,6 +193,7 @@ deleteTableDimension});
     enqueueOperation
   });
   configurePan({
+    cancelWheelZoomAnimation,
     applyCamera,
     getBoardPoint,
     registerMiddleClick,

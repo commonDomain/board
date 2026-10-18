@@ -1,3 +1,4 @@
+import { isPhoneViewer } from './phone-view-model.js';
 
 
 import { currentCanvas } from './catalog-model.js';
@@ -17,8 +18,10 @@ import { transformRuntime } from './runtime/transform.js';
 import { getBoundsOfItems, getSelectedIds } from './selection-model.js';
 
 import { state } from './state.js';
+import { canStartItemGesture, trackPointer } from './pan-model.js';
 
 import { captureFields } from './transform-model.js';
+import { translatedConnectorGeometry } from './connector/translation-model.js';
 
 import { cssEscape, makeId } from './utilities.js';
 
@@ -182,6 +185,7 @@ function renderSectionFrame(section) {
 }
 
 function startSectionDraft(event) {
+  if (isPhoneViewer()) return;
   event.preventDefault();
   const start = getBoardPoint(event);
   const preview = document.createElement('div');
@@ -191,7 +195,7 @@ function startSectionDraft(event) {
   preview.style.width = '1px';
   preview.style.height = '1px';
   els.sectionLayer.appendChild(preview);
-  state.sectionDraft = { start, current: start, preview, pointerId: event.pointerId };
+  state.sectionDraft = { start, current: start, preview, pointerId: event.pointerId, pointerType: event.pointerType || 'mouse' };
   captureViewportPointer(event.pointerId);
 }
 
@@ -262,11 +266,14 @@ function createSectionAroundSelection() {
 }
 
 function startSectionInteraction(event, sectionId, mode) {
+  if (isPhoneViewer()) return;
+  if (!canStartItemGesture(event)) return;
   if (isTemporaryPanGestureEvent(event)) return;
   const section = state.sections.get(sectionId);
   if (!section || section.locked || event.button !== 0) return;
   event.preventDefault();
   event.stopPropagation();
+  trackPointer(event);
   const childIds = Array.from(state.items.values())
     .filter((item) => item.sectionId === sectionId)
     .map((item) => item.id);
@@ -274,9 +281,14 @@ function startSectionInteraction(event, sectionId, mode) {
     sectionId,
     mode,
     pointerId: event.pointerId,
+    pointerType: event.pointerType || 'mouse',
     startPoint: getBoardPoint(event),
     startSection: { ...section, style: { ...section.style } },
-    startPositions: new Map(childIds.map((id) => [id, { x: state.items.get(id).x, y: state.items.get(id).y }])),
+    startPositions: new Map(childIds.map((id) => {
+      const item = state.items.get(id);
+      if (item.type === 'connector') window.ConnectorCore?.apply(item);
+      return [id, captureFields(item, item.type === 'connector' ? ['x', 'y', 'source', 'target', 'route'] : ['x', 'y'])];
+    })),
     childIds,
     beforeSection: captureFields(section, mode === 'move' ? ['x', 'y'] : ['x', 'y', 'w', 'h']),
     changed: false,
@@ -301,6 +313,7 @@ function continueSectionInteraction(event) {
   const point = getBoardPoint(event);
   const dx = point.x - interaction.startPoint.x;
   const dy = point.y - interaction.startPoint.y;
+  if (!interaction.changed && dx === 0 && dy === 0) return;
   if (interaction.mode === 'resize') {
     section.w = Math.max(80, interaction.startSection.w + dx);
     section.h = Math.max(60, interaction.startSection.h + dy);
@@ -319,6 +332,13 @@ function continueSectionInteraction(event) {
       if (!item || !start) continue;
       item.x = start.x + snapped.dx;
       item.y = start.y + snapped.dy;
+      if (item.type === 'connector') {
+        const geometry = translatedConnectorGeometry(start, snapped.dx, snapped.dy, binding =>
+            (binding.kind === 'item' && interaction.startPositions.has(binding.id)) ||
+            (binding.kind === 'section' && binding.id === section.id));
+        Object.assign(item, geometry);
+        window.ConnectorCore?.apply(item);
+      }
       updateItemElementGeometry(item);
     }
   }
@@ -362,22 +382,23 @@ function finishSectionInteraction() {
         changes.push({
           targetType: 'item',
           id,
-          fields: ['x', 'y'],
+          fields: Object.keys(before),
           before,
-          after: captureFields(item, ['x', 'y'])
+          after: captureFields(item, Object.keys(before))
         });
     }
   }
   pushUndoPatch(changes);
   const ops = [{ kind: 'section-upsert', section }];
   if (interaction.mode === 'move' && interaction.childIds.length) {
-    ops.push({
-      kind: 'transform',
-      items: interaction.childIds.map((id) => {
-        const item = state.items.get(id);
-        return { id, x: item.x, y: item.y, w: item.w, h: item.h, rotation: item.rotation || 0 };
-      })
-    });
+    const transformed = interaction.childIds.map(id => state.items.get(id))
+      .filter(item => item && item.type !== 'connector')
+      .map(item => ({ id: item.id, x: item.x, y: item.y, w: item.w, h: item.h, rotation: item.rotation || 0 }));
+    if (transformed.length) ops.push({ kind: 'transform', items: transformed });
+    for (const id of interaction.childIds) {
+      const item = state.items.get(id);
+      if (item?.type === 'connector') ops.push({ kind: 'upsert', item });
+    }
   }
   enqueueOperation({ kind: 'batch', ops });
   markDirty(true);

@@ -47,7 +47,7 @@ export function viewNotebook(db, row, userId, summary = false) {
   if (!own && !pages.length) throw fail(404,'共享笔记不存在或共享已取消');
   const version = createHash('sha256').update(JSON.stringify([ownerName,own,pages.map(page=>[page.id,page.sharing])])).digest('hex');
   return {...book, pages, sections: own ? book.sections : book.sections.filter(section => pages.some(page => page.sectionId === section.id)),
-    access: {ownerId: row.owner_user_id, ownerName, received: !own, version}};
+    access: {ownerId: row.owner_user_id, ownerName, received: !own, version, savedAt:row.updated_at}};
 }
 export function accessibleNotebook(db, id, userId, summary = false) {
   const row = db.prepare(`SELECT ${summary?summaryColumns:'*'} FROM independent_notebooks WHERE id=?`).get(id);

@@ -1,3 +1,4 @@
+import { isPhoneViewer } from './phone-view-model.js';
 import { els } from './elements.js';
 import { initializeDeviceProfile } from './device-profile.js';
 import { scheduleFloatingToolbarPosition } from './floating-toolbar-menu.js';
@@ -43,6 +44,7 @@ function configureWebViewRuntime() {
 }
 
 function initializeInterfaceEffects() {
+  if (isPhoneViewer()) { window.MuseEffects?.configureForDevice?.(); return; }
   const effects = window.MuseEffects;
   if (!effects) return;
   try {

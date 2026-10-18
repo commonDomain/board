@@ -1,3 +1,4 @@
+import { isPhoneViewer } from './phone-view-model.js';
 
 import { touchPreferences } from './touch-preferences.js';
 import { updateSelectionUI } from './selection.js';
@@ -8,6 +9,7 @@ import { getBrush, isEditableCanvasItem } from './format-actions-model.js';
 import { showToast } from './interface-model.js';
 
 import { canMutateItem, isLayerLocked } from './layers-model.js';
+import { isLocalEditingBlocked } from './connection-model.js';
 import { isTransformableItem } from './marquee-model.js';
 
 import { canvasInteraction, getPanSelectionCandidate, startPanning } from './pan.js';
@@ -20,6 +22,7 @@ import {
 } from './pan-model.js';
 
 import { state } from './state.js';
+import { invalidateMarqueeSelection } from './runtime/spatial-index.js';
 import { getTableHeightForRows } from './table-rendering-model.js';
 
 import { clamp, cssEscape, isEditableTarget } from './utilities.js';
@@ -61,6 +64,7 @@ startTransform} = callbacks);
 }
 
 function onBoardDoubleClick(event) {
+  if (isPhoneViewer()) return;
   if (!state.boardId) return;
   if (
     event.button !== 0 ||
@@ -171,10 +175,31 @@ function ensureReadableToolZoomForEvent(tool, event) {
 }
 
 function onBoardPointerDown(event, confirmedTap = false) {
+  if (isLocalEditingBlocked()) return;
   if (!state.boardId) return;
+  if (!state.marquee) invalidateMarqueeSelection();
   cancelWheelZoomAnimation();
   hideSectionHoverLabel();
   rememberCanvasPointer(event);
+  if (isPhoneViewer()) {
+    if (event.button !== 0 && event.button !== 1) return;
+    event.preventDefault();
+    closePopovers();
+    trackPointer(event);
+    if (state.pinch) {
+      if (!state.pinch.pointers.has(event.pointerId)) untrackPointer(event);
+      return;
+    }
+    const touches = getActiveTouchPointerIds();
+    if (event.pointerType === 'touch' && touches.length === 2) {
+      const firstId = touches.find(id => id !== event.pointerId);
+      if (firstId !== undefined) startPinch(firstId, event);
+      return;
+    }
+    const owner = getActiveGesturePointerId();
+    if (owner === null || owner === event.pointerId) startPanning(event, { deferred: true });
+    return;
+  }
   if (state.pendingCanvasPlacement && event.button === 0) {
     event.preventDefault();
     event.stopPropagation();
@@ -264,32 +289,26 @@ function onBoardPointerDown(event, confirmedTap = false) {
     return;
   }
   if (state.tool === 'smudge') {
-    ensureReadableToolZoomForEvent('smudge', event);
     startSmudge(event);
     return;
   }
   if (state.tool === 'connector') {
-    ensureReadableToolZoomForEvent('connector', event);
     startConnectorDraft(event);
     return;
   }
   if (state.tool === 'eraser') {
-    ensureReadableToolZoomForEvent('eraser', event);
     startEraser(event);
     return;
   }
   if (state.tool === 'pen') {
-    ensureReadableToolZoomForEvent('pen', event);
     startDrawing(event);
     return;
   }
   if (state.tool === 'shape') {
-    ensureReadableToolZoomForEvent('shape', event);
     startShape(event);
     return;
   }
   if (state.tool === 'section') {
-    ensureReadableToolZoomForEvent('section', event);
     startSectionDraft(event);
     return;
   }

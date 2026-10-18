@@ -1,4 +1,4 @@
-import { pushUndoSnapshot } from './history-controller.js';
+import { pushUndoPatch, pushUndoSnapshot } from './history-controller.js';
 import { els } from './elements.js';
 import { openAdaptiveDialog, setEffectBusy } from './interface.js';
 import { showToast } from './interface-model.js';
@@ -114,6 +114,7 @@ function setContainerFlags(targetType, ids, flags) {
 }
 
 async function renameOrganizationEntry(type, id) {
+  const boardId = state.boardId, epoch = state.canvasEpoch;
   const collection = type === 'section' ? state.sections : type === 'group' ? state.groups : state.items;
   const entry = collection.get(id);
   if (!entry || (type === 'item' ? !canMutateItem(entry) : entry.locked)) return;
@@ -128,7 +129,7 @@ async function renameOrganizationEntry(type, id) {
     maxLength: 100,
     confirmLabel: '保存'
   });
-  if (name === null) return;
+  if (name === null || state.boardId !== boardId || state.canvasEpoch !== epoch) return;
   const next = name.trim().slice(0, 100);
   const latestEntry = collection.get(id);
   if (!latestEntry || (type === 'item' ? !canMutateItem(latestEntry) : latestEntry.locked)) return;
@@ -147,6 +148,7 @@ async function renameOrganizationEntry(type, id) {
 }
 
 async function deleteOrganizationEntry(type, id, cascade = false) {
+  const boardId = state.boardId, epoch = state.canvasEpoch;
   const entry = (type === 'section' ? state.sections : state.groups).get(id);
   if (!entry) return;
   const detail = cascade ? '以及其中全部内容' : '，其中内容会保留在画布上';
@@ -158,7 +160,7 @@ async function deleteOrganizationEntry(type, id, cascade = false) {
     danger: true
   });
   const latestEntry = (type === 'section' ? state.sections : state.groups).get(id);
-  if (!confirmed || !latestEntry || latestEntry.locked) return;
+  if (!confirmed || state.boardId !== boardId || state.canvasEpoch !== epoch || !latestEntry || latestEntry.locked) return;
   pushUndoSnapshot();
   applyContainerDeletionLocally(type, id, cascade);
   enqueueOperation({ kind: 'delete-container', targetType: type, id, cascade });
@@ -166,9 +168,12 @@ async function deleteOrganizationEntry(type, id, cascade = false) {
   renderAll();
 }
 
-function commitItemLayout(items, direction = '') {
+function commitItemLayout(items, direction = '', before = new Map()) {
   if (!items.length) return;
-  pushUndoSnapshot();
+  pushUndoPatch(items.filter(item => before.has(item.id)).map(item => ({
+    targetType: 'item', id: item.id, fields: ['x', 'y'],
+    before: before.get(item.id), after: { x: item.x, y: item.y }
+  })));
   const changes = items.map((item) => ({
     id: item.id,
     x: item.x,
@@ -199,6 +204,7 @@ function arrangeSelection(action) {
     runAutoLayout(action, items);
     return;
   }
+  const before = new Map(items.map(item => [item.id, { x: item.x, y: item.y }]));
   const left = Math.min(...items.map((item) => item.x));
   const right = Math.max(...items.map((item) => item.x + item.w));
   const top = Math.min(...items.map((item) => item.y));
@@ -247,7 +253,7 @@ function arrangeSelection(action) {
       cursor += item.h + gap;
     });
   }
-  commitItemLayout(items, action);
+  commitItemLayout(items, action, before);
 }
 
 async function runAutoLayout(action, items) {
@@ -276,11 +282,12 @@ async function runAutoLayout(action, items) {
     )
       return;
     const byId = new Map(result.map((entry) => [entry.id, entry]));
+    const positions = new Map(items.map(item => [item.id, { x: item.x, y: item.y }]));
     for (const item of items) {
       const next = byId.get(item.id);
       if (next) Object.assign(item, { x: next.x, y: next.y });
     }
-    commitItemLayout(items, action);
+    commitItemLayout(items, action, positions);
   } catch (error) {
     console.error(error);
     showToast('自动布局失败，请重试');

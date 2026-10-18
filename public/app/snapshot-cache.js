@@ -15,6 +15,7 @@ import { wallpaperDriftDefault } from './preferences.js';
 import { updateSaveText } from './save-status.js';
 import { renderAll } from './rendering.js';
 import { state } from './state.js';
+import { eventsRuntime } from './runtime/events.js';
 import { rememberXmindContent } from './xmind-connection-model.js';
 
 let cacheWriteInFlight = null;
@@ -29,7 +30,7 @@ function scheduleBoardCache() {
 }
 
 async function cacheBoardSnapshot(options = {}) {
-  if (state.compatibilityReadOnly || !state.boardId) return false;
+  if (state.compatibilityReadOnly || state.draftRestoreFailed || state.draftRestoring || !state.boardId) return false;
   clearTimeout(state.cacheTimer);
   state.cacheTimer = null;
   const boardId = state.boardId;
@@ -67,6 +68,7 @@ boardId,
 revision: state.revision,
 savedAt: null,
 updatedAt: Date.now(),
+hasPendingOperations: state.syncQueue.length > 0,
 items: Array.from(state.items.values()).concat(
         state.pendingCut?.boardId === boardId
           ? state.pendingCut.items
@@ -81,10 +83,10 @@ settings: {
         connectorLineJumps: state.connectorLineJumps
       }};
     const saved = isGuestMode()
-      ? await window.WhiteboardStorage?.saveGuestCanvas(boardId, snapshot)
+      ? window.WhiteboardStorage?.guestStorageIsDurable?.() !== false && await window.WhiteboardStorage?.saveGuestCanvas(boardId, snapshot)
       : await window.WhiteboardStorage?.saveSnapshot(boardId, snapshot);
     if (
-      saved !== false &&
+      saved === true &&
       state.boardId === boardId &&
       state.canvasEpoch === canvasEpoch &&
       state.cacheGeneration === cacheGeneration
@@ -99,7 +101,7 @@ settings: {
         updateSaveText();
       }
     }
-    return saved !== false;
+    return saved === true;
   })();
   cacheWriteInFlight = { boardId, canvasEpoch, cacheGeneration, promise };
   let saved = false;
@@ -111,6 +113,10 @@ settings: {
     if (cacheWriteInFlight?.promise === promise) cacheWriteInFlight = null;
   }
   if (state.boardId === boardId && state.canvasEpoch === canvasEpoch) {
+    if (isGuestMode() && state.cacheGeneration === cacheGeneration) {
+      state.draftStorageFailed = !saved;
+      eventsRuntime.renderDraftSafety?.();
+    }
     if (options.requireLatest && state.cacheGeneration !== cacheGeneration) {
       return cacheBoardSnapshot(options);
     }
@@ -143,19 +149,24 @@ async function restoreCachedSnapshot() {
   const epoch = state.canvasEpoch;
   const generation = window.WhiteboardStorage?.getGeneration();
   try {
+    if (isGuestMode() && window.WhiteboardStorage?.guestStorageIsDurable?.() === false)
+      throw new Error('浏览器未提供持久存储，已暂停编辑');
     const parsed = isGuestMode()
       ? await window.WhiteboardStorage?.loadGuestCanvas(state.boardId)
       : await window.WhiteboardStorage?.loadSnapshot(state.boardId);
     if (epoch !== state.canvasEpoch || generation !== window.WhiteboardStorage?.getGeneration()) return;
     if (parsed && parsed.boardId === state.boardId && Array.isArray(parsed.items)) {
       loadSnapshot(parsed);
-      state.cachedSnapshotLoaded = true;
+      // An optimistic cache is useful for display, but cannot prove the server
+      // snapshot is unchanged after an ACK/outbox persistence interruption.
+      state.cachedSnapshotLoaded = parsed.hasPendingOperations === false;
       state.cachedSnapshotRevision = state.revision;
       state.cachePending = false;
       centerOnContent();
     }
   } catch (error) {
     console.warn('Could not restore cached board', error);
+    if (isGuestMode()) throw error;
   }
 }
 

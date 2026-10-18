@@ -10,9 +10,10 @@ import { markDirty } from '../save-status.js';
 import { makeId } from '../utilities.js';
 import { openAdaptiveDialog } from '../interface.js';
 import { showToast } from '../interface-model.js';
-import { getBoardPoint } from '../camera.js';
+import { cancelWheelZoomAnimation, getBoardPoint } from '../camera.js';
 import { els } from '../elements.js';
-import { captureViewportPointer, syncEdgePanForEvent, releaseViewportPointer } from '../pan.js';
+import { captureViewportPointer, syncEdgePanForEvent, releaseViewportPointer, stopEdgePan } from '../pan.js';
+import { getActiveGesturePointerId, trackPointer, untrackPointer } from '../pan-model.js';
 
 import { endpoints } from './binding.js';
 import { schedule } from './controls.js';
@@ -85,6 +86,7 @@ function refreshLabels() {
 
 async function editLabel(item, label) {
   if (!canMutateItem(item)) return;
+  const boardId = state.boardId, epoch = state.canvasEpoch;
   const value = await openAdaptiveDialog({
     mode: 'prompt',
     title: '连接标签',
@@ -93,7 +95,9 @@ async function editLabel(item, label) {
     maxLength: 500,
     inputLabel: '标签'
   });
-  if (value === null) return;
+  if (value === null || state.boardId !== boardId || state.canvasEpoch !== epoch) return;
+  item = state.items.get(item.id);
+  if (!item || !canMutateItem(item)) return;
   const existing = item.labels.some((entry) => entry.id === label.id);
   const replacement = { ...label, text: value.trim().slice(0, 500) };
   const labels = existing
@@ -104,15 +108,21 @@ async function editLabel(item, label) {
 
 function beginEdit(event, item, kind, id) {
   if (!canMutateItem(item) || state.spacePan || event.button !== 0) return;
+  const owner = getActiveGesturePointerId();
+  if (state.pinch || (owner !== null && owner !== event.pointerId)) return;
   if ((kind === 'segment' || kind === 'point' || kind === 'curve') && item.route.locked) return;
   event.preventDefault();
   event.stopPropagation();
+  cancelWheelZoomAnimation();
+  trackPointer(event);
   selectItem(item.id);
   stateRuntime.edit = {
     id: item.id,
+    boardId: state.boardId,
     kind,
     key: id,
     pointerId: event.pointerId,
+    pointerType: event.pointerType || 'mouse',
     before: C.clone(item),
     snapshot: snapshotItems(),
     start: getBoardPoint(event),
@@ -123,9 +133,11 @@ function beginEdit(event, item, kind, id) {
 }
 
 function moveEdit(event) {
+  if (!stateRuntime.edit || stateRuntime.edit.pointerId !== event.pointerId) return;
   const item = state.items.get(stateRuntime.edit.id);
-  if (!item) return;
+  if (!item || !canMutateItem(item)) { endEdit(true); return; }
   const p = getBoardPoint(event);
+  if (!stateRuntime.edit.changed && p.x === stateRuntime.edit.start.x && p.y === stateRuntime.edit.start.y) return;
   const next = C.clone(stateRuntime.edit.before);
   stateRuntime.edit.changed = true;
   if (stateRuntime.edit.kind === 'source' || stateRuntime.edit.kind === 'target') {
@@ -182,9 +194,17 @@ function endEdit(cancelled = false) {
   if (!stateRuntime.edit) return;
   const current = stateRuntime.edit;
   stateRuntime.edit = null;
+  if (state.edgePan?.kind === 'connector') stopEdgePan();
+  untrackPointer({ pointerId: current.pointerId });
   els.viewport.classList.remove('impact-connector-editing');
   releaseViewportPointer(current.pointerId);
   highlight(null);
+  // A late pointerup must never resurrect an item deleted remotely or carry
+  // an edit into another board.
+  if (current.boardId !== state.boardId || !state.items.has(current.id)) {
+    schedule();
+    return;
+  }
   if (cancelled || !current.changed) {
     state.items.set(current.id, current.before);
     renderItem(current.before);

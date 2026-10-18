@@ -15,7 +15,10 @@ import { notebookReferences, regionItems, regionRevision } from '../../public/ap
 import { replaceAssetReferences, assetIdFromSource } from './asset-references.js';
 import { validateNotebook, notebookImages, fromCanvas, toCanvas, sourceText, elementText } from '../../frontend/notebook/model.js';
 import { pageContent, catalogContent } from '../../frontend/notebook/concurrency.js';
-import { ensureNotebookSharingSchema, visibleNotebookRows, viewNotebook, accessibleNotebook, stripNotebookSharing, canReadSharedNotebookAsset, shareNotebookPage, sharedNotebookPatch, notebookSharingGroup, discardRevokedNotebookLeases } from './notebook-sharing.js';
+import { ensureNotebookSharingSchema, visibleNotebookRows, viewNotebook, accessibleNotebook, stripNotebookSharing, shareNotebookPage, sharedNotebookPatch, notebookSharingGroup, discardRevokedNotebookLeases } from './notebook-sharing.js';
+import { canReadNotebookAsset } from './notebook-assets.js';
+
+export { canReadNotebookAsset };
 
 export function ensureNotebookSchema(db) {
   ensurePlanningSchema(db);
@@ -88,10 +91,6 @@ function owned(db, id, userId) {
   if (!row) throw error(404, '笔记本不存在或无权访问');
   return row;
 }
-export function canReadNotebookAsset(db, userId, assetId) {
-  return Boolean(db.prepare(`SELECT 1 FROM asset_references r JOIN independent_notebooks n ON n.id = r.owner_id
-    WHERE r.owner_type = 'notebook' AND r.asset_id = ? AND n.owner_user_id = ?`).get(assetId, userId)) || canReadSharedNotebookAsset(db,userId,assetId);
-}
 function authorizeImages(db, userId, book) {
   for (const image of notebookImages(book)) {
     const assetId = assetIdFromSource(image.src);
@@ -114,7 +113,7 @@ export function saveNotebook(db, userId, input, actorId = userId) {
   if (!row && db.prepare('SELECT COUNT(*) AS n FROM independent_notebooks WHERE owner_user_id = ?').get(userId).n >= 200) throw error(409, '最多保存 200 本笔记，请清理回收站或导出');
   const receiptId = actorId === userId ? opId : `${actorId}:${opId}`;
   const receipt = db.prepare('SELECT revision FROM notebook_receipts WHERE notebook_id = ? AND op_id = ?').get(book.id, receiptId);
-  if (receipt) return input.pageScoped ? { revision:row.revision,receiptRevision:receipt.revision,duplicate:true,notebook:JSON.parse(row.document_json) } : { revision: receipt.revision, duplicate: true };
+  if (receipt) return input.pageScoped ? { revision:row.revision,savedAt:row.updated_at,receiptRevision:receipt.revision,duplicate:true,notebook:JSON.parse(row.document_json) } : { revision: receipt.revision,savedAt:row.updated_at,duplicate: true };
   if (Number(baseRevision) !== Number(row?.revision || 0)) throw error(409, '笔记已在另一个窗口更新；本地草稿已保留', 'NOTEBOOK_CONFLICT');
   if (row?.lease_client && (row.lease_client !== clientId || actorId !== userId) && row.lease_until > Date.now()) throw error(423, '另一个窗口正在编辑此笔记本', 'NOTEBOOK_LOCKED');
   const previous = row ? JSON.parse(row.document_json) : null;
@@ -162,7 +161,7 @@ export function saveNotebook(db, userId, input, actorId = userId) {
   invalidateNotebookPlanning(book.id);
   changedPlans.forEach(invalidatePlanning);
   if(book.deleted||removedPages.length||changedPages.some(page=>page.deleted))invalidatePlanningAccess(userId);
-  return { revision, catalogRevision: canonical.catalogRevision, pageRevisions: Object.fromEntries(canonical.pages.map(page => [page.id,page.revision])),
+  return { revision, savedAt:db.prepare('SELECT updated_at FROM independent_notebooks WHERE id=?').get(book.id).updated_at, catalogRevision: canonical.catalogRevision, pageRevisions: Object.fromEntries(canonical.pages.map(page => [page.id,page.revision])),
     leasedPageIds:leasePages.map(page=>page.id),
     ...(input.merged ? {notebook:canonical} : {}) };
 }

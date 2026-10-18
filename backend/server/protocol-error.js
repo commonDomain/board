@@ -4,6 +4,7 @@ class ProtocolError extends Error {
     this.name = 'ProtocolError';
     this.code = code;
     this.closeCode = options.closeCode;
+    this.image = options.image;
   }
 }
 

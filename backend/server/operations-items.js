@@ -59,10 +59,12 @@ async function applyUpsert(state, rawOperation, context) {
     JSON.stringify([previous.text, previous.richText, previous.rows, previous.tree, previous.workbook]) !==
       JSON.stringify([item.text, item.richText, item.rows, item.tree, item.workbook]);
   if (contentChanged) {
-    const expected = rawOperation.baseContentVersion ?? rawOperation.item.contentVersion;
-    if (expected !== undefined && expected !== (previous.contentVersion || 0))
-      throw new ProtocolError('CONTENT_CONFLICT', 'The content was changed. Your local draft has been retained.');
+    const expected = rawOperation.baseContentVersion ?? rawOperation.item.contentVersion ?? 0;
+    if (expected !== (previous.contentVersion || 0))
+      throw new ProtocolError('CONTENT_CONFLICT', '这段内容已有其他修改，当前草稿已保留；请核对后处理，避免覆盖他人内容。');
     item.contentVersion = (previous.contentVersion || 0) + 1;
+  } else if (previous && ['text', 'note', 'table', 'mindmap', 'sheet'].includes(item.type)) {
+    item.contentVersion = previous.contentVersion || 0;
   }
   const targetLayer = state.layers.find((layer) => layer.id === item.layerId);
   if (!targetLayer) {

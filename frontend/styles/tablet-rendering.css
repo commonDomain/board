@@ -1,0 +1,86 @@
+/* Tablet presentation stays editable, with lighter surfaces and short feedback. */
+html[data-form-factor=tablet] {
+  --glass-filter:blur(8px) saturate(110%);
+  --glass-light:linear-gradient(155deg,rgba(255,255,255,.95),rgba(243,246,252,.93));
+  --shadow-sm:0 2px 6px rgba(24,31,48,.07);
+  --shadow-md:0 4px 12px rgba(20,27,45,.10);
+  --shadow-lg:0 8px 24px rgba(20,27,45,.12);
+}
+
+html[data-form-factor=tablet] :is(
+  .document-bar,.tool-dock,.tool-popover,.canvas-menu,.canvas-preview-card,
+  .context-panel,.context-menu,.navigator-panel,.arrange-bar,.search-command,
+  .canvas-dialog-card,.export-preview-card,.account-card,.account-menu,
+  .brush-preset-menu,.floating-format-bar,.floating-select-menu,.floating-menu-subpanel,
+  .floating-color-palette,.floating-custom-color-picker,.floating-advanced-panel,
+  .canvas-chat,.chat-member-list,.chat-read-popover,.touch-actions,.toast,.planning-panel
+) {
+  backdrop-filter:var(--glass-filter);
+  -webkit-backdrop-filter:var(--glass-filter);
+  box-shadow:var(--shadow-md);
+}
+html[data-form-factor=tablet] .tool-dock {
+  background:linear-gradient(155deg,rgba(40,40,57,.94),rgba(26,28,40,.92));
+}
+html[data-form-factor=tablet] :is(.canvas-chat,.chat-member-list,.chat-read-popover) {
+  background:linear-gradient(155deg,rgba(255,255,255,.96),rgba(244,242,251,.94));
+}
+
+/* Large overlays and nested headers already have a readable surface. */
+html[data-form-factor=tablet] :is(
+  .search-overlay,.canvas-dialog-overlay,.export-preview-overlay,.account-overlay,
+  .nt-appbar,.planning-shade
+),html[data-form-factor=tablet] dialog::backdrop {
+  backdrop-filter:none;
+  -webkit-backdrop-filter:none;
+}
+html[data-form-factor=tablet] :is(.nt-app,.nt-owned-dialog) {
+  --nt-shadow-menu:0 4px 12px #25283314;
+  --nt-shadow-dialog:0 8px 24px #25283320;
+  --nt-fast:100ms;
+  --nt-pop:120ms;
+  --nt-drawer:140ms;
+}
+html[data-form-factor=tablet] :is(.image-item img,.note-card,.text-card,.kdocs-embed-card,.amap-card,.sheet-preview) {
+  box-shadow:0 2px 6px rgba(25,32,48,.08);
+}
+html[data-form-factor=tablet] .canvas-view-controls {
+  --canvas-control-shadow:0 2px 6px rgba(55,45,120,.08);
+}
+
+html[data-form-factor=tablet] :is(.tool-button,.action-button,.chat-icon-button,.nt-app button,.nt-owned-dialog button) {
+  transition:background-color 100ms ease,border-color 100ms ease,color 100ms ease,opacity 100ms ease;
+}
+html[data-form-factor=tablet] .liquid-tool-indicator {
+  transition:opacity 100ms ease,transform 120ms ease;
+  box-shadow:0 2px 6px rgba(61,43,186,.20);
+  will-change:auto;
+}
+html[data-form-factor=tablet] .liquid-tool-indicator.is-immediate { transition:none; }
+html[data-form-factor=tablet] .liquid-tool-indicator::after { display:none; }
+
+/* Save/connection state remains visible without continuous glow repainting. */
+html[data-form-factor=tablet] .muse-beam::before,
+html[data-form-factor=tablet] .muse-beam-line::after {
+  animation:none;
+  filter:none;
+  box-shadow:none;
+}
+html[data-form-factor=tablet] .muse-beam-line::after { transform:none; }
+html[data-form-factor=tablet] .muse-beam::after { display:none; }
+html[data-form-factor=tablet] :is(.canvas-chat,.chat-message.is-entering,.chat-member-list,.chat-read-popover) {
+  animation:tablet-surface-in 120ms ease-out;
+}
+@keyframes tablet-surface-in { from { opacity:0; } to { opacity:1; } }
+@media(prefers-reduced-motion:reduce) {
+  html[data-form-factor=tablet] :is(.canvas-chat,.chat-message.is-entering,.chat-member-list,.chat-read-popover) { animation:none; }
+}
+
+/* Avoid forcing the unbounded world into a GPU layer. */
+html[data-form-factor=tablet] .board-layer { transform:none; will-change:auto; }
+
+/* Moving content should not be sampled again by every translucent toolbar. */
+html[data-form-factor=tablet]:has(.viewport.panning,.viewport.pinching,.viewport.moving-items,.viewport.moving-section) :is(.document-bar,.tool-dock,.touch-actions,.context-panel,.floating-format-bar) {
+  backdrop-filter:none;
+  -webkit-backdrop-filter:none;
+}

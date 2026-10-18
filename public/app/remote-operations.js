@@ -59,6 +59,7 @@ function rebaseInteractionItem(remoteItem) {
 }
 
 function rebaseRemoteOperationForActiveGesture(op) {
+  window.ConnectorUI?.beforeRemoteOperation?.(op);
   if ((!state.interaction && !state.sectionInteraction) || !op || typeof op !== 'object') return;
   if (op.kind === 'batch' && Array.isArray(op.ops)) {
     for (const subOp of op.ops) rebaseRemoteOperationForActiveGesture(subOp);
@@ -129,6 +130,10 @@ function rebaseRemoteOperationForActiveGesture(op) {
     const start = interaction?.startPositions.get(remoteItem?.id);
     const current = remoteItem?.id ? state.items.get(remoteItem.id) : null;
     if (!start || !current) return remoteItem;
+    if (remoteItem.type === 'connector') {
+      cancelActiveGesture();
+      return remoteItem;
+    }
     const rebased = { ...remoteItem, x: remoteItem.x + (current.x - start.x), y: remoteItem.y + (current.y - start.y) };
     interaction.startPositions.set(remoteItem.id, { x: remoteItem.x, y: remoteItem.y });
     return rebased;

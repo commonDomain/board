@@ -10,9 +10,11 @@ import {
 import { clamp } from './utilities.js';
 
 function interactionFieldsForMode(item, mode) {
-  if (mode === 'move') return ['x', 'y', 'sectionId', 'groupId'];
+  if (mode === 'move') return item?.type === 'connector'
+    ? ['x', 'y', 'sectionId', 'groupId', 'source', 'target', 'route']
+    : ['x', 'y', 'sectionId', 'groupId'];
   if (mode === 'rotate') return ['rotation'];
-  if (mode === 'table-column') return ['w', 'columnWidths'];
+  if (mode === 'table-column') return ['x', 'y', 'w', 'columnWidths'];
   if (mode === 'mind-node-resize') return ['x', 'y', 'w', 'h', 'tree'];
   const fields = ['x', 'y', 'w', 'h'];
   if (item?.type === 'table') fields.push('columnWidths', 'rowHeights');
@@ -75,6 +77,19 @@ function resizeTableColumn(item, interaction, dx) {
     MIN_ITEM_SIZE,
     item.columnWidths.reduce((sum, width) => sum + width, 0)
   );
+}
+
+function itemLocalDelta(item, dx, dy) {
+  const angle = (Number(item.rotation) || 0) * Math.PI / 180;
+  return { x: dx * Math.cos(angle) + dy * Math.sin(angle), y: -dx * Math.sin(angle) + dy * Math.cos(angle) };
+}
+
+function preserveRotatedResizeAnchor(item, start) {
+  const angle = (Number(start.rotation) || 0) * Math.PI / 180;
+  const cx = start.x + start.w / 2, cy = start.y + start.h / 2;
+  const dx = item.x + item.w / 2 - cx, dy = item.y + item.h / 2 - cy;
+  item.x = cx + dx * Math.cos(angle) - dy * Math.sin(angle) - item.w / 2;
+  item.y = cy + dx * Math.sin(angle) + dy * Math.cos(angle) - item.h / 2;
 }
 
 function resizeItemFromHandle(item, handle, dx, dy, startItem = item) {
@@ -172,5 +187,7 @@ export {
   resizeTableColumn,
   resizeTextFromHandle,
   resizeImageFromHandle,
-  resizeItemFromHandle
+  resizeItemFromHandle,
+  itemLocalDelta,
+  preserveRotatedResizeAnchor
 };

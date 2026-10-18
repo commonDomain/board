@@ -76,3 +76,9 @@ Thumbs.db
 .vscode/
 *.swp
 *.swo
+
+# Generated reports and validation artifacts
+output/
+reports/
+playwright-report/
+test-results/

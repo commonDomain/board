@@ -21,7 +21,7 @@ import {
   releaseViewportPointer,
   syncEdgePanForEvent
 } from './pan.js';
-import { trackPointer, untrackPointer } from './pan-model.js';
+import { getActiveGesturePointerId, trackPointer, untrackPointer } from './pan-model.js';
 import { sendCursorFromEvent } from './presence.js';
 import { pointerMoveRuntime } from './runtime/pointer-move.js';
 import {
@@ -40,6 +40,13 @@ let sectionHoverFrame = null;
 let pendingSectionHover = null;
 
 function onWindowPointerMove(event) {
+  // A second pointer must not replace the owner's queued frame. Pinch owns
+  // both pointers and updates both positions before coalescing.
+  const owner = getActiveGesturePointerId();
+  if (state.pinch ? !state.pinch.pointers.has(event.pointerId) : owner !== null && owner !== event.pointerId) {
+    trackPointer(event, false);
+    return;
+  }
   if (state.pinch?.pointers.has(event.pointerId)) state.pinch.pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
   updateSectionHoverFromPointer(event);
   if (!shouldCoalescePointerMove()) {
@@ -279,20 +286,24 @@ function onWindowPointerUp(event) {
   untrackPointer(event);
   releaseViewportPointer(event.pointerId);
   if (state.tableCellDrag?.pointerId === event.pointerId) {
+    continueTableCellDrag(event);
     finishTableCellDrag(event);
     return;
   }
   if (state.pinch) {
     if (state.pinch.pointers.has(event.pointerId)) {
+      continuePinch(event);
       finishPinch();
     }
     return;
   }
   if (state.panning?.pointerId === event.pointerId) {
+    continuePanning(event);
     finishPanning(event);
     return;
   }
   if (state.marquee?.pointerId === event.pointerId) {
+    continueMarquee(event);
     finishMarquee();
     return;
   }
@@ -305,10 +316,12 @@ function onWindowPointerUp(event) {
     return;
   }
   if (state.sectionInteraction?.pointerId === event.pointerId) {
+    continueSectionInteraction(event);
     finishSectionInteraction();
     return;
   }
   if (state.smudgePath?.pointerId === event.pointerId) {
+    continueSmudge(event);
     finishSmudge();
     return;
   }
@@ -331,6 +344,7 @@ function onWindowPointerUp(event) {
     return;
   }
   if (state.interaction?.pointerId === event.pointerId) {
+    continueTransform(event);
     finishTransform();
     return;
   }

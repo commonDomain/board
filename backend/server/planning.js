@@ -7,7 +7,7 @@ import { currentBoardEditLease } from './board-lock.js';
 import { invalidatePlanning } from './planning-events.js';
 import { sendJson } from './http-response.js';
 import { readJsonBody } from './http-body.js';
-import { applyOperation, createPlan, fail, host, safeId, sameHost, progress } from '../../frontend/planning/model.js';
+import { applyOperation, createPlan, fail, host, safeId, sameHost, progress, validateTaskDeletionBatch } from '../../frontend/planning/model.js';
 import { archiveHostPlans } from './planning-schema.js';
 import { createHash } from 'node:crypto';
 import { sanitizeSnapshot } from '../../frontend/planning/transfer.js';
@@ -143,6 +143,7 @@ function mutatePlanInside(db, userId, planId, body, creating = false) {
   } else {
     let current = JSON.parse(existing.document_json); const operations = body.operation?.type==='task.batch' ? body.operation.operations : [body.operation];
     if (!Array.isArray(operations) || !operations.length || operations.length>100 || body.operation?.type==='task.batch' && operations.some(op=>!['task.create','task.update','task.delete','task.restore'].includes(op?.type))) throw fail('批量操作无效');
+    const deleting = body.operation?.type === 'task.batch' && validateTaskDeletionBatch(current, operations);
     for (const operation of operations) {
     if (!operation || typeof operation !== 'object') throw fail('缺少操作');
     if (['plan.delete','plan.restore','plan.purge','task.purge'].includes(operation.type)) { if (current.ownerId!==userId) throw fail('只有所有者可以管理回收站',403); }
@@ -157,7 +158,7 @@ function mutatePlanInside(db, userId, planId, body, creating = false) {
     }
     const memberIds = planningMembers(userId).map(m => m.id);
     // Existing departed assignees may stay as historical values, but cannot be newly assigned.
-    let effective = operation;
+    let effective = deleting ? { ...operation, baseRevision: current.tasks.find(task => task.id === operation.id).revision } : operation;
     if (Array.isArray(operation.patch?.sources)) {
       const task = current.tasks.find(task => task.id === operation.id), hidden = (task?.sources || []).filter(source => { try { planningHostAccess(db, source, userId); return false; } catch { return true; } });
       const sources = [...operation.patch.sources];

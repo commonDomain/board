@@ -18,12 +18,14 @@ import { scheduleImageLodRefresh } from './ink-rendering.js';
 import { isItemVisible } from './layer-visibility.js';
 
 import { canvasInteraction } from './pan.js';
+import { getActiveGesturePointerId } from './pan-model.js';
 
 import { cameraRuntime } from './runtime/camera.js';
 import { floatingToolbarMenuRuntime } from './runtime/floating-toolbar-menu.js';
 import { pointerMoveRuntime } from './runtime/pointer-move.js';
 
 import { state } from './state.js';
+import { getCanvasRenderPolicy } from './render-resources-model.js';
 import { clamp, cssEscape } from './utilities.js';
 import { captureCameraView, cameraViewMatches, boardToScreen, updateZoomLabel } from './camera-model.js';
 
@@ -65,24 +67,33 @@ let lastAppliedZoom = null;
 
 let lastAppliedRotation = null;
 
+let lastAppliedBackground = null;
+
 function applyCamera() {
-  els.board.style.setProperty('--canvas-zoom', String(state.zoom));
   hideSectionHoverLabel();
   const { x, y } = state.camera;
   const zoomChanged = lastAppliedZoom !== state.zoom;
   const rotationChanged = lastAppliedRotation !== state.rotation;
+  const policy = getCanvasRenderPolicy({ exporting: state.exporting });
+  const phone = policy.phone;
+  if (!policy.bounded || zoomChanged) els.board.style.setProperty('--canvas-zoom', String(state.zoom));
   // Keep camera transforms in the 2D rendering path so images are rerasterized
   // at the settled zoom level instead of reusing a low-resolution GPU texture.
   els.board.style.transform = `translate(${x}px, ${y}px) rotate(${state.rotation}deg) scale(${state.zoom})`;
-  if (els.gridLayer) {
+  if (els.gridLayer && !phone) {
     const preset = getBackgroundPreset();
     const spacing = preset.spacing * state.zoom;
-    els.gridLayer.style.backgroundSize = '';
-    els.gridLayer.style.backgroundPosition = '';
+    if (!policy.bounded || lastAppliedBackground !== state.background || zoomChanged) {
+      els.gridLayer.style.backgroundSize = '';
+      els.gridLayer.style.backgroundPosition = '';
+      lastAppliedBackground = state.background;
+    }
     // Image backgrounds are cover-fitted and screen-scaled; vector backgrounds are
     // world-space patterns. Only the former answer the camera, and they do it by
     // sliding their crop window rather than by resizing.
-    applyGridWallpaperDrift(x, y);
+    if (!phone || getBackgroundImagePreset()) {
+      applyGridWallpaperDrift(x, y);
+    }
     if (!getBackgroundImagePreset()) {
       if (['dots', 'grid', 'dark', 'warm', 'blueprint', 'cross', 'mist', 'sage'].includes(state.background)) {
         els.gridLayer.style.backgroundSize = `${spacing}px ${spacing}px`;
@@ -120,21 +131,40 @@ function applyCamera() {
     window.ConnectorUI?.refreshLabels();
   }
   refreshVisibleItems();
-  // Spreadsheet previews paint at one device pixel per element pixel, so a zoom
-  // change needs a re-render to stay crisp instead of scaling a stale bitmap.
-  if (zoomChanged) refreshSheetPreviews();
+  // A preview's logical size does not change on every pinch frame. Reconcile
+  // once navigation settles instead of repainting every mounted worksheet.
+  if (zoomChanged) {
+    if (policy.bounded) scheduleSheetPreviewRefresh();
+    else refreshSheetPreviews();
+  }
   if (zoomChanged) scheduleImageLodRefresh();
-  renderCursors();
-  renderGuides();
+  if (!phone) {
+    renderCursors();
+    renderGuides();
+    scheduleFloatingToolbarPosition();
+  }
   positionSearchLocator();
-  scheduleFloatingToolbarPosition();
   lastAppliedZoom = state.zoom;
   lastAppliedRotation = state.rotation;
   if (rotationChanged && state.selectedId) {
     const selectedNode = document.querySelector(`.board-item[data-item-id="${cssEscape(state.selectedId)}"]`);
     updateSelectionHandleCursors(selectedNode?.querySelector('.selection-frame'), state.items.get(state.selectedId));
   }
-  window.ConnectorImpact?.syncTrigger();
+  if (!phone) window.ConnectorImpact?.syncTrigger();
+}
+
+let sheetPreviewRefreshTimer = null;
+
+function scheduleSheetPreviewRefresh() {
+  clearTimeout(sheetPreviewRefreshTimer);
+  sheetPreviewRefreshTimer = setTimeout(() => {
+    if (state.pinch || state.panning?.active || cameraRuntime.wheelZoomFrame) {
+      scheduleSheetPreviewRefresh();
+      return;
+    }
+    sheetPreviewRefreshTimer = null;
+    refreshSheetPreviews();
+  }, 160);
 }
 
 function scheduleCameraApply() {
@@ -200,6 +230,10 @@ function getContentBounds() {
 }
 
 function onViewportWheel(event) {
+  if (state.pinch || getActiveGesturePointerId() !== null) {
+    event.preventDefault();
+    return;
+  }
   if (handleAmapCardWheel(event)) return;
   if (!event.ctrlKey && !event.metaKey) {
     event.preventDefault();

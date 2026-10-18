@@ -5,10 +5,10 @@ import crypto from 'node:crypto';
 import { ASSETS_DIR, MAX_IMAGE_PIXELS } from './config.js';
 import { ProtocolError } from './protocol-error.js';
 
-async function writeDerivedAsset(filePath, buffer) {
+async function writeDerivedAsset(filePath, buffer, replace = false) {
   try {
     const stat = await fsp.stat(filePath);
-    if (stat.isFile() && stat.size > 0) return;
+    if (!replace && stat.isFile() && stat.size > 0) return;
   } catch (error) {
     if (error.code !== 'ENOENT') throw error;
   }
@@ -47,12 +47,28 @@ async function createImageDerivatives(buffer, assetId) {
   const renderVariant = async (name, side, quality) => {
     if (Math.max(width, height) <= side) return null;
     const filename = `${assetId}.${name}.webp`;
+    try {
+      const filePath = path.join(ASSETS_DIR, filename);
+      const existing = await fsp.stat(filePath);
+      if (existing.isFile() && existing.size > 0) {
+        // Read bytes rather than passing a filename to libvips: its file cache
+        // can otherwise keep a Windows handle open and prevent repair/deletion.
+        const bytes=await fsp.readFile(filePath),cached=await sharp(bytes).metadata();
+        if (bytes.length>=12 && bytes.readUInt32LE(4)+8===bytes.length && cached.format === 'webp' && cached.width > 0 && cached.height > 0 && Math.max(cached.width,cached.height) === side)
+          return {url:`/assets/${filename}`,width:cached.width,height:cached.height};
+      }
+    } catch (error) {
+      if (error.code !== 'ENOENT' && !String(error.message).includes('unsupported image')) {
+        // A damaged derivative can be regenerated from the verified original.
+        if (['EACCES','EPERM','EIO'].includes(error.code)) throw error;
+      }
+    }
     const output = await sharp(buffer, { limitInputPixels: MAX_IMAGE_PIXELS, animated: false })
       .rotate()
       .resize({ width: side, height: side, fit: 'inside', withoutEnlargement: true })
       .webp({ quality, effort: 4 })
       .toBuffer({ resolveWithObject: true });
-    await writeDerivedAsset(path.join(ASSETS_DIR, filename), output.data);
+    await writeDerivedAsset(path.join(ASSETS_DIR, filename), output.data, true);
     return { url: `/assets/${filename}`, width: output.info.width, height: output.info.height };
   };
   const [thumb, medium] = await Promise.all([renderVariant('thumb', 320, 78), renderVariant('medium', 1600, 82)]);

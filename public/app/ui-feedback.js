@@ -45,7 +45,7 @@ export function installUiFeedback() {
     active = null;
   };
   const show = () => {
-    if (!active?.isConnected || !active.getClientRects().length || active.closest('[hidden]')) return hide();
+    if (!active?.isConnected || !active.getClientRects().length || active.closest('[hidden]') || active.dataset.tooltipDisabled==='true') return hide();
     const label = active.dataset.tooltip || originalTitle || active.getAttribute('aria-label');
     const explained=hasVisibleControlText(active),reason=active.disabled?active.dataset.disabledReason:'';
     if(explained&&!reason)return hide();
@@ -68,6 +68,7 @@ export function installUiFeedback() {
   const enter = (event, keyboard) => {
     if (!keyboard && (event.pointerType === 'touch' || !matchMedia('(hover:hover)').matches)) return;
     const control = event.target.closest?.('button,select,input,summary,[data-tooltip],[role=button]');
+    if(control?.dataset.tooltipDisabled==='true'){hide();return;}
     if (!control || control.closest('.tiptap,.nt-title-block') || !(control.title || control.dataset.tooltip || control.getAttribute('aria-label'))) return;
     if(hasVisibleControlText(control)&&!(control.disabled&&control.dataset.disabledReason)) {hide();control.removeAttribute('title');return;}
     if (control === active) return;

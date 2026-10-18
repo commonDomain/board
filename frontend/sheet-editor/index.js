@@ -491,6 +491,10 @@ function createEditor(options = {}) {
     focusCell,
     setSaveLabel,
     setTitle,
+    setEditingBlocked(blocked) {
+      state.safetyBlocked = Boolean(blocked);
+      for (const surface of [toolbar, formulaBar, gridWrap, tabsBar, titleButton]) surface.inert = state.safetyBlocked;
+    },
     restoreInputDraft(draft) {
       if (!draft || !state.store) return false;
       const sheetIndex = state.store.workbook.sheets.findIndex((sheet) => sheet.sheetId === draft.sheetId);

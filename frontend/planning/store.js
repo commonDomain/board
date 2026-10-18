@@ -154,6 +154,8 @@ export class PlanningStore {
   }
   async commitNow(draft) {
     if (!this.active()) throw new DOMException('账号已切换', 'AbortError');
+    const completingTask = draft.operation?.type === 'task.update' && draft.operation.patch?.status === 'done'
+      && this.plans.get(draft.planId)?.tasks.find(task => task.id === draft.operation.id)?.status !== 'done';
     this.drafts.set(draft.opId, draft); this.notify();
     try{await local(this.scope, (store, prefix) => store.put({ key: `${prefix}draft:${draft.opId}`, draft }));}catch(error){draft.error=error.name==='QuotaExceededError'?'此设备存储空间不足，输入仍保留在当前窗口':error.message;this.notify();throw new Error(draft.error);}
     let plan;
@@ -185,6 +187,11 @@ export class PlanningStore {
     if (!this.active()) throw new DOMException('账号已切换', 'AbortError');
     this.mutationEpoch++;
     this.plans.set(plan.id,plan);this.cloud=!this.guest;this.remoteVersions[plan.id]=plan.revision;
+    if (completingTask && plan.tasks.some(task => task.id === draft.operation.id && task.status === 'done')) {
+      window.dispatchEvent(new CustomEvent('muse:pet-feedback', {
+        detail: { type: 'task', id: `${this.scope}:${draft.planId}:${draft.operation.id}:${draft.opId}` }
+      }));
+    }
     // Keep the batch recoverable until its brain/source document is durable.
     const completed = draft.operation?.type === 'task.decompose' ? [] : [draft.opId];
     if (draft.operation?.type === 'task.create') for (const pending of this.drafts.values()) if (pending.planId === draft.planId && pending.operation?.type === 'task.create' && pending.operation.id === draft.operation.id) completed.push(pending.opId);

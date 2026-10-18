@@ -95,7 +95,13 @@ async function handleClientMessage(client, message) {
     if (!client.opLimit()) {
       throw new ProtocolError('RATE_LIMITED', 'Operations are arriving too quickly.');
     }
-    await enqueueBoard(board, () => commitOperation(board, client, message));
+    try {
+      await enqueueBoard(board, () => commitOperation(board, client, message));
+    } catch (error) {
+      // A rejected image cannot make progress while holding the other members read-only.
+      if (error.code === 'ASSET_ACCESS_DENIED') releaseBoardEditLease(board, client);
+      throw error;
+    }
     return;
   }
 

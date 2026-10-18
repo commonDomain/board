@@ -1,14 +1,18 @@
 import { state } from './state.js';
 
-function intersectsRect(item, rect) {
+function getItemRectBounds(item) {
   const rotation = ((Number(item.rotation) || 0) * Math.PI) / 180;
   const cos = Math.abs(Math.cos(rotation));
   const sin = Math.abs(Math.sin(rotation));
   const width = item.w * cos + item.h * sin;
   const height = item.w * sin + item.h * cos;
-  const bounds = rotation
+  return rotation
     ? { x: item.x + (item.w - width) / 2, y: item.y + (item.h - height) / 2, w: width, h: height }
     : item;
+}
+
+function intersectsRect(item, rect) {
+  const bounds = getItemRectBounds(item);
   return (
     bounds.x < rect.x + rect.w &&
     bounds.x + bounds.w > rect.x &&
@@ -47,4 +51,4 @@ function getPinnedRenderItems() {
   if (pendingId) ids.add(pendingId);
   return Array.from(ids, (id) => state.items.get(id)).filter(Boolean);
 }
-export { intersectsRect, boardPointToItemSpace, pointHitsItemBounds, getPinnedRenderItems };
+export { intersectsRect, getItemRectBounds, boardPointToItemSpace, pointHitsItemBounds, getPinnedRenderItems };

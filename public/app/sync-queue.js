@@ -8,6 +8,7 @@ import { showToast } from './interface-model.js';
 import { sheetCommandCommits } from './sheet-store.js';
 
 import { state } from './state.js';
+import { eventsRuntime } from './runtime/events.js';
 
 import {
   rememberCommittedOperation,
@@ -17,9 +18,10 @@ import {
   clearSyncRetry
 } from './sync-queue-model.js';
 
-let scheduleHistoryCompaction, snapshotDocument, updateRedoButton, updateUndoButton, isGuestMode, resetCanvasRuntime, restoreLocalBoardStateAndConnect, schedulePersistPendingOps, fetchCanvasCatalog, renderCanvasCatalog, updateCurrentCanvasLabel, resolveBoardUnlockRevision, sendBoardEditActivity, setConnection, reapplyPendingOperations, applyRemoteOperation, updateSaveText, scheduleBoardCache, scheduleXmindAutoSync;
+let persistCurrentCanvasForSwitch, renderBoardLock, scheduleHistoryCompaction, snapshotDocument, updateRedoButton, updateUndoButton, isGuestMode, resetCanvasRuntime, restoreLocalBoardStateAndConnect, schedulePersistPendingOps, fetchCanvasCatalog, renderCanvasCatalog, updateCurrentCanvasLabel, resolveBoardUnlockRevision, sendBoardEditActivity, setConnection, reapplyPendingOperations, applyRemoteOperation, updateSaveText, scheduleBoardCache, scheduleXmindAutoSync;
 
 function configureSyncQueue(callbacks) {
+  ({ persistCurrentCanvasForSwitch, renderBoardLock } = callbacks);
   ({scheduleHistoryCompaction,
 snapshotDocument,
 updateRedoButton,
@@ -50,6 +52,13 @@ async function recoverFromDeletedCanvas() {
   state.socket = null;
   socket?.close(1000, 'Canvas deleted');
   try {
+    const preserved = await persistCurrentCanvasForSwitch();
+    state.accessReadOnly = true;
+    renderBoardLock();
+    if (!preserved) {
+      showToast('画布已被删除，未落盘草稿仍保留在此页面，请先导出');
+      return;
+    }
     await fetchCanvasCatalog();
     state.boardId = state.canvases[0]?.id || null;
     resetCanvasRuntime();
@@ -74,6 +83,8 @@ async function recoverFromDeletedCanvas() {
 }
 
 function handleCommittedOperation(message) {
+  if (eventsRuntime.captureDraftInputs) eventsRuntime.captureDraftInputs();
+  else eventsRuntime.editableInputHandler?.flush?.();
   if (message.opId === state.syncQueue.inflightOpId) {
     clearTimeout(state.operationAckTimer);
     state.operationAckTimer = null;
@@ -90,7 +101,7 @@ function handleCommittedOperation(message) {
   state.revision = Math.max(state.revision, revision);
   let acknowledged = false;
   if (typeof message.opId === 'string') {
-    acknowledged = state.syncQueue.ack(message.opId);
+    acknowledged = state.syncQueue.ack(message.opId, message.op);
   }
   if (acknowledged) {
 
@@ -108,6 +119,7 @@ function handleCommittedOperation(message) {
   } else {
     if (message.from && message.from !== state.clientId) pruneHistoryForRemoteOperation(message.op);
     applyRemoteOperation(message.op);
+    reapplyPendingOperations();
   }
   if (!state.resyncing) resolveBoardUnlockRevision();
   scheduleBoardCache();
@@ -154,11 +166,14 @@ function pruneHistoryForRemoteOperation(op) {
 }
 
 function scheduleSyncRetry(minimumDelay = 0) {
-  clearTimeout(state.syncRetryTimer);
+  if (state.syncRetryTimer) return;
+  const boardId = state.boardId;
+  const epoch = state.canvasEpoch;
   const delay = Math.max(minimumDelay, Math.min(5000, 300 * 2 ** state.syncRetryAttempt)) + Math.random() * 180;
   state.syncRetryAttempt = Math.min(6, state.syncRetryAttempt + 1);
   state.syncRetryTimer = setTimeout(() => {
     state.syncRetryTimer = null;
+    if (state.boardId !== boardId || state.canvasEpoch !== epoch) return;
     pumpSyncQueue();
   }, delay);
 }
@@ -179,7 +194,15 @@ function enqueueOperation(operation, opId) {
   scheduleAutoSave();
   schedulePersistPendingOps();
   updateSaveText();
-  pumpSyncQueue();
+  if (operation.kind === 'upsert' && ['text', 'note', 'table'].includes(operation.item?.type)) {
+    if (!state.syncDispatchTimer) {
+      const epoch = state.canvasEpoch;
+      state.syncDispatchTimer = setTimeout(() => {
+        state.syncDispatchTimer = null;
+        if (state.canvasEpoch === epoch) pumpSyncQueue();
+      }, 160);
+    }
+  } else pumpSyncQueue();
   return queuedId;
 }
 
@@ -206,6 +229,7 @@ function pumpSyncQueue() {
     state.resyncing ||
     state.snapshotTransfer ||
     state.syncRetryTimer ||
+    state.syncDispatchTimer ||
     isRemoteBoardLocked()
   ) {
     return;
@@ -216,6 +240,8 @@ function pumpSyncQueue() {
     state.waitingForBoardUnlock = false;
     try {
       envelope.connectorCapabilities = 1;
+      // Persist the attempted flag before transport sees this operation ID.
+      schedulePersistPendingOps();
       state.socket.send(JSON.stringify(envelope));
       const socket = state.socket;
       clearTimeout(state.operationAckTimer);
@@ -224,11 +250,12 @@ function pumpSyncQueue() {
           socket.close(4000, 'Operation acknowledgement timeout');
         }
       }, 15000);
-      schedulePersistPendingOps();
     } catch (error) {
       clearTimeout(state.operationAckTimer);
       state.operationAckTimer = null;
       state.syncQueue.retry(envelope.opId);
+      schedulePersistPendingOps();
+      scheduleSyncRetry(1200);
       console.warn('Could not send queued operation', error);
     }
     updateSaveText();

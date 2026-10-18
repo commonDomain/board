@@ -18,10 +18,6 @@
   user-select: text;
 }
 
-.board-item.selected {
-  z-index: max(var(--z, 1), 1000);
-}
-
 .board-item.render-error {
   display: grid;
   place-items: center;

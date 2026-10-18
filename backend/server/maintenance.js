@@ -21,6 +21,7 @@ import { assetMaintenanceRuntime } from './runtime/asset-maintenance.js';
 import { maintenanceStateRuntime } from './runtime/maintenance-state.js';
 import { servicesRuntime } from './runtime/services.js';
 import { prunePlanningSnapshots } from './planning-schema.js';
+import { collectChatVideos } from './chat-videos.js';
 
 function startMaintenance() {
   maintenanceStateRuntime.boardCacheTimer = setInterval(evictBoardCache, BOARD_CACHE_SWEEP_MS);
@@ -32,7 +33,9 @@ function startMaintenance() {
   maintenanceStateRuntime.accountCleanupTimer = setInterval(() => {
     try {
       servicesRuntime.accountService.cleanup();
+      servicesRuntime.database.prepare('DELETE FROM chat_send_receipts WHERE created_at<? AND NOT EXISTS(SELECT 1 FROM chat_messages m WHERE m.id=chat_send_receipts.id)').run(Date.now()-30*24*60*60*1000);
       prunePlanningSnapshots(servicesRuntime.database);
+      void collectChatVideos().catch(error=>console.error('Chat video cleanup failed:',error));
       servicesRuntime.amapService.prune();
     } catch (error) {
       console.error('Account or map cleanup failed:', error);
@@ -76,6 +79,7 @@ function startMaintenance() {
 }
 
 async function runInitialAssetMaintenance() {
+  await collectChatVideos().catch(error=>console.error('Initial chat video cleanup failed:',error));
   try {
     await refreshResourceStatus({ force: true });
   } catch (error) {

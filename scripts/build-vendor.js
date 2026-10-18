@@ -43,9 +43,9 @@ buildVendor({
       import { createIcons,
         MousePointer2, Hand, PenTool, Eraser, Blend, Shapes, Type, StickyNote,
         Table2, Workflow, Network, Image, Grid3X3, Layers3, Undo2, Redo2,
-        Save, Download, ZoomIn, ChevronDown, MoreHorizontal, Ellipsis, Sparkles,
+        Save, Download, ZoomIn, ZoomOut, ChevronDown, MoreHorizontal, Ellipsis, Sparkles,
         Circle, SlidersHorizontal, Eye, EyeOff, Lock, Unlock, Plus, Trash2, Pencil,
-        ArrowUp, ArrowDown, ChevronsUp, ChevronsDown, X, Check, Wifi,
+        ArrowUp, ArrowDown, ArrowUpRight, ChevronsUp, ChevronsDown, X, Check, Wifi,
         WifiOff, Users, RotateCcw, RotateCw, Play, Pause, PanelRight, Menu,
         Paintbrush, Pipette, Minus, Maximize2, FileImage, Palette,
         ListChecks, GitBranch, Star, Heart, CheckCircle2, XCircle, Flag,
@@ -60,7 +60,7 @@ buildVendor({
         RefreshCw, Link2, UserRoundPlus, LockKeyhole, QrCode, Smartphone, MonitorSmartphone,
         Mail, AtSign, Send, MailCheck, MailPlus, LoaderCircle, CircleAlert,
         ThumbsUp, ThumbsDown, CircleDashed, ListTodo, Presentation, Bug, Wrench,
-        Megaphone, Package, MessageCircle, Video, Phone, UsersRound, Timer,
+        Megaphone, Package, MessageCircle, MessageCircleMore, MessagesSquare, ImagePlus, Paperclip, Reply, Video, Film, Phone, UsersRound, Timer,
         Hourglass, MapPin, MapPinned, Map, Route, LocateFixed, Navigation, Gift, Plane,
         FileSpreadsheet, AlignLeft, AlignCenter, AlignRight, WrapText, Merge, Split,
         Rows3, Columns3, Snowflake, SortAsc, SortDesc, CirclePlus, Crosshair,
@@ -69,12 +69,20 @@ buildVendor({
         Bold, Italic, Underline, Strikethrough, Unlink, FileInput,
         PanelTopOpen, Layers2, BringToFront, SendToBack, PaintBucket, Square, ExternalLink, NotebookPen, Files, Folder, PanelsTopLeft, Tag, Highlighter, List, ListOrdered, Link, TextCursor, Lasso, Triangle, Maximize, PanelLeft, Scan, Printer, CloudUpload, CopyPlus, GripHorizontal, Scissors, Clipboard, ClipboardPaste
       } from 'lucide';
+      // Use the approved oval chat bubble and short lower-left tail; keep its three dots.
+      const ChatMessageCircleMore = [
+        MessageCircleMore[0],
+        MessageCircleMore[1],
+        MessageCircleMore[2].map((part, index) => index === 0
+          ? ['path', { ...part[1], d: 'M8.4 19.464A10 8 0 1 0 5 17.713L4.7 21.5Z' }]
+          : part)
+      ];
       const icons = {
         MousePointer2, Hand, PenTool, Eraser, Blend, Shapes, Type, StickyNote,
         Table2, Workflow, Network, Image, Grid3X3, Grid3x3: Grid3X3, Layers3, Undo2, Redo2,
-        Save, Download, ZoomIn, ChevronDown, MoreHorizontal, Ellipsis, Sparkles,
+        Save, Download, ZoomIn, ZoomOut, ChevronDown, MoreHorizontal, Ellipsis, Sparkles,
         Circle, SlidersHorizontal, Eye, EyeOff, Lock, Unlock, Plus, Trash2, Pencil,
-        ArrowUp, ArrowDown, ChevronsUp, ChevronsDown, X, Check, Wifi,
+        ArrowUp, ArrowDown, ArrowUpRight, ChevronsUp, ChevronsDown, X, Check, Wifi,
         WifiOff, Users, RotateCcw, RotateCw, Play, Pause, PanelRight, Menu,
         Paintbrush, Pipette, Minus, Maximize2, FileImage, Palette,
         ListChecks, GitBranch, Star, Heart, CheckCircle2, XCircle, Flag,
@@ -89,7 +97,7 @@ buildVendor({
         RefreshCw, Link2, UserRoundPlus, LockKeyhole, QrCode, Smartphone, MonitorSmartphone,
         Mail, AtSign, Send, MailCheck, MailPlus, LoaderCircle, CircleAlert,
         ThumbsUp, ThumbsDown, CircleDashed, ListTodo, Presentation, Bug, Wrench,
-        Megaphone, Package, MessageCircle, Video, Phone, UsersRound, Timer,
+        Megaphone, Package, MessageCircle, MessageCircleMore: ChatMessageCircleMore, MessagesSquare, ImagePlus, Paperclip, Reply, Video, Film, Phone, UsersRound, Timer,
         Hourglass, MapPin, MapPinned, Map, Route, LocateFixed, Navigation, Gift, Plane,
         FileSpreadsheet, AlignLeft, AlignCenter, AlignRight, WrapText, Merge, Split,
         Rows3, Columns3, Snowflake, SortAsc, SortDesc, CirclePlus, Crosshair,

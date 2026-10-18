@@ -14,7 +14,7 @@ import { state } from './state.js';
 
 import { getNormalizedTableCellSelection } from './table-rendering-model.js';
 
-import { makeId } from './utilities.js';
+import { isEditableTarget, makeId } from './utilities.js';
 import { nextZ } from './canvas-state.js';
 import { buildTableClipboardHtml, buildTableClipboardText } from './clipboard-model.js';
 
@@ -82,7 +82,13 @@ function getSelectedTableClipboardData() {
 }
 
 function handleCopyEvent(event) {
+  if (event.defaultPrevented) return;
   if (window.__independentNotesActive) return;
+  if (event.target.closest?.('dialog,[role="dialog"],[role="alertdialog"]')) return;
+  const cell = event.target.closest?.('.board-table td, .board-table th');
+  if (isEditableTarget(event.target) &&
+      (!cell || cell.closest('.board-item')?.dataset.itemId !== state.tableCellSelection?.itemId ||
+        window.getSelection()?.isCollapsed === false)) return;
   const data = getSelectedTableClipboardData();
   if (!data || !event.clipboardData) {
     return;

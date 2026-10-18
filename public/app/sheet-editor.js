@@ -155,8 +155,12 @@ async function cleanupConfirmedSheetDraft(itemId) {
   const draft = sheetDraftWrites.get(key);
   if (!item || !draft || draft.status !== 'safe' || draft.savedGeneration < draft.generation) return false;
   if (Number(item.sheetEditedAt) < Number(draft.updatedAt)) return false;
-  const deleted = await window.WhiteboardStorage?.deleteSheetDraft?.(state.boardId, itemId);
-  if (deleted) sheetDraftWrites.delete(key);
+  const generation = draft.generation, inputGeneration = draft.inputGeneration;
+  const deleted = await window.WhiteboardStorage?.deleteSheetDraft?.(state.boardId, itemId, draft.updatedAt);
+  if (deleted && generation === draft.generation && inputGeneration === draft.inputGeneration) {
+    clearTimeout(draft.retryTimer);
+    sheetDraftWrites.delete(key);
+  }
   return Boolean(deleted);
 }
 
@@ -193,12 +197,15 @@ function ensureSheetEditor() {
     onInputDraft: (pendingInput) => {
       if (!sheetStoreRuntime.sheetEditorItemId || !window.WhiteboardStorage?.saveSheetPendingInput) return;
       const itemId = sheetStoreRuntime.sheetEditorItemId;
+      const boardId = state.boardId;
       const storageGeneration = window.WhiteboardStorage?.getGeneration?.();
+      const draft = sheetDraftState(itemId);
+      const inputGeneration = draft.inputGeneration = (draft.inputGeneration || 0) + 1;
       const previous = sheetInputDraftTimers.get(itemId);
       if (previous) clearTimeout(previous);
       const write = async () => {
         sheetInputDraftTimers.delete(itemId);
-        if (storageGeneration !== window.WhiteboardStorage?.getGeneration?.()) return;
+        if (state.boardId !== boardId || inputGeneration !== draft.inputGeneration || storageGeneration !== window.WhiteboardStorage?.getGeneration?.()) return;
         const item = state.items.get(itemId);
         if (!item?.workbook) return;
         const updatedAt = Math.max(Date.now(), Number(item.sheetEditedAt || 0) + 1);
@@ -210,13 +217,12 @@ function ensureSheetEditor() {
           updatedAt
         );
         sheetInputDraftWrites.set(itemId, promise);
-        const saved = await promise;
+        const saved = await promise.catch(() => false);
         if (sheetInputDraftWrites.get(itemId) === promise) sheetInputDraftWrites.delete(itemId);
-        if (!saved) {
-          const draft = sheetDraftState(itemId);
-          draft.status = 'blocked';
-          updateSheetSaveState();
-        }
+        if (state.boardId !== boardId || inputGeneration !== draft.inputGeneration || storageGeneration !== window.WhiteboardStorage?.getGeneration?.()) return;
+        draft.inputFailed = saved !== true;
+        updateSheetSaveState();
+        if (!saved) sheetInputDraftTimers.set(itemId, setTimeout(write, 5000));
       };
       if (pendingInput) sheetInputDraftTimers.set(itemId, setTimeout(write, 180));
       else void write();
@@ -309,7 +315,7 @@ async function restoreSheetDraft(itemOrId) {
     return true;
   } catch (error) {
     console.warn('Could not restore spreadsheet recovery draft', error);
-    return false;
+    throw error;
   }
 }
 
@@ -321,9 +327,13 @@ async function openSheetEditor(itemOrId) {
     return false;
   }
   const request = ++sheetStoreRuntime.sheetEditorOpenRequest;
-  await restoreSheetDraft(itemId);
+  try { await restoreSheetDraft(itemId); }
+  catch {
+    showToast('工作表草稿暂时无法读取，已暂停打开以保护原内容，请稍后重试');
+    return false;
+  }
   item = state.items.get(itemId);
-  if (request !== sheetStoreRuntime.sheetEditorOpenRequest || !item || item.type !== 'sheet') return false;
+  if (request !== sheetStoreRuntime.sheetEditorOpenRequest || !item || item.type !== 'sheet' || !canMutateItem(item)) return false;
   const record = getSheetRecord(item);
   const editor = ensureSheetEditor();
   if (!record || !editor) {

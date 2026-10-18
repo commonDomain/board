@@ -2,6 +2,8 @@ import { refreshIcons } from './interface-model.js';
 import { state } from './state.js';
 import { getSticker } from './toolbar-model.js';
 import { getImageLodSource } from './ink-rendering-model.js';
+import { getCanvasRenderPolicy } from './render-resources-model.js';
+import { scheduleManagedImageRefresh } from './image-rendering.js';
 
 let imageLodRefreshTimer = null;
 
@@ -12,6 +14,11 @@ function scheduleImageLodRefresh() {
 
 function refreshMountedImageSources() {
   imageLodRefreshTimer = null;
+  if (getCanvasRenderPolicy({ exporting: state.exporting }).bounded) {
+    if (state.panning?.active || state.pinch) { scheduleImageLodRefresh(); return; }
+    scheduleManagedImageRefresh();
+    return;
+  }
   for (const image of document.querySelectorAll('.image-item img')) {
     const itemId = image.closest('.board-item')?.dataset.itemId;
     const item = itemId ? state.items.get(itemId) : null;

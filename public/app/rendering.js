@@ -1,12 +1,13 @@
+import { canRenderPhoneItem } from './phone-view-model.js';
+import { isStackIsolatedItem } from './stack-inspector.js';
+import { scheduleItemStacking, flushItemStacking } from './stacking.js';
 
 import { updateAmapMapChrome } from './amap-rendering-model.js';
 
 import {
   MIN_ITEM_SIZE,
   MIN_ZOOM,
-  TEXT_DECORATIVE_BORDER_STYLES,
-  VIEWPORT_RENDER_MARGIN_PX,
-  VIEWPORT_RETAIN_MARGIN_PX
+  TEXT_DECORATIVE_BORDER_STYLES
 } from './constants.js';
 import { els } from './elements.js';
 
@@ -20,7 +21,6 @@ import {
   applyLayerStyleToNode,
   canMutateItem,
   compareRenderItems,
-  getLayerIndex,
   isLayerVisible
 } from './layers-model.js';
 
@@ -42,6 +42,8 @@ import { renderTextBorderDecoration } from './text-rendering-model.js';
 
 import { cssEscape } from './utilities.js';
 import { intersectsRect, pointHitsItemBounds, getPinnedRenderItems } from './rendering-model.js';
+import { getCanvasRenderPolicy, releaseItemSurfaces } from './render-resources-model.js';
+import { mountManagedImage, releaseManagedImages } from './image-rendering.js';
 
 let destroyAmapFrame,
   renderAmapMap,
@@ -109,6 +111,11 @@ let incrementalMountQueue = [];
 
 let incrementalMountIndex = 0;
 
+function releaseRenderSurfaces(node) {
+  releaseManagedImages(node);
+  if (getCanvasRenderPolicy().bounded) releaseItemSurfaces(node);
+}
+
 function renderAll(options = {}) {
   cancelIncrementalMounts();
   renderSections();
@@ -118,8 +125,8 @@ function renderAll(options = {}) {
     state.exporting || !state.viewportVirtualizationEnabled
       ? Array.from(state.items.values())
       : queryItemsInRect(visible)
-  ).filter(isItemVisible);
-  const pinned = getPinnedRenderItems().filter(isItemVisible);
+  ).filter(item => isItemVisible(item) && canRenderPhoneItem(item));
+  const pinned = getPinnedRenderItems().filter(item => isItemVisible(item) && canRenderPhoneItem(item));
   const items = Array.from(new Map([...candidates, ...pinned].map((item) => [item.id, item])).values()).sort(
     compareRenderItems
   );
@@ -142,13 +149,19 @@ function renderAll(options = {}) {
     ) {
       const mounted = document.querySelector(`.board-item[data-item-id="${cssEscape(item.id)}"]`);
       const shouldDefer =
-        (state.loadTier === 'large' || state.loadTier === 'extreme') &&
+        (getCanvasRenderPolicy().bounded || state.loadTier === 'large' || state.loadTier === 'extreme') &&
         !state.exporting &&
         !pinned.includes(item) &&
         !mounted;
       if (shouldDefer) deferredItems.push(item);
       else {
-        renderItemSafely(item);
+        // Full reconciliation must not replace an editor's DOM: its selection,
+        // IME composition and not-yet-dispatched input belong to the live node.
+        // Explicit editor completion renders the committed model separately.
+        const editingHere = state.editingId === item.id || state.mindmapEditing?.itemId === item.id;
+        const activeInput = mounted?.contains(document.activeElement) &&
+          document.activeElement?.matches('input, textarea, [contenteditable="true"]');
+        if (!(activeInput || editingHere && mounted?.querySelector('[contenteditable="true"]'))) renderItemSafely(item);
       }
     }
   }
@@ -165,9 +178,10 @@ function renderAll(options = {}) {
   updateSelectionUI();
   refreshOrganizationUi();
   updateCanvasStartState();
+  flushItemStacking();
 }
 
-function getVisibleWorldRect(marginPixels = VIEWPORT_RENDER_MARGIN_PX) {
+function getVisibleWorldRect(marginPixels = getCanvasRenderPolicy().renderMargin) {
   const rect = els.viewport.getBoundingClientRect();
   const margin = Math.max(0, Number(marginPixels) || 0) / Math.max(state.zoom, MIN_ZOOM);
   const corners = [
@@ -187,14 +201,13 @@ function getVisibleWorldRect(marginPixels = VIEWPORT_RENDER_MARGIN_PX) {
 function hitTestItem(point, options = {}) {
   let best = null;
   for (const item of queryItemsAtPoint(point)) {
+    if (!isStackIsolatedItem(item)) continue;
     if (!isItemVisible(item)) continue;
     if (options.includeLocked ? !isLayerVisible(item) : !canMutateItem(item)) {
       continue;
     }
     if (pointHitsItemBounds(item, point)) {
-      const itemLayer = getLayerIndex(item.layerId || 'layer_default');
-      const bestLayer = best ? getLayerIndex(best.layerId || 'layer_default') : -1;
-      if (!best || itemLayer > bestLayer || (itemLayer === bestLayer && (item.z || 1) >= (best.z || 1))) {
+      if (!best || compareRenderItems(item, best) > 0) {
         best = item;
       }
     }
@@ -211,25 +224,32 @@ function refreshVisibleItems() {
   }
   cameraRefreshTimer = requestAnimationFrame(() => {
     cameraRefreshTimer = null;
-    const visible = getVisibleWorldRect(VIEWPORT_RENDER_MARGIN_PX);
-    const retain = getVisibleWorldRect(VIEWPORT_RETAIN_MARGIN_PX);
+    const policy = getCanvasRenderPolicy();
+    const visible = getVisibleWorldRect(policy.renderMargin);
+    const retain = getVisibleWorldRect(policy.retainMargin);
     const pinned = new Set(getPinnedRenderItems().map((item) => item.id));
+    const unmountOffscreen = () => {
+      for (const node of Array.from(els.itemsLayer.querySelectorAll('.board-item'))) {
+        const id = node.dataset.itemId;
+        const item = id ? state.items.get(id) : null;
+        if (id && !pinned.has(id) && (!item || !canRenderPhoneItem(item) || (policy.bounded && !isItemVisible(item)) || !intersectsRect(item, retain))) {
+          removeItemElement(id);
+        }
+      }
+    };
+    // Phone allocation releases the old viewport first. Other devices retain
+    // their existing reconciliation order and mount policy.
+    if (policy.bounded) unmountOffscreen();
     const mountCandidates = queryItemsInRect(visible).filter(
       (item) =>
-        intersectsRect(item, visible) && !document.querySelector(`.board-item[data-item-id="${cssEscape(item.id)}"]`)
+        canRenderPhoneItem(item) && (!policy.bounded || isItemVisible(item)) && intersectsRect(item, visible) && !document.querySelector(`.board-item[data-item-id="${cssEscape(item.id)}"]`)
     );
-    if (state.loadTier === 'extreme') {
+    if (policy.bounded || state.loadTier === 'extreme') {
       scheduleIncrementalMounts(mountCandidates);
     } else {
       for (const item of mountCandidates) renderItemSafely(item);
     }
-    for (const node of Array.from(els.itemsLayer.querySelectorAll('.board-item'))) {
-      const id = node.dataset.itemId;
-      const item = id ? state.items.get(id) : null;
-      if (id && !pinned.has(id) && (!item || !intersectsRect(item, retain))) {
-        removeItemElement(id);
-      }
-    }
+    if (!policy.bounded) unmountOffscreen();
   });
 }
 
@@ -239,7 +259,8 @@ function renderItemSafely(item) {
   } catch (error) {
     console.warn('[render] Item failed during render', item.type, item.id, error);
     state.renderErrorIds.add(item.id);
-    document.querySelector(`.board-item[data-item-id="${cssEscape(item.id)}"]`)?.remove();
+    if (getCanvasRenderPolicy().bounded) removeItemElement(item.id);
+    else document.querySelector(`.board-item[data-item-id="${cssEscape(item.id)}"]`)?.remove();
     renderItemFallback(item);
   }
 }
@@ -258,13 +279,14 @@ function scheduleIncrementalMounts(items) {
   const mountBatch = () => {
     incrementalMountFrame = null;
     const startedAt = performance.now();
-    const visible = getVisibleWorldRect(VIEWPORT_RENDER_MARGIN_PX);
+    const policy = getCanvasRenderPolicy();
+    const visible = getVisibleWorldRect(policy.renderMargin);
     const pinned = new Set(getPinnedRenderItems().map((item) => item.id));
     let mounted = 0;
-    while (incrementalMountIndex < incrementalMountQueue.length && mounted < 120 && performance.now() - startedAt < 6) {
+    while (incrementalMountIndex < incrementalMountQueue.length && mounted < policy.mountLimit && performance.now() - startedAt < policy.mountBudgetMs) {
       const queued = incrementalMountQueue[incrementalMountIndex++];
       const item = state.items.get(queued.id);
-      if (!item || (!pinned.has(item.id) && !intersectsRect(item, visible))) continue;
+      if (!item || !canRenderPhoneItem(item) || (policy.bounded && !isItemVisible(item)) || (!pinned.has(item.id) && !intersectsRect(item, visible))) continue;
       if (!document.querySelector(`.board-item[data-item-id="${cssEscape(item.id)}"]`)) renderItemSafely(item);
       mounted += 1;
     }
@@ -278,6 +300,7 @@ function scheduleIncrementalMounts(items) {
 }
 
 function renderItem(item) {
+  if (!canRenderPhoneItem(item)) { removeItemElement(item.id); return; }
   window.ConnectorUI?.observe(item);
   state.renderErrorIds.delete(item.id);
   let node = document.querySelector(`.board-item[data-item-id="${cssEscape(item.id)}"]`);
@@ -314,7 +337,7 @@ function renderItem(item) {
   node.style.width = `${Math.max(MIN_ITEM_SIZE, item.w || 120)}px`;
   node.style.height = `${Math.max(MIN_ITEM_SIZE, item.h || 80)}px`;
   node.style.setProperty('--rotation', `${item.rotation || 0}deg`);
-  node.style.setProperty('--z', item.z || 1);
+  scheduleItemStacking(item, node);
   node.dataset.type = item.type;
   node.dataset.hidden = String(!isItemVisible(item));
   node.dataset.locked = String(!canMutateItem(item));
@@ -331,6 +354,8 @@ function renderItem(item) {
   if (reuseKdocsFrame || reuseAmapFrame) {
     node.querySelector('.selection-frame')?.remove();
   } else {
+    if (getCanvasRenderPolicy().bounded) destroySheetPreview(item.id);
+    releaseRenderSurfaces(node);
     node.innerHTML = '';
   }
 
@@ -340,9 +365,11 @@ function renderItem(item) {
         const current = state.items.get(item.id);
         if (current) return import('./items.js').then(({ upsertItem }) => upsertItem({ ...current, planView: view }, { select: false }));
       }, {
+        select: () => { if (!state.selectedIds.has(item.id)) selectItem(item.id); },
         move: event => { if (event.button !== 0 || state.spacePan) return false; if (canMutateItem(item)) { if (!state.selectedIds.has(item.id)) selectItem(item.id); return window.MusePlanning.moveCanvasComponent(event, item.id); } },
         remove: () => import('./items.js').then(({ deleteItems }) => { if (canMutateItem(state.items.get(item.id))) deleteItems([item.id]); }),
-        writable: () => Boolean(state.items.has(item.id) && canMutateItem(state.items.get(item.id)))
+        writable: () => Boolean(state.items.has(item.id) && canMutateItem(state.items.get(item.id))),
+        refreshConnections: () => window.ConnectorUI?.contentChanged(item.id)
       }));
     } else if (item.taskRef && window.MusePlanning?.enabled && state.editingId !== item.id) {
       node.appendChild(window.MusePlanning.renderLinked(item.taskRef, item.text));
@@ -351,7 +378,9 @@ function renderItem(item) {
     } else if (item.type === 'connector') {
       node.appendChild(renderConnector(item));
     } else if (item.type === 'image') {
-      node.appendChild(renderImage(item));
+      const image = renderImage(item);
+      node.appendChild(image);
+      mountManagedImage(item, image);
     } else if (item.type === 'kdocs' && !reuseKdocsFrame) {
       const card = renderKdocsEmbed(item);
       node.appendChild(card);
@@ -390,6 +419,7 @@ function renderItem(item) {
     }
 
     updateItemElementGeometry(item);
+    if (item.type !== 'connector') window.ConnectorUI?.contentChanged(item.id);
     if (item.type === 'kdocs') {
       requestAnimationFrame(() => kdocsInstances.get(item.id)?.forceIframeResize?.());
     }
@@ -413,6 +443,8 @@ function renderItem(item) {
     console.warn('[render] Failed to render item', item.type, item.id, error);
     destroyKdocsInstance(item.id);
     destroyAmapFrame(item.id);
+    if (getCanvasRenderPolicy().bounded) destroySheetPreview(item.id);
+    releaseRenderSurfaces(node);
     state.renderErrorIds.add(item.id);
     node.remove();
     renderItemFallback(item);
@@ -437,6 +469,7 @@ function renderItemFallback(item) {
     label.textContent = '内容渲染失败';
     node.appendChild(label);
     layerContainer.appendChild(node);
+    scheduleItemStacking(item, node);
     return node;
   } catch (error) {
     console.warn('[render] Could not mount render-error placeholder', item.id, error);
@@ -448,7 +481,10 @@ function removeItemElement(id) {
   destroyKdocsInstance(id);
   destroyAmapFrame(id);
   destroySheetPreview(id);
-  document.querySelector(`.board-item[data-item-id="${cssEscape(id)}"]`)?.remove();
+  const node = document.querySelector(`.board-item[data-item-id="${cssEscape(id)}"]`);
+  releaseRenderSurfaces(node);
+  node?.remove();
+  if (node) window.ConnectorUI?.contentChanged(id);
   // Virtualization removes only the DOM surface. A deleted item has no model to
   // remount, so its store/listeners can be released as well.
   if (!state.items.has(id)) destroySheetRecord(id);

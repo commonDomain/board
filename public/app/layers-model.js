@@ -1,5 +1,6 @@
+import { isPhoneViewer } from './phone-view-model.js';
 import { numberOr } from './background-model.js';
-import { isRemoteBoardLocked } from './connection-model.js';
+import { isLocalEditingBlocked, isRemoteBoardLocked } from './connection-model.js';
 import { state } from './state.js';
 import { clamp } from './utilities.js';
 
@@ -59,7 +60,9 @@ function isLayerVisible(item) {
   return Boolean(layer && layer.visible && layer.opacity > 0);
 }
 
-function canMutateItem(item) {
+function canMutateItem(item, options) {
+  if (isLocalEditingBlocked(options)) return false;
+  if (isPhoneViewer()) return false;
   if (state.compatibilityReadOnly || isRemoteBoardLocked()) return false;
   if (!item || item.hidden || !isLayerVisible(item) || isLayerLocked(item) || item.locked) return false;
   if (item.source?.provider === 'xmind') {
@@ -77,13 +80,16 @@ function canMutateItem(item) {
   return true;
 }
 
-function getWritableLayer(layerId = state.activeLayerId) {
+function getWritableLayer(layerId = state.activeLayerId, options) {
+  if (isLocalEditingBlocked(options) || isRemoteBoardLocked()) return null;
+  if (isPhoneViewer()) return null;
   if (state.compatibilityReadOnly) return null;
   const layer = getLayer(layerId);
   return layer && layer.visible && layer.opacity > 0 && !layer.locked ? layer : null;
 }
 
 function explainUnwritableLayer(layerId = state.activeLayerId) {
+  if (state.draftStorageFailed || state.draftRestoreFailed || state.draftRestoring) return '正在保护和恢复本地草稿，恢复后会自动继续编辑';
   if (state.compatibilityReadOnly) return '连接数据需要更新版本，当前画布为只读；请刷新后重试';
   const layer = getLayer(layerId);
   if (!layer) return '图层不存在，请先选择可用图层';
@@ -110,8 +116,8 @@ function compareRenderItems(a, b) {
   const layerA = getLayerIndex(a.layerId);
   const layerB = getLayerIndex(b.layerId);
   if (layerA !== layerB) return layerA - layerB;
-  if ((a.type === 'connector') !== (b.type === 'connector')) return a.type === 'connector' ? -1 : 1;
-  return (a.z || 1) - (b.z || 1);
+  const rank = item => Number.isFinite(Number(item.z)) ? Number(item.z) : 1;
+  return rank(a) - rank(b) || String(a.id).localeCompare(String(b.id));
 }
 export {
   normalizeClientSection,

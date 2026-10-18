@@ -7,15 +7,14 @@ import { canMutateItem } from './layers-model.js';
 import { clearMindNodeSelection } from './mindmap-editing-model.js';
 import { canvasInteraction, captureViewportPointer, stopEdgePan, syncEdgePanForEvent } from './pan.js';
 import { clearGuides } from './presence.js';
-import { intersectsRect } from './rendering-model.js';
 import { spatialIndexRuntime } from './runtime/spatial-index.js';
 import { selectItem, updateSelectionUI } from './selection.js';
-import { selectionChangedIds } from './selection-model.js';
+import { getBoundsOfItems, selectionChangedIds } from './selection-model.js';
 import { queryItemsInRect } from './spatial-index-model.js';
 import { requestWorkerMarqueeSelection } from './spatial-index.js';
 import { state } from './state.js';
 import { createSvg, distance } from './utilities.js';
-import { pickPrimarySelection, itemIntersectsLasso } from './marquee-model.js';
+import { pickPrimarySelection, itemIntersectsMarquee } from './marquee-model.js';
 
 function attachSelectionFrame(node) {
   const frame = els.selectionTemplate.content.firstElementChild.cloneNode(true);
@@ -161,7 +160,6 @@ function updateMarqueeSelection() {
   const previousIds = state.selectedIds;
   const previousPrimary = state.selectedId;
   const nextIds = new Set();
-  let selectionBounds = null;
   const candidateBounds =
     marquee.mode === 'lasso' ? getPointsBounds(marquee.points) : getRectBounds(marquee.start, marquee.current);
   for (const item of queryItemsInRect(candidateBounds)) {
@@ -169,20 +167,8 @@ function updateMarqueeSelection() {
     if (!canMutateItem(item)) {
       continue;
     }
-    if (marquee.mode === 'box' && intersectsRect(item, getRectBounds(marquee.start, marquee.current))) {
+    if (itemIntersectsMarquee(item, marquee)) {
       nextIds.add(id);
-    } else if (marquee.mode === 'lasso' && itemIntersectsLasso(item, marquee.points)) {
-      nextIds.add(id);
-    }
-    if (nextIds.has(id)) {
-      selectionBounds = selectionBounds
-        ? {
-            x: Math.min(selectionBounds.x, item.x),
-            y: Math.min(selectionBounds.y, item.y),
-            w: Math.max(selectionBounds.x + selectionBounds.w, item.x + item.w) - Math.min(selectionBounds.x, item.x),
-            h: Math.max(selectionBounds.y + selectionBounds.h, item.y + item.h) - Math.min(selectionBounds.y, item.y)
-          }
-        : { x: item.x, y: item.y, w: item.w, h: item.h };
     }
   }
   state.selectedIds = nextIds;
@@ -191,7 +177,7 @@ function updateMarqueeSelection() {
   updateSelectionUI({
     panels: false,
     itemIds: selectionChangedIds(previousIds, nextIds, previousPrimary, state.selectedId),
-    selectionBounds
+    selectionBounds: getBoundsOfItems(nextIds)
   });
 }
 

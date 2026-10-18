@@ -13,6 +13,7 @@ import {
   sheetStores
 } from './sheet-store.js';
 import { state } from './state.js';
+import { getCanvasRenderPolicy, getInkPixelRatio } from './render-resources-model.js';
 
 function renderSheetPreview(item) {
   const wrapper = document.createElement('div');
@@ -177,6 +178,7 @@ function mountSheetPreview(item, node) {
     store: record.store,
     // The canvas preview pins frozen rows/columns exactly like the panel does.
     freezeRendering: true,
+    allowDownsample: getCanvasRenderPolicy({ exporting: state.exporting }).tablet,
     showHeaders: true,
     showGrid: true
   });
@@ -262,7 +264,11 @@ function focusSheetPreviewCell(item, target = {}) {
 function resizeSheetPreview(item, preview) {
   const width = Math.max(MIN_ITEM_SIZE, Number(item.w) || SHEET_ITEM_WIDTH);
   const height = Math.max(MIN_ITEM_SIZE, Number(item.h) || SHEET_ITEM_HEIGHT);
-  const changed = preview.renderer.resize(width, height, 1);
+  const policy = getCanvasRenderPolicy({ exporting: state.exporting });
+  let sheetCount = 0;
+  if (policy.tablet) for (const entry of state.items.values()) if (entry.type === 'sheet') sheetCount++;
+  const ratio = policy.tablet ? Math.min(1, getInkPixelRatio(width, height, window.devicePixelRatio, policy, { inkCount: sheetCount, zoom: state.zoom })) : 1;
+  const changed = preview.renderer.resize(width, height, ratio);
   requestAnimationFrame(() => syncSheetPreviewScroll(preview));
   return changed;
 }

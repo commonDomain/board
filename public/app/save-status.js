@@ -14,6 +14,7 @@ import { showToast } from './interface-model.js';
 import { explainUnwritableLayer } from './layers-model.js';
 
 import { state } from './state.js';
+import { eventsRuntime } from './runtime/events.js';
 
 let isGuestMode,
   getContentBounds,
@@ -67,8 +68,15 @@ function saveBoard() {
   }
   if (isGuestMode()) {
     state.previewAfterSave = false;
+    const boardId = state.boardId, epoch = state.canvasEpoch;
     void cacheBoardSnapshot({ requireLatest: true }).then((saved) => {
       if (!saved) showToast('浏览器存储空间不足，请先导出画布');
+      else if (state.boardId === boardId && state.canvasEpoch === epoch && !state.dirty &&
+        window.WhiteboardStorage?.guestStorageIsDurable?.() !== false) {
+        window.dispatchEvent(new CustomEvent('muse:pet-feedback', {
+          detail: { type: 'save', id: `${boardId}:${epoch}:${state.localChangeSerial}` }
+        }));
+      }
     });
     return;
   }
@@ -102,6 +110,7 @@ async function buildCurrentCanvasPreviewBlob() {
     return canvasToBlob(canvas, 'image/webp', 0.75);
   }
   const png = await buildExportPngBlob(bounds, null, null, {
+      maxSide: 640,
     backgroundCss: `background:${CANVAS_PREVIEW_BACKGROUND};`
   });
   if (!png) return null;
@@ -180,9 +189,19 @@ function scheduleCurrentCanvasPreviewRefresh() {
 
 async function uploadCurrentCanvasPreview(boardId = state.boardId) {
   if (!boardId || state.switchingCanvas || boardId !== state.boardId) return;
-  if (state.previewUpload) {
-    await state.previewUpload;
+  // A thumbnail is disposable background work. Do not expand/paint the entire
+  // canvas during editing or gestures; retry after interaction has settled.
+  if (state.editingId || state.mindmapEditing || state.interaction || state.gestureSession ||
+      document.activeElement?.matches('input, textarea, [contenteditable="true"]')) {
+    const generation = state.previewGeneration;
+    clearTimeout(state.previewRefreshTimer);
+    state.previewRefreshTimer = setTimeout(() => {
+      state.previewRefreshTimer = null;
+      if (boardId === state.boardId && generation === state.previewGeneration) void uploadCurrentCanvasPreview(boardId);
+    }, CANVAS_PREVIEW_REFRESH_DELAY);
+    return;
   }
+  if (state.previewUpload) return state.previewUpload;
   const generation = state.previewGeneration;
   if (state.switchingCanvas || boardId !== state.boardId || generation !== state.previewGeneration) return;
   const upload = (async () => {
@@ -217,7 +236,16 @@ function markDirty(dirty) {
 }
 
 function updateSaveText() {
+  eventsRuntime.renderSyncIssue?.();
+  const issueButton = document.getElementById('syncIssueButton');
+  if (issueButton) issueButton.hidden = !(state.syncQueue.blockedReason || state.draftStorageFailed || state.draftRestoreFailed);
   if (!els.saveText) {
+    return;
+  }
+  if (state.draftStorageFailed || state.draftRestoreFailed || state.draftRestoring) {
+    els.saveText.textContent = state.draftRestoring ? '正在恢复草稿' :
+      state.draftRestoreFailed ? '草稿读取失败，正在重试' : '草稿保存失败，已暂停编辑';
+    updateSaveEffect();
     return;
   }
   if (isGuestMode() && window.WhiteboardStorage?.guestStorageIsDurable?.() === false) {
@@ -230,18 +258,20 @@ function updateSaveText() {
     updateSaveEffect();
     return;
   }
-  const issueButton = document.getElementById('syncIssueButton');
-  if (issueButton) issueButton.hidden = !state.syncQueue.blockedReason;
   if (state.syncQueue.blockedReason) {
-    els.saveText.textContent = '同步已暂停，草稿已保留';
+    els.saveText.textContent = state.draftStoragePending ? '正在保存本地草稿' :
+      `有 ${state.syncQueue.length} 项待处理，本地草稿已保留`;
   } else if (state.syncQueue.length) {
-    els.saveText.textContent = state.connected ? '同步中' : `待同步 ${state.syncQueue.length}`;
+    els.saveText.textContent = state.draftStoragePending ? '正在保存草稿' :
+      state.connected ? '正在同步' : `已存本机，联网后自动同步（${state.syncQueue.length}）`;
   } else if (state.saveInFlight) {
     els.saveText.textContent = '保存中';
   } else if (state.saveQueued) {
     els.saveText.textContent = state.connected ? '等待保存' : '联网后保存';
   } else if (state.dirty) {
     els.saveText.textContent = '未保存';
+  } else if (!isGuestMode() && state.joined && state.durableRevision >= state.revision) {
+    els.saveText.textContent = '已同步';
   }
   updateSaveEffect();
 }

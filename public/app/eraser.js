@@ -18,6 +18,7 @@ import { canMutateItem, sortedRenderItems } from './layers-model.js';
 
 import { queryItemsInRect } from './spatial-index-model.js';
 import { state } from './state.js';
+import { isStackIsolatedItem } from './stack-inspector.js';
 
 import { cssEscape, distance } from './utilities.js';
 import { eraseInkGeometry, restoreEraserInkPreview, clearEraserPreview } from './eraser-model.js';
@@ -130,7 +131,7 @@ function updateEraserInkPreview(eraser, segment) {
   const radius = eraser.radius;
   const hitTest = createEraserHitTester(segment, radius);
   for (const [id, entry] of eraser.inkPreviews) {
-    if (state.items.get(id) !== entry.item || !entry.node.isConnected || !canMutateItem(entry.item)) {
+    if (state.items.get(id) !== entry.item || !entry.node.isConnected || !canMutateItem(entry.item) || !isStackIsolatedItem(entry.item)) {
       restoreEraserInkPreview(entry);
       eraser.inkPreviews.delete(id);
     }
@@ -148,7 +149,7 @@ function updateEraserInkPreview(eraser, segment) {
     if (item.type === 'ink' && Math.abs(Number(item.rotation) || 0) % 360 >= 0.01) candidates.set(item.id, item);
   }
   for (const item of candidates.values()) {
-    if (item.type !== 'ink' || !canMutateItem(item)) continue;
+    if (item.type !== 'ink' || !canMutateItem(item) || !isStackIsolatedItem(item)) continue;
     let entry = eraser.inkPreviews.get(item.id);
     if (!entry) {
       const node = els.itemsLayer.querySelector('.board-item[data-item-id="' + cssEscape(item.id) + '"]');
@@ -176,7 +177,8 @@ function updateEraserInkPreview(eraser, segment) {
       preview.style.width = piece.w + 'px';
       preview.style.height = piece.h + 'px';
       preview.style.setProperty('--rotation', '0deg');
-      preview.style.setProperty('--z', piece.z || 1);
+      preview.dataset.stackSourceId = item.id;
+      preview.style.setProperty('--z', entry.node.style.getPropertyValue('--z') || '1');
       const canvas = renderInk(piece);
       canvas.removeAttribute('data-ink-canvas');
       preview.appendChild(canvas);
@@ -228,7 +230,7 @@ function applyEraserPath(eraserPoints, radius) {
   const replacementItems = [];
   const eraserHitTest = createEraserHitTester(eraserPoints, radius);
   for (const item of sortedRenderItems()) {
-    if (item.type !== 'ink' || !canMutateItem(item)) {
+    if (item.type !== 'ink' || !canMutateItem(item) || !isStackIsolatedItem(item)) {
       continue;
     }
     const rotation = Math.abs(Number(item.rotation) || 0) % 360;

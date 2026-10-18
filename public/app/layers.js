@@ -10,7 +10,7 @@ import { updateSelectionUI } from './selection.js';
 import { state } from './state.js';
 import { enqueueOperation } from './sync-queue.js';
 import { cssEscape, isImeEvent, makeId } from './utilities.js';
-import { getLayer, getLayerIndex, canMutateItem } from './layers-model.js';
+import { getLayer, getLayerIndex, canMutateItem, getWritableLayer } from './layers-model.js';
 import { normalizeClientLayers } from './layer-visibility.js';
 import { setControlAvailability } from './ui-feedback.js';
 
@@ -207,8 +207,30 @@ function buildLayerMenu() {
       applyLayersChange();
     }
   });
-  els.layerMenu.append(list, controls);
+  const hint = document.createElement('p'); hint.className = 'layer-stack-hint';
+  hint.textContent = '上方图层覆盖下方图层；选择目标图层后，可移入选中内容。';
+  els.layerMenu.append(hint, list, controls);
+  const transfer = document.createElement('button');
+  transfer.type = 'button'; transfer.className = 'context-btn';
+  transfer.textContent = '将选中内容移入当前图层';
+  transfer.addEventListener('click', () => moveSelectionToLayer(state.activeLayerId));
+  els.layerMenu.append(transfer);
   refreshIcons(els.layerMenu);
+}
+
+function moveSelectionToLayer(layerId) {
+  const items = getSelectedIds().map(id => state.items.get(id));
+  if (!items.length) { showToast('请先选择要移动的内容'); return; }
+  if (!getWritableLayer(layerId) || items.some(item => !canMutateItem(item))) {
+    showToast('请先显示并解锁目标图层和选中内容'); return;
+  }
+  const changed = items.filter(item => item.layerId !== layerId);
+  if (!changed.length) { showToast('选中内容已在当前图层'); return; }
+  pushUndoSnapshot();
+  for (const item of changed) item.layerId = layerId;
+  enqueueOperation({ kind: 'batch', ops: changed.map(item => ({ kind: 'upsert', item })) });
+  renderAll(); markDirty(true);
+  showToast(`已将 ${changed.length} 项内容移入「${getLayer(layerId).name}」`);
 }
 
 function syncLayerControls() {
@@ -432,20 +454,42 @@ function moveSelectionZ(action) {
       }
     }
     if (original === next.map((item) => item.id).join('\u0000')) continue;
-    next.forEach((item, index) => {
-      if (Number(item.z) !== index + 1) {
-        item.z = index + 1;
-        updated.set(item.id, item);
+    // Keep every unselected object's rank, including locked/shared content.
+    // Assign each selected run the available space between its fixed neighbors.
+    for (let start = 0; start < next.length;) {
+      if (!selected.has(next[start].id)) { start++; continue; }
+      let end = start;
+      while (end < next.length && selected.has(next[end].id)) end++;
+      const count = end - start;
+      const upperNeighbor = end < next.length ? Number(next[end].z || 0) : null;
+      const lower = start > 0 ? Number(next[start - 1].z || 0)
+        : Math.max(-1000000000, Math.min(0, (upperNeighbor ?? 1) - count - 1));
+      const upper = upperNeighbor ?? Math.min(1000000000, lower + count + 1);
+      const step = (upper - lower) / (count + 1);
+      let previous = lower;
+      for (let index = start; index < end; index++) {
+        let z = lower + step * (index - start + 1);
+        // Older renderers treat zero as the default rank of one.
+        if (z === 0) z = step / 2;
+        if (!(z > previous && z < upper)) {
+          showToast('相邻内容层级过于接近，暂时无法调整，请尝试置顶或置底');
+          return;
+        }
+        const item = next[index];
+        if (Number(item.z) !== z) updated.set(item.id, { item, z });
+        previous = z;
       }
-    });
+      start = end;
+    }
   }
   if (!updated.size) return;
   pushUndoSnapshot();
-  for (const item of updated.values()) {
+  for (const { item, z } of updated.values()) {
+    item.z = z;
     state.items.set(item.id, item);
     renderItem(item);
   }
-  enqueueOperation({ kind: 'batch', ops: Array.from(updated.values(), (item) => ({ kind: 'upsert', item })) });
+  enqueueOperation({ kind: 'batch', ops: Array.from(updated.values(), ({ item }) => ({ kind: 'upsert', item })) });
   markDirty(true);
   updateSelectionUI();
 }
@@ -491,5 +535,6 @@ export {
   renderLayerMenu,
   moveLayerPrimary,
   moveSelectionZ,
+  moveSelectionToLayer,
   moveLayer
 };

@@ -10,6 +10,8 @@ import { eventsRuntime } from './runtime/events.js';
 import { flushAllSheetSaves, sheetInputDraftTimers } from './sheet-store.js';
 import { state } from './state.js';
 import { clearSyncRetry, requestResync } from './sync-queue-model.js';
+import { blockedSyncImages, recoverSyncImage } from './sync-image-recovery.js';
+import { describeSyncIssue } from './sync-dialog-model.js';
 
 let refreshAmapCapabilities,
   commitMindMapEditForPageHide,
@@ -52,8 +54,23 @@ function isGuestMode() {
 }
 
 function wireNetworkLifecycle() {
+  let lastWake = 0;
+  const recoverAfterWake = () => {
+    if (isGuestMode() || !state.initialized || !state.boardId || document.hidden || Date.now() - lastWake < 1000) return;
+    lastWake = Date.now();
+    if (state.draftRestoreFailed) { void restoreLocalBoardStateAndConnect(); return; }
+    if (state.draftRestoring) return;
+    void persistPendingOps();
+    if (state.connected && state.joined) requestResync();
+    else { clearTimeout(state.reconnectTimer); connect(); }
+  };
+  window.addEventListener('focus', recoverAfterWake);
+  window.addEventListener('pageshow', recoverAfterWake);
+  document.addEventListener('visibilitychange', recoverAfterWake);
   window.addEventListener('online', () => {
-    if (isGuestMode() || state.connected) return;
+    if (isGuestMode()) return;
+    recoverAfterWake();
+    if (state.connected) { pumpSyncQueue(); return; }
     clearTimeout(state.reconnectTimer);
     state.reconnectAttempt = Math.min(state.reconnectAttempt, 2);
     connect();
@@ -112,20 +129,95 @@ function wireAccountLifecycle() {
 
 function wireSyncDraftDialog() {
   const dialog = document.getElementById('syncIssueDialog');
+  const recovery = document.getElementById('syncImageRecovery');
+  const selection = document.getElementById('syncFailedImage');
+  const fileInput = document.getElementById('syncRecoveryImageFile');
+  const recoveryButton = document.getElementById('recoverSyncImageButton');
+  const retryButton = document.getElementById('retrySyncDraftButton');
+  const recoveryStatus = document.getElementById('syncImageRecoveryStatus');
+  let busy = false;
+  let imageKey = '';
+  let lastAction = '';
+  const render = () => {
+    if (!dialog.open) return;
+    const images = blockedSyncImages();
+    const view = describeSyncIssue(state, images.length);
+    if (!busy && lastAction !== view.action) recoveryStatus.textContent = '';
+    lastAction = view.action;
+    document.getElementById('syncIssueTitle').textContent = view.title;
+    document.getElementById('syncIssueDescription').textContent = view.description;
+    document.getElementById('syncDraftSafety').textContent = view.safety;
+    const reason = state.syncQueue.blockedReason || '';
+    document.getElementById('syncIssueDetails').hidden = !reason || !['image', 'conflict', 'retry'].includes(view.action);
+    document.getElementById('syncIssueTechnical').textContent = reason;
+    const key = JSON.stringify(images);
+    if (key !== imageKey) {
+      const previous = selection.value;
+      selection.replaceChildren(...images.map((image, index) => new Option(
+        /^image[_-]/.test(image.label) ? `图片 ${index + 1}` : image.label, image.src)));
+      if (images.some(image => image.src === previous)) selection.value = previous;
+      imageKey = key;
+    }
+    recovery.hidden = view.action !== 'image' || images.length < 2;
+    recoveryButton.hidden = view.action !== 'image';
+    retryButton.hidden = ['image', 'none'].includes(view.action);
+    retryButton.textContent = busy ? '正在处理…' : view.label;
+    recoveryButton.textContent = busy ? '正在恢复…' : '重新选择图片';
+    recoveryButton.disabled = selection.disabled = busy;
+    retryButton.disabled = busy || view.action === 'wait';
+  };
+  eventsRuntime.renderSyncIssue = render;
   document.getElementById('syncIssueButton')?.addEventListener('click', () => {
-    document.getElementById('syncIssueDescription').textContent =
-      state.syncQueue.blockedReason || `共有 ${state.syncQueue.length} 项修改等待同步。`;
-    dialog.showModal();
+    recoveryStatus.textContent = '';
+    document.getElementById('syncIssueDetails').open = false;
+    if (!dialog.open) dialog.showModal();
+    render();
   });
-  document.getElementById('retrySyncDraftButton')?.addEventListener('click', () => {
-    state.syncQueue.resume();
-    clearSyncRetry();
-    schedulePersistPendingOps();
-    requestResync();
-    pumpSyncQueue();
-    dialog.close();
+  retryButton?.addEventListener('click', async () => {
+    if (busy) return;
+    const action = describeSyncIssue(state, blockedSyncImages().length).action;
+    if (action === 'done') { dialog.close(); return; }
+    if (action === 'conflict') { dialog.close(); window.ConnectorUI?.showConflictDrafts(); return; }
+    if (['wait', 'none', 'image'].includes(action)) return;
+    const boardId = state.boardId, epoch = state.canvasEpoch;
+    const current = () => state.boardId === boardId && state.canvasEpoch === epoch;
+    busy = true; recoveryStatus.textContent = ''; render();
+    try {
+      if (action === 'restore') await restoreLocalBoardStateAndConnect();
+      else {
+        if (action === 'persist' && !await persistPendingOps()) {
+          if (current()) recoveryStatus.textContent = '仍无法保存，请先下载备份。系统会继续自动重试。';
+          return;
+        }
+        if (!current()) return;
+        if (action === 'retry') state.syncQueue.resume();
+        clearSyncRetry(); schedulePersistPendingOps();
+        if (!state.connected) { clearTimeout(state.reconnectTimer); connect(); }
+        else { requestResync(); pumpSyncQueue(); }
+      }
+      if (current()) recoveryStatus.textContent = state.draftRestoreFailed ? '仍无法读取草稿，系统会继续自动重试。' :
+        state.syncQueue.blockedReason ? '问题尚未解决，请查看详细原因。' : '';
+    } catch {
+      if (current()) recoveryStatus.textContent = '暂时未能完成，请稍后重试。';
+    } finally { busy = false; if (current()) render(); }
+  });
+  recoveryButton.addEventListener('click', () => { fileInput.value = ''; fileInput.click(); });
+  fileInput.addEventListener('change', async () => {
+    const file = fileInput.files[0]; if (!file || busy) return;
+    const boardId = state.boardId, epoch = state.canvasEpoch;
+    const current = () => state.boardId === boardId && state.canvasEpoch === epoch;
+    busy = true; render();
+    recoveryStatus.textContent = '正在上传图片，请稍候…';
+    try {
+      if (!await recoverSyncImage(file, selection.value) || !current()) return;
+      clearSyncRetry(); schedulePersistPendingOps(); requestResync(); pumpSyncQueue();
+      recoveryStatus.textContent = '图片已恢复，正在继续同步。';
+    } catch (error) {
+      if (current()) recoveryStatus.textContent = `未能恢复图片。${error.message || '请稍后重试。'}`;
+    } finally { busy = false; if (current()) render(); }
   });
   document.getElementById('exportSyncDraftButton')?.addEventListener('click', () => {
+    eventsRuntime.captureDraftInputs?.();
     const blob = new Blob(
       [
         JSON.stringify(

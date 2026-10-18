@@ -72,6 +72,9 @@ function rebuildStoredAssetReferences() {
   servicesRuntime.database.exec('BEGIN IMMEDIATE');
   try {
     servicesRuntime.database.prepare('DELETE FROM asset_references').run();
+    for (const row of servicesRuntime.database.prepare('SELECT id,image FROM chat_messages WHERE image IS NOT NULL AND withdrawn_at IS NULL').all()) {
+      replaceAssetReferences('chat', row.id, {items:[{type:'image',src:row.image}]});
+    }
     for (const row of servicesRuntime.database.prepare('SELECT id, document_json FROM independent_notebooks').all()) {
       const book = JSON.parse(row.document_json);
       replaceAssetReferences('notebook', row.id, { items: book.pages.flatMap(page => page.elements.filter(element => element.type === 'image')) });
@@ -187,6 +190,9 @@ async function backfillStoredImageAssets() {
 
 function collectStoredAssetReferences() {
   const references = new Set();
+  for (const row of servicesRuntime.database.prepare('SELECT image FROM chat_messages WHERE image IS NOT NULL AND withdrawn_at IS NULL').all()) {
+    const filename=assetFilenameFromSource(row.image);if(filename)references.add(filename);
+  }
   const rows = servicesRuntime.database
     .prepare(
       `

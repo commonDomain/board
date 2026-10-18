@@ -4,6 +4,9 @@ import { URL } from 'node:url';
 import { handleAccountApi } from './account-api.js';
 import { handleNotebookApi, canReadNotebookAsset } from './notebooks.js';
 import { handlePlanningApi } from './planning.js';
+import { handleChatApi, canReadChatAsset } from './chat.js';
+import { handlePushApi } from './web-push.js';
+import { handleChatVideoApi } from './chat-videos.js';
 import { assetExtensionForMime, writeAssetBuffer } from './asset-storage.js';
 import { isWebpBuffer } from './avatar-validation.js';
 import { boardCacheBytes } from './board-cache.js';
@@ -92,8 +95,11 @@ const server = http.createServer(async (req, res) => {
     if (await handleAmapSecurityProxy(req, res, requestUrl)) return;
     if (await handleXmindApi(req, res, requestUrl)) return;
     if (await handleAccountApi(req, res, requestUrl)) return;
+    if (await handlePushApi(req, res, requestUrl)) return;
     if (await handleNotebookApi(req, res, requestUrl)) return;
     if (await handlePlanningApi(req, res, requestUrl)) return;
+    if (await handleChatVideoApi(req, res, requestUrl)) return;
+    if (await handleChatApi(req, res, requestUrl)) return;
     if (await handleAmapApi(req, res, requestUrl)) return;
     if (req.method === 'GET' && requestUrl.pathname === '/api/canvases') {
       const session = servicesRuntime.accountService.requireSession(req);
@@ -270,6 +276,10 @@ const server = http.createServer(async (req, res) => {
         sendJson(res, 404, { error: 'Not found' });
         return;
       }
+      if (!session && servicesRuntime.database.prepare("SELECT 1 FROM asset_references WHERE owner_type='chat' AND asset_id=?").get(assetName.slice(0,64))) {
+        sendJson(res,404,{error:'Not found'});
+        return;
+      }
       if (session) {
         const assetId = assetName.slice(0, 64);
         const references = servicesRuntime.database
@@ -281,6 +291,7 @@ const server = http.createServer(async (req, res) => {
         if (
           !temporaryGrant &&
           !canReadNotebookAsset(servicesRuntime.database, session.userId, assetId) &&
+          !canReadChatAsset(servicesRuntime.database, session.userId, assetId) &&
           !references.some((reference) =>
             servicesRuntime.accountService.canAccessBoard(session.userId, reference.owner_id)
           )
@@ -364,7 +375,9 @@ const server = http.createServer(async (req, res) => {
       httpServerRuntime.assetUploadsInFlight += 1;
       try {
         const body = await readRequestBody(req);
+        servicesRuntime.accountService.requireSession(req,{requireCsrf:true});
         const asset = await writeAssetBuffer(body, mimeType);
+        servicesRuntime.accountService.requireSession(req,{requireCsrf:true});
         if (assetSession) {
           servicesRuntime.database
             .prepare(
@@ -374,6 +387,8 @@ const server = http.createServer(async (req, res) => {
           `
             )
             .run(asset.assetId, assetSession.userId, Date.now() + ASSET_UPLOAD_GRANT_TTL_MS);
+          if(req.headers['x-muse-asset-purpose']==='chat')servicesRuntime.database
+            .prepare('INSERT OR IGNORE INTO chat_upload_assets VALUES (?,?,?)').run(assetSession.userId,asset.assetId,Date.now());
         }
         sendJson(res, 201, { ok: true, ...asset });
       } finally {

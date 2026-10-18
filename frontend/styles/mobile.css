@@ -31,6 +31,12 @@
 .soft-keyboard-open .nt-dialog,.soft-keyboard-open .touch-settings { top:calc(var(--viewport-top,0px) + 12px); bottom:auto; margin:0 auto; }
 .soft-keyboard-open .account-overlay,.soft-keyboard-open .canvas-dialog-overlay,.soft-keyboard-open .search-overlay { top:var(--viewport-top,0px); bottom:auto; height:var(--viewport-height,100dvh); overflow:auto; }
 
+html[data-form-factor=phone] {
+  body { position:fixed; inset:0; overscroll-behavior:none; }
+  .viewport { touch-action:none; overscroll-behavior:none; }
+  .board { touch-action:none; }
+}
+
 html[data-device=mobile] {
   .touch-actions { position:fixed; display:flex; z-index:115; gap:4px; padding:4px; border:1px solid var(--line); border-radius:12px; background:var(--surface-strong); box-shadow:var(--shadow-sm); left:max(8px,var(--safe-left)); bottom:calc(max(8px,var(--safe-bottom)) + 78px); max-width:calc(100vw - 16px); overflow-x:auto; }
   .touch-actions button { flex:none; min-width:44px; min-height:44px; border:0; border-radius:8px; background:transparent; color:var(--ink); font:inherit; font-size:13px; padding:0 9px; }

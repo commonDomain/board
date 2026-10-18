@@ -1,4 +1,7 @@
 import { cloneHistoryValue } from './history-controller-model.js';
+import { scheduleItemStacking } from './stacking.js';
+import { updateStackOutline } from './stack-inspector.js';
+import { translatedConnectorGeometry } from './connector/translation-model.js';
 import { pushUndoPatch } from './history-controller.js';
 
 import {
@@ -16,6 +19,7 @@ import { isTransformableItem } from './marquee-model.js';
 import { getMindNodeAtPath } from './mindmap-editing-model.js';
 import { fitMindMapItem, measureMindNodeWidth } from './mindmap-model.js';
 import { canvasInteraction, captureViewportPointer, stopEdgePan } from './pan.js';
+import { canStartItemGesture, trackPointer } from './pan-model.js';
 
 import { transformRuntime } from './runtime/transform.js';
 import { markDirty } from './save-status.js';
@@ -31,7 +35,9 @@ import {
   interactionHistoryChanges,
   nearestSortedLine,
   resizeTableColumn,
-  resizeItemFromHandle
+  resizeItemFromHandle,
+  itemLocalDelta,
+  preserveRotatedResizeAnchor
 } from './transform-model.js';
 
 let getBoardPoint,
@@ -72,6 +78,7 @@ function restoreInteractionItems(interaction) {
 }
 
 function startTransform(event, itemElement, mode) {
+  if (!canStartItemGesture(event, ['select', 'pan', 'text', 'note', 'table', 'mindmap'])) return;
   const item = state.items.get(itemElement.dataset.itemId);
   if (!isTransformableItem(item)) {
     return;
@@ -84,6 +91,7 @@ function startTransform(event, itemElement, mode) {
   }
   event.preventDefault();
   event.stopPropagation();
+  trackPointer(event);
   const point = getBoardPoint(event);
   const center = { x: item.x + item.w / 2, y: item.y + item.h / 2 };
   const groupedMoveIds = mode === 'move' && item.groupId ? getGroupMemberItemIds(item.groupId) : [];
@@ -91,7 +99,7 @@ function startTransform(event, itemElement, mode) {
     mode === 'move' && (state.selectedIds.size > 1 || groupedMoveIds.length > 1)
       ? (state.selectedIds.size > 1 ? Array.from(state.selectedIds) : groupedMoveIds).filter((id) => {
           const candidate = state.items.get(id);
-          return candidate && candidate.type !== 'connector';
+          return isTransformableItem(candidate);
         })
       : null;
   const ownedIds = moveIds?.length ? moveIds : [item.id];
@@ -141,17 +149,24 @@ function continueTransform(event) {
   const start = interaction.startItem;
   const dx = point.x - interaction.startPoint.x;
   const dy = point.y - interaction.startPoint.y;
-  const next = { ...start };
+  if (!interaction.changed && dx === 0 && dy === 0) return;
+  // Only reset fields owned by this gesture. Other fields may have changed
+  // through collaboration since pointerdown (text, style, table contents).
+  const next = { ...item };
+  for (const field of interaction.ownedFields || interactionFieldsForMode(item, interaction.mode)) {
+    next[field] = cloneHistoryValue(start[field]);
+  }
+  const localDelta = itemLocalDelta(start, dx, dy);
 
   if (interaction.mode === 'mind-node-resize') {
     const mindNode = getMindNodeAtPath(item.tree, interaction.mindPath);
     if (!mindNode) return;
     const minimumWidth = measureMindNodeWidth(mindNode.text, interaction.mindPath.length === 0);
     if (interaction.mindHandle.includes('e')) {
-      mindNode.w = Math.max(minimumWidth, Math.round(interaction.mindStartWidth + dx));
+      mindNode.w = Math.max(minimumWidth, Math.round(interaction.mindStartWidth + localDelta.x));
     }
     if (interaction.mindHandle.includes('s')) {
-      mindNode.h = Math.max(38, Math.round(interaction.mindStartHeight + dy));
+      mindNode.h = Math.max(38, Math.round(interaction.mindStartHeight + localDelta.y));
     }
     fitMindMapItem(item);
     state.items.set(item.id, item);
@@ -162,7 +177,8 @@ function continueTransform(event) {
   }
 
   if (interaction.mode === 'table-column') {
-    resizeTableColumn(next, interaction, dx);
+    resizeTableColumn(next, interaction, localDelta.x);
+    preserveRotatedResizeAnchor(next, start);
   } else if (interaction.mode === 'move') {
     interaction.disableSectionCapture = Boolean(event.altKey);
     const moving = new Set(interaction.moveIds || [interaction.id]);
@@ -188,6 +204,12 @@ function continueTransform(event) {
         }
         target.x = startPosition.x + snapped.dx;
         target.y = startPosition.y + snapped.dy;
+        if (target.type === 'connector') {
+          const startGeometry = interaction.beforeById.get(id).values;
+          Object.assign(target, translatedConnectorGeometry(startGeometry, snapped.dx, snapped.dy,
+            binding => binding.kind === 'item' && moving.has(binding.id)));
+          window.ConnectorCore.apply(target);
+        }
         state.items.set(id, target);
         updateItemElementGeometry(target);
       }
@@ -199,7 +221,8 @@ function continueTransform(event) {
     const angle = Math.atan2(point.y - interaction.center.y, point.x - interaction.center.x);
     next.rotation = normalizeAngle(start.rotation + radiansToDegrees(angle - interaction.startAngle));
   } else {
-    resizeItemFromHandle(next, interaction.mode, dx, dy, start);
+    resizeItemFromHandle(next, interaction.mode, localDelta.x, localDelta.y, start);
+    preserveRotatedResizeAnchor(next, start);
   }
 
   if (interaction.mode !== 'move' || !interaction.moveIds || interaction.moveIds.length <= 1) {
@@ -432,7 +455,8 @@ function updateItemElementGeometry(item) {
   node.style.width = `${Math.max(MIN_ITEM_SIZE, item.w || 120)}px`;
   node.style.height = `${Math.max(MIN_ITEM_SIZE, item.h || 80)}px`;
   node.style.setProperty('--rotation', `${item.rotation || 0}deg`);
-  node.style.setProperty('--z', item.z || 1);
+  scheduleItemStacking(item, node);
+  updateStackOutline(item);
 }
 export {
   restoreInteractionItems,

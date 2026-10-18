@@ -1,3 +1,4 @@
+import { isPhoneViewer } from './phone-view-model.js';
 import { placeAnchoredMenu } from './menu-placement.js';
 
 
@@ -90,7 +91,13 @@ async function loadCanvasCatalog(options = {}) {
   const canvases = await fetchCanvasCatalog(options);
   state.canvasCatalogLoadedAt = Date.now();
   if (options.selectFirst || !canvases.some((canvas) => canvas.id === state.boardId)) {
-    state.boardId = canvases[0]?.id || null;
+    const nextBoardId = canvases[0]?.id || null;
+    if (state.boardId && nextBoardId !== state.boardId) {
+      if (!await persistCurrentCanvasForSwitch()) throw new Error('当前草稿尚未安全保存，已保留当前画布');
+      if (options.isCurrent && !options.isCurrent()) throw new Error('画布目录请求已过期');
+      if (state.boardId !== previousBoardId) throw new Error('画布已切换，忽略旧目录请求');
+    }
+    state.boardId = nextBoardId;
   }
   if (
     options.forceRender ||
@@ -214,6 +221,7 @@ function renderCanvasCatalog() {
 }
 
 async function toggleCanvasVisibility(canvas, button) {
+  if (isPhoneViewer()) return;
   if (!canvas?.canManage || isGuestMode()) return;
   const visibility = canvas.visibility === 'private' ? 'shared' : 'private';
   button.disabled = true;
@@ -296,6 +304,7 @@ function closeCanvasMenu(options = {}) {
 }
 
 function openNewCanvasDialog() {
+  if (isPhoneViewer()) return;
   if (ownedCanvasCount() >= state.maximumCanvases) {
     showToast(`最多只能创建 ${state.maximumCanvases} 个画布`);
     return;
@@ -330,6 +339,7 @@ function setNewCanvasError(message) {
 }
 
 async function submitNewCanvas(event) {
+  if (isPhoneViewer()) { event.preventDefault(); return; }
   event.preventDefault();
   if (state.creatingCanvas) return;
   const name = els.newCanvasName.value.trim();
@@ -401,6 +411,7 @@ function setRenameCanvasError(message) {
 }
 
 function openRenameCanvasDialog(canvas, anchor) {
+  if (isPhoneViewer()) return;
   const anchorRect = captureElementRect(anchor) || captureElementRect(els.canvasSwitcherButton);
   closeCanvasMenu({ restoreFocus: false });
   state.canvasActionId = canvas.id;
@@ -426,6 +437,7 @@ function closeRenameCanvasDialog() {
 }
 
 async function submitRenameCanvas(event) {
+  if (isPhoneViewer()) { event.preventDefault(); return; }
   event.preventDefault();
   if (state.renamingCanvas || !state.canvasActionId) return;
   const name = els.renameCanvasName.value.trim();
@@ -483,6 +495,7 @@ async function submitRenameCanvas(event) {
 }
 
 function openDeleteCanvasDialog(canvas, anchor) {
+  if (isPhoneViewer()) return;
   const anchorRect = captureElementRect(anchor) || captureElementRect(els.canvasSwitcherButton);
   closeCanvasMenu({ restoreFocus: false });
   state.canvasActionId = canvas.id;
@@ -530,6 +543,7 @@ async function requestDeleteCanvas(boardId) {
 }
 
 async function deleteSelectedCanvas() {
+  if (isPhoneViewer()) return;
   const boardId = state.canvasActionId;
   if (!boardId || state.deletingCanvas) return;
   state.deletingCanvas = true;

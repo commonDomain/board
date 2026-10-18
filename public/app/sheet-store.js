@@ -222,11 +222,13 @@ function persistSheetDraft(itemId) {
   const item = state.items.get(itemId);
   if (!item?.workbook || !window.WhiteboardStorage?.saveSheetDraft) return Promise.resolve(false);
   const draft = sheetDraftState(itemId);
+  const storageGeneration = window.WhiteboardStorage?.getGeneration?.();
+  clearTimeout(draft.retryTimer);
   item.sheetEditedAt = Math.max(Date.now(), Number(item.sheetEditedAt || 0) + 1);
   draft.latestWorkbook = item.workbook;
   draft.updatedAt = item.sheetEditedAt;
   draft.generation += 1;
-  draft.status = 'saving';
+  if (draft.status !== 'blocked') draft.status = 'saving';
   updateSheetSaveState();
   if (draft.promise) return draft.promise;
   draft.promise = (async () => {
@@ -246,6 +248,10 @@ function persistSheetDraft(itemId) {
       if (!saved) {
         draft.status = 'blocked';
         updateSheetSaveState();
+        draft.retryTimer = setTimeout(() => {
+          if (state.boardId === draft.boardId && storageGeneration === window.WhiteboardStorage?.getGeneration?.())
+            void persistSheetDraft(itemId);
+        }, 5000);
         return false;
       }
       draft.savedGeneration = generation;
@@ -285,8 +291,9 @@ function hasPendingSheetSave(itemId = null) {
 function updateSheetSaveState() {
   if (!sheetStoreRuntime.sheetEditor?.isOpen?.()) return;
   const draft = sheetDraftWrites.get(sheetDraftKey(state.boardId, sheetStoreRuntime.sheetEditorItemId));
+  sheetStoreRuntime.sheetEditor.setEditingBlocked?.(draft?.status === 'blocked' || draft?.inputFailed === true);
   let label = '已保存到画布';
-  if (draft?.status === 'blocked') label = '本地保存失败，请勿关闭';
+  if (draft?.status === 'blocked' || draft?.inputFailed) label = '本地保存失败，已暂停编辑，正在重试';
   else if (draft?.status === 'saving') label = '正在本地保存…';
   else if (
     Array.from(sheetCommandCommits.values()).some((command) => command.itemId === sheetStoreRuntime.sheetEditorItemId)
@@ -297,7 +304,7 @@ function updateSheetSaveState() {
 }
 
 function hasUnsafeSheetDrafts() {
-  return Array.from(sheetDraftWrites.values()).some((draft) => draft.status === 'saving' || draft.status === 'blocked');
+  return Array.from(sheetDraftWrites.values()).some((draft) => draft.status === 'saving' || draft.status === 'blocked' || draft.inputFailed);
 }
 
 function wireSheetPageLifecycle() {

@@ -1,6 +1,7 @@
+import { isPhoneViewer } from './phone-view-model.js';
 import { pushUndoSnapshot } from './history-controller.js';
 import { applyCamera } from './camera.js';
-import { isRemoteBoardLocked } from './connection-model.js';
+import { isLocalEditingBlocked, isRemoteBoardLocked } from './connection-model.js';
 import { BACKGROUND_PRESETS, backgroundImageLoads } from './constants.js';
 import { els } from './elements.js';
 import { getBrush } from './format-actions-model.js';
@@ -62,6 +63,7 @@ function syncBackgroundDriftControl() {
 }
 
 function setBackgroundDrift(enabled) {
+  if (isLocalEditingBlocked()) return false;
   if (isRemoteBoardLocked()) return false;
   const next = enabled === true;
   if (!getBackgroundImagePreset() || next === state.backgroundDrift) {
@@ -99,6 +101,7 @@ function setBrushSetting(key, value) {
 }
 
 function setBackground(value) {
+  if (isLocalEditingBlocked()) return false;
   if (isRemoteBoardLocked()) return false;
   if (!BACKGROUND_PRESETS[value] || value === state.background) {
     return false;
@@ -114,7 +117,7 @@ function setBackground(value) {
 
 function applyBackground() {
   if (els.viewport) {
-    els.viewport.dataset.bg = state.background;
+    els.viewport.dataset.bg = isPhoneViewer() ? 'plain' : state.background;
   }
   try {
     localStorage.setItem('wb:bg', state.background);

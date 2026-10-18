@@ -16,11 +16,13 @@ import { initializeRuntimeRecoveryState, seedOperationReceipts } from './recover
 import { servicesRuntime } from './runtime/services.js';
 import { ensureNotebookSchema } from './notebooks.js';
 import { retireCanvasNotebooks } from './legacy-note-cleanup.js';
+import { ensureChatSchema } from './chat-store.js';
 
 function initializeDatabase() {
   servicesRuntime.database = new DatabaseSync(DATABASE_FILE);
   servicesRuntime.database.exec('PRAGMA journal_mode = WAL');
   servicesRuntime.database.exec('PRAGMA synchronous = FULL');
+  servicesRuntime.database.exec('PRAGMA secure_delete = ON');
   servicesRuntime.database.exec('PRAGMA foreign_keys = ON');
   servicesRuntime.database.exec('PRAGMA busy_timeout = 5000');
   ensureNotebookSchema(servicesRuntime.database);
@@ -217,6 +219,7 @@ function initializeDatabase() {
     maxSessions: MAX_SESSIONS_PER_ACCOUNT,
     sharingEnabled: SHARING_ENABLED
   });
+  ensureChatSchema(servicesRuntime.database);
   servicesRuntime.database.exec(`CREATE TABLE IF NOT EXISTS guide_canvases (
     user_id TEXT PRIMARY KEY REFERENCES user_accounts(id) ON DELETE CASCADE,
     board_id TEXT NOT NULL UNIQUE REFERENCES boards(id) ON DELETE CASCADE

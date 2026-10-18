@@ -189,6 +189,11 @@
             <span id="backgroundLabel" class="tool-label">背景</span>
             <i class="tool-chevron" data-lucide="chevron-down" aria-hidden="true"></i>
           </button>
+          <button id="petButton" class="tool-button split-tool" type="button" title="宠物设置" aria-label="宠物设置" aria-haspopup="dialog" aria-controls="petMenu" aria-expanded="false">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><ellipse cx="5" cy="9" rx="2" ry="2.5"/><ellipse cx="9.5" cy="5" rx="2" ry="2.5"/><ellipse cx="14.5" cy="5" rx="2" ry="2.5"/><ellipse cx="19" cy="9" rx="2" ry="2.5"/><path d="M12 11c-2.5 0-3 2-5 4-2 2-1 5 2 5 1.5 0 2-.8 3-.8s1.5.8 3 .8c3 0 4-3 2-5-2-2-2.5-4-5-4Z"/></svg>
+            <span class="tool-label">宠物</span>
+            <i class="tool-chevron" data-lucide="chevron-down" aria-hidden="true"></i>
+          </button>
         </div>
         <button id="dockCollapseButton" class="dock-collapse-button" type="button" title="隐藏工具栏" aria-label="隐藏左侧工具栏" aria-controls="toolDock" aria-expanded="true">
           <i data-lucide="chevron-left" aria-hidden="true"></i>
@@ -199,6 +204,16 @@
         <i data-lucide="chevron-right" aria-hidden="true"></i>
       </button>
 
+      <div id="petMenu" class="tool-popover pet-menu" hidden>
+        <button id="showPetButton" class="context-btn" type="button" aria-pressed="false">显示宠物</button>
+        <button id="hidePetButton" class="context-btn" type="button" aria-pressed="false">关闭宠物</button>
+        <div class="pet-menu-separator" aria-hidden="true"></div>
+        <button id="feedPetButton" class="context-btn" type="button" title="投掷零食，宠物随机叼回吃或就地吃完滚回">喂食</button>
+        <button id="throwPetBallButton" class="context-btn" type="button">扔球</button>
+        <div class="pet-menu-separator" aria-hidden="true"></div>
+        <button id="petFeedbackButton" class="context-btn" type="button" aria-pressed="true">工作反馈</button>
+        <p id="petStatus" class="pet-status" role="status" aria-live="polite">宠物在工具栏旁陪伴你</p>
+      </div>
       <div id="brushMenu" class="tool-popover brush-menu" hidden></div>
       <div id="eraserMenu" class="tool-popover eraser-menu" hidden></div>
       <div id="selectMenu" class="tool-popover select-menu" hidden></div>
@@ -601,7 +616,7 @@
         </form>
         <section id="emailSentState" class="email-sent-state" aria-live="polite" hidden>
           <span class="email-sent-icon"><i data-lucide="mail-check" aria-hidden="true"></i></span>
-          <div><strong id="emailSentTitle">请检查你的邮箱</strong><p id="emailSentDescription">魔法链接已发送至 <span id="emailSentAddress"></span>，请保持此页面打开。</p></div>
+          <div><strong id="emailSentTitle">请检查你的邮箱</strong><p id="emailSentDescription">链接已发送至 <span id="emailSentAddress"></span>，请保持此页面打开。</p></div>
           <div class="email-sent-actions"><button id="resendEmailButton" type="button" disabled>60 秒后可重新发送</button><button id="changeEmailButton" class="text-button" type="button">修改邮箱</button></div>
         </section>
         <section id="emailAccountSwitchState" class="email-account-switch-state" aria-live="polite" hidden>
@@ -724,13 +739,25 @@
       </div>
     </template>
 
-    <dialog id="syncIssueDialog" aria-labelledby="syncIssueTitle">
-      <h2 id="syncIssueTitle">同步问题</h2>
+    <dialog id="syncIssueDialog" aria-labelledby="syncIssueTitle" aria-describedby="syncIssueDescription">
+      <header class="sync-dialog-header">
+        <h2 id="syncIssueTitle">同步状态</h2>
+        <form method="dialog"><button class="sync-close" aria-label="关闭" title="关闭">×</button></form>
+      </header>
       <p id="syncIssueDescription"></p>
-      <p>未同步的修改会保存在本机。可导出副本，或在问题解决后重试。</p>
-      <button id="exportSyncDraftButton" type="button">导出副本</button>
-      <button id="retrySyncDraftButton" type="button">重试同步</button>
-      <form method="dialog"><button type="submit">关闭</button></form>
+      <p id="syncDraftSafety" class="sync-safety"></p>
+      <div id="syncImageRecovery" hidden>
+        <label id="syncImageLabel" for="syncFailedImage">选择要恢复的图片</label>
+        <select id="syncFailedImage"></select>
+        <input id="syncRecoveryImageFile" type="file" accept="image/png,image/jpeg,image/webp" hidden>
+      </div>
+      <p id="syncImageRecoveryStatus" role="status" aria-live="polite"></p>
+      <details id="syncIssueDetails"><summary>查看详细原因</summary><p id="syncIssueTechnical"></p></details>
+      <footer class="sync-dialog-actions">
+        <button id="exportSyncDraftButton" type="button">下载备份</button>
+        <button id="recoverSyncImageButton" class="sync-primary" type="button" hidden>重新选择图片</button>
+        <button id="retrySyncDraftButton" class="sync-primary" type="button">立即重试</button>
+      </footer>
     </dialog>
     <script src="vendor/perfect-freehand.min.js" defer></script>
     <script src="vendor/icons.min.js" defer></script>

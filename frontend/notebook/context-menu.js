@@ -1,4 +1,5 @@
 import { clone, createElement, elementText, textDoc } from './model.js';
+import { isPhoneViewer } from '../../public/app/phone-view-model.js';
 
 // Context actions use existing editor/store operations; no persistent menu state.
 export function setupNotebookContextMenus(app) {
@@ -90,6 +91,7 @@ export function setupNotebookContextMenus(app) {
       item('创建独立副本','copy-plus',()=>{if(writable())app.place(copies,{x:Math.min(...copies.map(e=>e.x))+24,y:Math.min(...copies.map(e=>e.y))+24});},'object',write())
     ];
     if(selected.length===1 && ['text','callout','tag'].includes(element.type))actions.push(item('编辑文字','text-cursor',()=>{if(writable())app.startEdit(element,app.surface.querySelector(`[data-element-id="${element.id}"] .nt-element-body`));},'object',write()));
+    if(selected.length===1 && element.chatSource)actions.push(item('打开来源聊天','message-circle-more',()=>window.dispatchEvent(new CustomEvent('muse:open-chat-source',{detail:element.chatSource})),'source'));
     if(selected.length===1 && element.origin?.kind==='canvas') {
       actions.push(item(element.origin.region?'查看画布区域':'查看画布来源','external-link',()=>app.bridge.locateSource(element.origin),'source'));
       if(element.origin.region)actions.push(item('刷新区域快照','refresh-cw',()=>app.refreshRegion(element),'source',write()));
@@ -98,6 +100,7 @@ export function setupNotebookContextMenus(app) {
     return actions;
   };
   const show = event => {
+    if (isPhoneViewer()) return;
     const target=event.target;
     if(!app.page || app.root.hidden || target.closest('input,textarea,select,[contenteditable=true]:not(.tiptap)') || app.editor?.view.composing)return;
     const keyboard=event.type==='keydown' || (event.clientX===0&&event.clientY===0), rect=target.getBoundingClientRect();

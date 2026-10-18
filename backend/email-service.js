@@ -32,7 +32,7 @@ function emailCopy(intent, expiresInMinutes) {
   return {
     subject: '登录 Muse Board',
     eyebrow: '安全登录',
-    title: '使用魔法链接登录',
+    title: '使用链接登录',
     action: '登录 Muse Board',
     description: `点击下方按钮完成登录。链接将在 ${expiresInMinutes} 分钟后失效。`
   };

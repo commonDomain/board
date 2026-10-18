@@ -15,6 +15,7 @@ import {
 import { getMindNodeAtPath, sameMindPath } from './mindmap-editing-model.js';
 import { fitMindMapItem, layoutMindTree, makeSampleTree, measureMindNodeWidth } from './mindmap-model.js';
 import { canvasInteraction, captureViewportPointer } from './pan.js';
+import { canStartItemGesture, trackPointer } from './pan-model.js';
 import { state } from './state.js';
 import { captureInteractionItems, interactionFieldsForMode } from './transform-model.js';
 import { clamp, createSvg, isEditableTarget, isImeEvent } from './utilities.js';
@@ -40,12 +41,14 @@ function renderMindMap(item) {
         ? 'reauthorize'
         : item.source.syncState || 'synced';
   }
-  const tree = item.tree && typeof item.tree === 'object' ? item.tree : makeSampleTree();
+  const originalTree = item.tree && typeof item.tree === 'object' ? item.tree : makeSampleTree();
+  const tree = window.MusePlanning?.viewTree(originalTree,item.id)||originalTree;
   const branchStyle = window.MindMapLayout.normalizeStyle(item.branchStyle);
   const layoutWidth = Math.max(item.w || 360);
   const layoutHeight = Math.max(item.h || 220);
   
-  let layout = item._precomputedLayout;
+  const hasSummary = node => Boolean(node.collapsed && window.MusePlanning?.branchProgress?.(node)?.total) || (node.children||[]).some(hasSummary);
+  let layout = tree===originalTree&&!(window.MusePlanning?.enabled&&hasSummary(tree))?item._precomputedLayout:null;
   if (layout?.nodes?.length) {
     const nodesByLayoutId = new Map(layout.nodes.map((node) => [node.id, node]));
     layout = {
@@ -187,13 +190,14 @@ function renderMindMap(item) {
       text.className = 'mind-node-text';
       text.textContent = node.text;
       element.appendChild(text);
+      window.MusePlanning?.renderBranchProgress(element,originalNode);
       let taskBadge;
       if (node.taskRef) {
         const badge = document.createElement('button'); badge.type = 'button'; badge.className = 'mind-node-tag planning-mind-status';
         badge.textContent = node.taskDeleted ? '任务已删除' : node.status ? window.MusePlanning.statusLabel(node.status) : '无权访问';
-        badge.title = '点击切换任务状态'; badge.disabled = node.taskDeleted || !node.status || !canMutateItem(item);
+        badge.title = '定位关联任务'; badge.disabled = node.taskDeleted || !node.status;
         badge.addEventListener('pointerdown', event => event.stopPropagation());
-        badge.addEventListener('click', event => { event.stopPropagation(); if (!badge.disabled) cycleMindStatus(item, node.path); });
+        badge.addEventListener('click', event => { event.stopPropagation(); if (!badge.disabled) window.MusePlanning.locateTaskFromNode(node.taskRef).catch(error=>window.alert(error.message)); });
         taskBadge = badge;
       }
 
@@ -239,6 +243,7 @@ function renderMindMap(item) {
       }
 
       element.addEventListener('pointerdown', (event) => {
+        if (!canStartItemGesture(event, ['select', 'pan', 'mindmap'])) return;
         if (state.tool !== 'select' && state.tool !== 'pan' && state.tool !== 'mindmap') {
           return;
         }
@@ -365,12 +370,14 @@ function handleMindNodeKeyDown(event, item, node) {
 }
 
 function startMindNodeResize(event, item, path, handle) {
+  if (!canStartItemGesture(event, ['select', 'pan', 'mindmap'])) return;
   if (isTemporaryPanGestureEvent(event)) return;
   if (!canMutateItem(item)) return;
   const mindNode = getMindNodeAtPath(item.tree, path);
   if (!mindNode) return;
   event.preventDefault();
   event.stopPropagation();
+  trackPointer(event);
   const point = getBoardPoint(event);
   const layoutNode = layoutMindTree(item.tree, item.w, item.h, item.branchStyle, item.layoutMode).nodes.find((entry) =>
     sameMindPath(entry.path, path)

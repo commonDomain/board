@@ -103,7 +103,7 @@
   font: inherit;
 }
 #syncIssueDialog {
-  width: min(480px, calc(100vw - 32px));
+  width: min(420px, calc(100vw - 32px));
   max-height: calc(100dvh - 48px);
   overflow: auto;
   padding: 24px;
@@ -112,35 +112,27 @@
   background: var(--surface-strong);
   color: var(--ink);
   box-shadow: var(--shadow-lg);
+  font-size: 14px;
 }
-#syncIssueDialog::backdrop {
-  background: rgba(20, 23, 31, 0.4);
-}
-#syncIssueDialog h2 {
-  margin-top: 0;
-  font-size: 20px;
-}
-#syncIssueDialog p {
-  line-height: 1.6;
-  overflow-wrap: anywhere;
-}
-#syncIssueDialog button {
-  margin: 8px 8px 0 0;
-  padding: 10px 16px;
-  border: 1px solid var(--line-strong);
-  border-radius: var(--radius-sm);
-  background: var(--surface-muted);
-  color: var(--ink);
-  font: inherit;
-  cursor: pointer;
-}
-#syncIssueDialog form {
-  display: inline;
-}
-#retrySyncDraftButton {
-  background: var(--accent) !important;
-  color: white !important;
-}
+#syncIssueDialog::backdrop { background: rgba(20, 23, 31, 0.4); }
+.sync-dialog-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+#syncIssueDialog h2 { margin: 0; font-size: 18px; line-height: 1.4; }
+#syncIssueDialog p { margin: 12px 0; line-height: 1.65; overflow-wrap: anywhere; }
+#syncIssueDialog .sync-safety { padding: 12px; border-radius: var(--radius-sm); background: var(--surface-muted); color: var(--muted); font-size: 13px; }
+#syncIssueDialog button { padding: 10px 14px; min-height: 42px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: transparent; color: var(--ink); font: inherit; cursor: pointer; }
+#syncIssueDialog button:disabled { opacity: .55; cursor: wait; }
+#syncIssueDialog button:focus-visible, #syncIssueDialog summary:focus-visible, #syncFailedImage:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+#syncIssueDialog .sync-close { border: 0; padding: 0; width: 36px; min-height: 36px; font-size: 24px; color: var(--muted); }
+#syncIssueDialog form { margin: 0; }
+.sync-dialog-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; margin-top: 20px; }
+#syncIssueDialog .sync-primary { background: var(--accent); border-color: var(--accent); color: white; }
+#syncIssueDetails { color: var(--muted); font-size: 12px; margin-top: 16px; }
+#syncIssueDetails summary { cursor: pointer; width: fit-content; }
+#syncImageRecovery { margin-top: 16px; }
+#syncImageLabel { color: var(--muted); font-size: 12px; }
+#syncFailedImage { display: block; width: 100%; margin-top: 6px; padding: 10px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--surface-muted); color: var(--ink); font: inherit; }
+#syncImageRecoveryStatus:empty { display: none; }
+@media (max-width: 440px) { #syncIssueDialog { padding: 20px; } .sync-dialog-actions > button { flex: 1; } }
 
 * {
   box-sizing: border-box;

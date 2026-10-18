@@ -81,11 +81,11 @@ async function fetchExportCss() {
 }
 
 function prepareExportClone(clone) {
-  clone.classList.remove('connection-sparse');
+  clone.classList.remove('connection-sparse', 'stack-isolating');
   clone.querySelectorAll('.connection-controls, .connection-hit').forEach((node) => node.remove());
   clone
     .querySelectorAll(
-      '.selection-frame, .marquee, .multi-selection, .mind-node-actions, .note-move-handle, .table-move-handle, .table-column-guides, .sheet-item-open'
+      '.selection-frame, .stack-selection-outline, .marquee, .multi-selection, .mind-node-actions, .note-move-handle, .table-move-handle, .table-column-guides, .sheet-item-open'
     )
     .forEach((node) => node.remove());
   clone.querySelectorAll('.board-item.editing, .is-editing, .mind-node-text.editing').forEach((node) => {

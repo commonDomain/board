@@ -18,10 +18,10 @@ export function setupNotebookPlanning(app) {
   };
   const save = async () => { app.changed(); await app.store.flush(); if (!app.store.guest && app.store.dirty.has(app.book.id)) throw new Error('来源关联已保留为草稿，尚未同步，请重试关联'); };
   const valid = context => { if (!app.current(context) || !app.writable()) throw new Error('笔记已切换或编辑锁已失效'); };
-  const sources = target => {
+  const sources = (target, entityId = null) => {
     if (!app.page) return [];
     const context = app.context(), itemNode = target?.closest('[data-element-id]'), clicked = app.page.elements.find(e => e.id === itemNode?.dataset.elementId);
-    const elements = clicked ? app.selection.has(clicked.id) && app.selection.size > 1 ? app.page.elements.filter(e => app.selection.has(e.id)) : [clicked] : app.page.elements.filter(e => app.selection.has(e.id));
+    const elements = entityId ? app.page.elements.filter(e=>e.id===entityId) : clicked ? app.selection.has(clicked.id) && app.selection.size > 1 ? app.page.elements.filter(e => app.selection.has(e.id)) : [clicked] : app.page.elements.filter(e => app.selection.has(e.id));
     return elements.flatMap(element => {
       if (!['text', 'callout', 'tag', 'mindmap'].includes(element.type)) return [];
       const treeNode = element.type === 'mindmap' ? findNode(element.tree, target?.closest('[data-planning-node]')?.dataset.planningNode || element.tree.id) : null;
@@ -58,17 +58,18 @@ export function setupNotebookPlanning(app) {
         await save(); app.renderPage();
       };
       return [{ title: (title || '新任务').split('\n')[0].slice(0, 200), status: taskItem ? value.attrs?.checked ? 'done' : 'todo' : ['todo','doing','done','blocked'].includes(value.status) ? value.status : 'todo', taskRef, ref,
-        branches:treeNode?()=>{const rows=[];const visit=(node,parentNodeId)=>{const row=sources({closest:selector=>selector==='[data-element-id]'?{dataset:{elementId:element.id}}:selector==='[data-planning-node]'?{dataset:{planningNode:node.id}}:null}).find(source=>source.ref.entityId===element.id&&source.ref.nodeId===node.id);if(row)rows.push({...row,parentNodeId});for(const child of node.children||[])visit(child,node.id);};visit(treeNode,null);return rows;}:null,
+        branches:treeNode?()=>{const rows=[];const visit=(node,parentNodeId)=>{const row=sources({closest:selector=>selector==='[data-element-id]'?{dataset:{elementId:element.id}}:selector==='[data-planning-node]'?{dataset:{planningNode:node.id}}:null},element.id).find(source=>source.ref.entityId===element.id&&source.ref.nodeId===node.id);if(row)rows.push({...row,parentNodeId});for(const child of node.children||[])visit(child,node.id);};visit(treeNode,null);return rows;}:null,
         edit: !treeNode ? () => { valid(context); const current = app.page.elements.find(value => value.id === element.id); const body = app.surface.querySelector(`[data-element-id="${element.id}"] .nt-element-body`); if (taskItem && !app.editor) { const value = taskNodes(current.doc).find(n => n.attrs?.planningNodeId === taskNodeId); if (value?.content.length === 1) { app.remember(); value.content.push({ type: 'paragraph' }); app.changed(); } } app.startEdit(current, body, null, true); } : null,
         bind: reference => modify(reference), unbind: task => modify(null, task) }];
     });
   };
   planning.registerNotebook({
+    branchesFor(source){return sources({closest:selector=>selector==='[data-planning-node]'?{dataset:{planningNode:source.nodeId}}:null},source.entityId)[0]?.branches?.()||[];},
     host, writable: () => Boolean(app.book && app.page && app.store?.active() && !app.readOnly && app.store.leaseValid(app.book.id, app.page.id) && !app.book.deleted && !app.page.deleted), clientId: () => app.store?.clientId, toast: message => app.toast(message),
     async openHost(target){if(!app.store)await app.show();const book=await app.store.getBook(target.notebookId),page=book.pages.find(p=>p.id===target.pageId&&!p.deleted);if(!page)throw new Error('所属笔记已删除或无权访问');if(app.root.hidden)await app.show();await app.openPage(book,page);},
     async prepareHost(target){if(!app.store)await app.show();const book=await app.store.getBook(target.notebookId);if(!book.pages.some(page=>page.id===target.pageId&&!page.deleted))throw new Error('所属笔记已删除或无权访问');if(!await app.store.lease(target.notebookId,false,target.pageId))throw new Error('所属笔记正在其他窗口编辑，请打开宿主检查');return app.store.clientId;},
     captureLocation(){const scroll=app.$('.nt-scroll');return {host:host(),zoom:app.zoom,left:scroll.scrollLeft,top:scroll.scrollTop};},
-    async restoreLocation(location){await this.openHost(location.host);app.setZoom(location.zoom);const scroll=app.$('.nt-scroll');scroll.scrollTo({left:location.left,top:location.top});},
+    async restoreLocation(location){planning.revealSource(null);await this.openHost(location.host);app.renderElements();app.setZoom(location.zoom);const scroll=app.$('.nt-scroll');scroll.scrollTo({left:location.left,top:location.top});},
     highlightTask(planId,taskId){for(const element of app.surface.querySelectorAll('[data-planning-node]')){const owner=app.page.elements.find(e=>e.id===element.closest('[data-element-id]')?.dataset.elementId),node=findNode(owner?.tree,element.dataset.planningNode);element.classList.toggle('planning-related',Boolean(planId&&node?.taskRef?.planId===planId&&node.taskRef.taskId===taskId));}},
     sourceExists(source,ref) { if (source.notebookId !== app.book?.id || source.pageId !== app.page?.id || !app.store.guest) return null; const element=app.page.elements.find(value=>value.id===source.entityId),value=source.nodeId?element?.tree?findNode(element.tree,source.nodeId):taskNodes(element?.doc).find(value=>value.attrs?.planningNodeId===source.nodeId):element;if(!value)return false;return ref&&!sameRef(value.taskRef||value.attrs?.taskRef,ref)?'pending':true; },
     brainReferences(){const refs=[];for(const item of app.page?.elements||[])if(item.type==='mindmap'){const visit=node=>{if(node.taskRef)refs.push({taskRef:node.taskRef,source:{...host(),entityId:item.id,nodeId:node.id}});for(const child of node.children||[])visit(child);};visit(item.tree);}return refs;},
@@ -121,8 +122,11 @@ export function setupNotebookPlanning(app) {
     async locate(source) {
       await app.show(); const context = app.context(), book = await app.store.getBook(source.notebookId); if (!app.current(context, false)) throw new Error('笔记上下文已切换');
       const page = book.pages.find(p => p.id === source.pageId && !p.deleted); if (!page || !page.elements.some(e => e.id === source.entityId)) throw new Error('来源内容已删除或无权访问');
-      await app.openPage(book, page); const element = app.page.elements.find(e => e.id === source.entityId); app.select(element.id); app.renderElements();
+      await app.openPage(book, page); const element = app.page.elements.find(e => e.id === source.entityId);
+      if(source.nodeId&&element.type==='mindmap'&&!findNode(element.tree,source.nodeId))throw new Error('来源节点已删除');
+      planning.revealSource(source);app.select(element.id); app.renderElements();
       app.$('.nt-scroll').scrollTo({ top: Math.max(0, element.y * app.zoom - 80), left: Math.max(0, element.x * app.zoom - 24) });
+      if(source.nodeId){const root=[...app.surface.querySelectorAll('[data-element-id]')].find(root=>root.dataset.elementId===element.id),target=[...root.querySelectorAll('[data-planning-node]')].find(node=>node.dataset.planningNode===source.nodeId);if(target){target.scrollIntoView({block:'center',inline:'center'});target.classList.add('planning-located');setTimeout(()=>target.classList.remove('planning-located'),2500);}}
     },
     async relink(task, reference) {
       const source = task.sources.find(s => s.kind === 'notebook' && s.notebookId === app.book?.id && s.pageId === app.page?.id); if (!source) throw new Error('请先打开原来源笔记再重试关联');
@@ -139,9 +143,9 @@ export function setupNotebookPlanning(app) {
         if (element.taskRef) planning.updateLinked(root, element.taskRef);
         for (const linked of root.querySelectorAll('.planning-linked[data-task-id]')) planning.updateLinked(linked, { planId: linked.dataset.planId, taskId: linked.dataset.taskId });
         if (element.type === 'mindmap') for (const input of root.querySelectorAll('[data-planning-node] input')) {
-          const box = input.closest('[data-planning-node]'), value = findNode(element.tree, box.dataset.planningNode); if (!value?.taskRef) continue;
+          const box = input.closest('[data-planning-node]'), value = findNode(element.tree, box.dataset.planningNode);planning.renderBranchProgress(box,value); if (!value?.taskRef) continue;
           const task = planning.getTask(value.taskRef); if (document.activeElement !== input) { input.value = task?.title || '无权访问'; app.fitMindmapInput(input); app.fitMindmapFrame(element, root.querySelector('.nt-element-body')); }
-          box.dataset.status = task?.status || ''; const status = box.querySelector('.nt-task-status'); if (status) { status.textContent = task?.deleted ? '已删除' : planning.statusLabel(task?.status) || '无权访问'; status.dataset.status = task?.status || ''; status.disabled = !app.writable() || !task || task.deleted; status.setAttribute('aria-label', `切换任务状态：${task?.title || value.text}`); }
+          box.dataset.status = task?.status || ''; const status = box.querySelector('.nt-task-status'); if (status) { status.textContent = task?.deleted ? '已删除' : planning.statusLabel(task?.status) || '无权访问'; status.dataset.status = task?.status || ''; status.disabled = !task || task.deleted; status.setAttribute('aria-label', `定位关联任务：${task?.title || value.text}`); }
         }
         if (element.id !== app.editingId) hydrateNotebookTasks(root);
       }

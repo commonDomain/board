@@ -1,5 +1,6 @@
 import {
   configureConnection,
+  renderBoardLock,
   resolveBoardUnlockRevision,
   sendBoardEditActivity,
   setConnection,
@@ -130,6 +131,8 @@ function configureSyncInteractions() {
     scheduleXmindRemoteCheck
   });
   configureSyncQueue({scheduleHistoryCompaction,
+persistCurrentCanvasForSwitch,
+renderBoardLock,
 snapshotDocument,
 updateRedoButton,
 updateUndoButton,

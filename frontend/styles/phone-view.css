@@ -1,0 +1,77 @@
+/* Phone viewer only: device identity survives rotation and tablet split view. */
+html[data-form-factor=phone] {
+  --glass-filter:none;
+  --surface:#fff;
+  --surface-strong:#fff;
+  --surface-glass:#fff;
+  --shadow-sm:0 2px 8px #2520350a;
+
+  *, *::before, *::after {
+    animation:none !important;
+    transition:none !important;
+    backdrop-filter:none !important;
+    -webkit-backdrop-filter:none !important;
+    filter:none !important;
+    scroll-behavior:auto !important;
+    will-change:auto !important;
+  }
+
+  body, .viewport, .grid-layer { background:#fff !important; background-image:none !important; }
+  .board-layer { transform:none; will-change:auto; }
+  .board-item, .section-frame { pointer-events:none; }
+  .board-item { box-shadow:none; }
+  .note-card, .text-card, .section-frame { box-shadow:0 1px 3px #2520350b; }
+
+  #documentBarToggle, #newCanvasButton, .document-bar .status,
+  #undoButton, #redoButton, #saveButton, #exportPngButton, .action-divider,
+  #dockCollapseButton, #dockExpandButton, .touch-actions, .toolbar-pet,
+  #canvasStart, #noCanvasStart, .context-panel, .floating-format-bar,
+  .selection-frame, .section-resize-handle, .section-top-drag-handle, .section-titlebar button, .brush-cursor, .eraser-cursor,
+  .canvas-item-actions, .canvas-drag-handle, .navigator-actions, .navigator-drag-handle,
+  .navigator-toolbar, #noteOriginalsButton { display:none !important; }
+
+  .document-bar {
+    top:max(8px,var(--safe-top)); left:max(8px,var(--safe-left)); right:max(8px,var(--safe-right));
+    width:auto; max-width:none; height:auto; min-height:0; padding:8px; border:1px solid #e9e6ef; border-radius:16px;
+    background:#fff; box-shadow:var(--shadow-sm);
+  }
+  .document-bar-content { width:100%; display:grid; grid-template-columns:minmax(0,1fr) auto; grid-template-areas:'canvas actions' 'mode mode'; gap:6px; }
+  .canvas-controls { grid-area:canvas; min-width:0; }
+  .canvas-switcher-button { width:100%; min-height:40px; padding:6px 8px; background:#f7f5fa; }
+  .workspace-mode-switch { grid-area:mode; justify-self:start; margin:0; background:#f7f5fa; }
+  .workspace-mode-switch button { min-height:40px; padding:6px 9px; }
+  .toolbar-actions { grid-area:actions; gap:2px; margin-left:auto; overflow:visible; }
+  .toolbar-actions button { min-width:38px; min-height:38px; }
+  .toolbar-actions .compact-label { display:none; }
+
+  #toolDock {
+    display:flex !important; position:fixed; left:max(12px,var(--safe-left)); right:auto;
+    top:calc(max(8px,var(--safe-top)) + 120px); bottom:auto; transform:none;
+    width:52px; min-width:52px; max-width:52px; height:52px; min-height:0;
+    padding:4px; margin:0; gap:0; overflow:visible;
+    background:#fff; border:1px solid #e9e6ef; border-radius:15px; box-shadow:var(--shadow-sm);
+  }
+  #toolDock > :not(.toolbar-insert), #toolDock .toolbar-insert > :not(#chatButton) { display:none !important; }
+  #toolDock .toolbar-insert { display:flex; padding:0; margin:0; gap:0; border:0; }
+  #chatButton { display:flex; align-items:center; justify-content:center; width:42px; min-width:42px; height:42px; padding:0; border-radius:11px; color:var(--accent-strong); background:#f5f1fb; }
+  #chatButton .tool-label { display:none; }
+  .canvas-view-controls { bottom:max(12px,var(--safe-bottom)); right:max(12px,var(--safe-right)); background:#fff; box-shadow:var(--shadow-sm); }
+  .canvas-menu, .navigator-panel, .account-menu, .canvas-chat, .canvas-zoom-cluster { background:#fff; box-shadow:var(--shadow-sm); }
+  .canvas-zoom-controls, .canvas-fit-view { background:#fff; box-shadow:none; border-color:#e9e6ef; }
+  .planning-component-actions, .planning-view-tabs, .planning-add, .planning-column h4 button { display:none !important; }
+
+  .nt-ribbon, .nt-ribbon-tabs, .nt-ribbon-help, .nt-selection-toolbar,
+  .nt-save, .nt-material-trigger, .nt-materials, .nt-empty-actions,
+  .nt-add-section, .nt-sidebar-resize, .nt-reorder,
+  .nt-content-more, .nt-move, .nt-remove, .nt-element-resize, .nt-text-width-handle,
+  .nt-app [aria-label="新建笔记本"], .nt-app [aria-label="新建笔记"],
+  .nt-app [aria-label="笔记本操作"], .nt-app [aria-label="分区操作"],
+  .nt-app [aria-label="笔记操作"], .nt-app [aria-label="工作区菜单"],
+  .nt-app [aria-label="完成编辑"] { display:none !important; }
+  .nt-app, .nt-main, .nt-scroll, .nt-paper, .nt-appbar, .nt-library, .nt-pages, .nt-status { background:#fff; background-image:none; box-shadow:none; }
+  .nt-appbar { border-bottom:1px solid #e9e6ef; }
+  .nt-title-block input[readonly] { border-color:transparent; background:transparent; }
+  .nt-element { box-shadow:none; }
+  .nt-element-body { user-select:text; -webkit-user-select:text; }
+  .nt-status-hint { font-size:12px; }
+}

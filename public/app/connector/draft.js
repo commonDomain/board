@@ -1,12 +1,13 @@
-import { getBoardPoint } from '../camera.js';
+import { cancelWheelZoomAnimation, getBoardPoint } from '../camera.js';
 import { state } from '../state.js';
 import {isItemVisible} from '../layer-visibility.js';
+import { isStackIsolatedItem } from '../stack-inspector.js';
 import { getWritableLayer, explainUnwritableLayer, canMutateItem } from '../layers-model.js';
 import { queryItemsInRect } from '../spatial-index-model.js';
 import { showToast } from '../interface-model.js';
 import { finishEditing } from '../editing.js';
 import { captureViewportPointer, syncEdgePanForEvent, stopEdgePan, releaseViewportPointer } from '../pan.js';
-import { untrackPointer } from '../pan-model.js';
+import { getActiveGesturePointerId, untrackPointer } from '../pan-model.js';
 import { restoreNavigationTool } from '../toolbar.js';
 import { makeId } from '../utilities.js';
 import { nextZ } from '../canvas-state.js';
@@ -17,6 +18,7 @@ import { schedule } from './controls.js';
 
 import { stateRuntime } from './runtime/state.js';
 import { C } from './state.js';
+import { clientContentGeometry } from './content-geometry.js';
 
 let showCreate,
   change,
@@ -38,8 +40,10 @@ function candidate(event) {
     const container = element.closest('.board-item');
     if (container) {
       const item = state.items.get(container.dataset.itemId);
-      if (!item || item.type === 'connector' || !isItemVisible(item)) continue;
-      const t = C.terminal({ binding: { kind: 'item', id: item.id }, fallback: p });
+      if (!item || item.type === 'connector' || !isItemVisible(item) || !isStackIsolatedItem(item)) continue;
+      const localPoint = clientContentGeometry(container)?.point(event.clientX, event.clientY);
+      const boundPoint = localPoint ? C.rotate({ x: item.x + localPoint.x, y: item.y + localPoint.y }, item) : p;
+      const t = C.terminal({ binding: { kind: 'item', id: item.id }, fallback: boundPoint });
       const node = element.closest('[data-mn-id]'),
         cell = element.closest('[data-row][data-column]'), task = element.closest('.planning-component [data-task-id]');
       let rect = item,
@@ -61,7 +65,7 @@ function candidate(event) {
         label = '单元格';
       }
       if (stateRuntime.exactMode) {
-        const local = C.rotate(p, rect, true);
+        const local = C.rotate(boundPoint, rect, true);
         t.anchor = {
           mode: 'exact',
           side: 'right',
@@ -92,7 +96,7 @@ function candidate(event) {
     const radius = 12 / state.zoom;
     let nearest = null;
     for (const item of queryItemsInRect({ x: p.x - radius, y: p.y - radius, w: radius * 2, h: radius * 2 })) {
-      if (item.type === 'connector' || !isItemVisible(item)) continue;
+      if (item.type === 'connector' || !isItemVisible(item) || !isStackIsolatedItem(item)) continue;
       const local = C.rotate(p, item, true),
         x = Math.max(item.x, Math.min(item.x + item.w, local.x)),
         y = Math.max(item.y, Math.min(item.y + item.h, local.y));
@@ -132,18 +136,22 @@ function highlight(c) {
 
 function start(event, terminal = null, drag = false) {
   if (state.tool !== 'connector') return;
+  const owner = getActiveGesturePointerId();
+  if (state.pinch || (owner !== null && owner !== event.pointerId)) return;
   if (!getWritableLayer()) {
     showToast(explainUnwritableLayer());
     return;
   }
   if (state.editingId) finishEditing();
   event.preventDefault();
+  cancelWheelZoomAnimation();
   cancel();
   const c = terminal ? { terminal } : candidate(event);
   stateRuntime.draft = {
     source: C.clone(c.terminal),
     target: C.terminal({ fallback: getBoardPoint(event) }),
     pointerId: event.pointerId,
+    pointerType: event.pointerType || 'mouse',
     dragging: drag,
     down: { x: event.clientX, y: event.clientY },
     layerId: state.activeLayerId
@@ -154,7 +162,8 @@ function start(event, terminal = null, drag = false) {
 }
 
 function preview(event) {
-  if (!stateRuntime.draft || stateRuntime.targetTextMode || state.spacePan) return;
+  if (!stateRuntime.draft || stateRuntime.targetTextMode || state.spacePan || state.panning || state.pinch) return;
+  if (stateRuntime.draft.pointerId !== null && stateRuntime.draft.pointerId !== event.pointerId) return;
   const c = candidate(event);
   stateRuntime.draft.target = c.terminal;
   if (!c.terminal.binding && event.shiftKey) {
@@ -171,7 +180,8 @@ function preview(event) {
 
 function finish(event, terminal = null) {
   if (!stateRuntime.draft || (stateRuntime.targetTextMode && !terminal)) return;
-  const end = terminal || candidate(event).terminal,
+  if (!terminal) preview(event);
+  const end = terminal || stateRuntime.draft.target,
     source = stateRuntime.draft.source,
     layerId = stateRuntime.draft.layerId;
   if (stateRuntime.textRebind) {

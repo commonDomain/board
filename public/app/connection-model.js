@@ -1,5 +1,10 @@
 import { state } from './state.js';
 
+function isLocalEditingBlocked({ allowConflictRecovery = false } = {}) {
+  return Boolean(state.draftStorageFailed || state.draftRestoreFailed || state.draftRestoring ||
+    state.compatibilityReadOnly || state.accessReadOnly || (!allowConflictRecovery && state.syncQueue?.requiresResolution));
+}
+
 function isRemoteBoardLocked() {
   return Boolean(
     (state.boardUnlockRevision !== null && state.revision < state.boardUnlockRevision) ||
@@ -57,4 +62,4 @@ function appendSnapshotChunk(message) {
     state.socket?.close(1002, 'Invalid snapshot encoding');
   }
 }
-export { isRemoteBoardLocked, startSnapshotTransfer, appendSnapshotChunk };
+export { isLocalEditingBlocked, isRemoteBoardLocked, startSnapshotTransfer, appendSnapshotChunk };

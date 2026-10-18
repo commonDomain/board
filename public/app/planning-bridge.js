@@ -43,7 +43,7 @@ export async function initializePlanning() {
     async openHost(host){window.MuseNotebook?.hide();if(host.boardId!==state.boardId)await (await import('./canvas-session.js')).switchCanvas(host.boardId);},
     async prepareHost(host){if(host.boardId!==state.boardId)throw new Error('请先打开规划所属画布，再编辑任务；当前输入已保留');if(!getWritableLayer()||state.compatibilityReadOnly)throw new Error('规划所属画布只读');await saveSource();return state.socketClientId||state.clientId;},
     captureLocation(){return {host:{kind:'canvas',boardId:state.boardId},camera:structuredClone(state.camera),zoom:state.zoom};},
-    async restoreLocation(location){await this.openHost(location.host);Object.assign(state.camera,location.camera);state.zoom=location.zoom;(await import('./camera.js')).applyCamera();},
+    async restoreLocation(location){const revealed=planning.revealSource(null);if(revealed?.boardId===state.boardId){const item=state.items.get(revealed.entityId);if(item)renderItem(item);}await this.openHost(location.host);Object.assign(state.camera,location.camera);state.zoom=location.zoom;(await import('./camera.js')).applyCamera();},
     highlightTask(planId,taskId){for(const element of document.querySelectorAll('.mind-node[data-mn-id]')){const item=state.items.get(element.closest('[data-item-id]')?.dataset.itemId),node=findNode(item?.tree,element.dataset.mnId);element.classList.toggle('planning-related',Boolean(planId&&node?.taskRef?.planId===planId&&node.taskRef.taskId===taskId));}},
     planIds() { const result = new Set(); const visit = value => { if (value.taskRef) result.add(value.taskRef.planId); if (value.planRef) result.add(value.planRef); (value.children || []).forEach(visit); }; for (const item of state.items.values()) { visit(item); if (item.tree) visit(item.tree); } return result; },
     toast: showToast,
@@ -101,9 +101,17 @@ export async function initializePlanning() {
       if (source.boardId !== state.boardId) await (await import('./canvas-session.js')).switchCanvas(source.boardId);
       if (owner !== account()) throw new Error('账号已切换');
       const item = state.items.get(source.entityId); if (!item) throw new Error('来源内容已删除');
+      if(source.nodeId&&item.type==='mindmap'&&!findNode(item.tree,source.nodeId))throw new Error('来源节点已删除');
       window.MuseNotebook?.hide();
+      planning.revealSource(source);
       (await import('./focus.js')).focusBoundsInViewport(item, { screenPadding: 70, zoomCap: 1.5 });
       (await import('./selection.js')).selectItem(item.id);
+      if(source.nodeId&&item.type==='mindmap'){
+        renderItem(item);
+        await new Promise(resolve=>requestAnimationFrame(resolve));
+        const target=[...document.querySelectorAll('.board-item[data-item-id]')].find(root=>root.dataset.itemId===item.id)?.querySelector(`[data-mn-id="${source.nodeId}"]`);
+        if(target){const rect=target.getBoundingClientRect(),point=getBoardPointFromClient(rect.left,rect.top);(await import('./focus.js')).focusBoundsInViewport({...point,w:rect.width/state.zoom,h:rect.height/state.zoom},{screenPadding:100,zoomCap:1.5});target.classList.add('planning-located');target.focus({preventScroll:true});setTimeout(()=>target.classList.remove('planning-located'),2500);}
+      }
     },
     async relink(task, ref) {
       const source = task.sources.find(s => s.kind === 'canvas' && s.boardId === state.boardId);
@@ -114,8 +122,9 @@ export async function initializePlanning() {
       target.taskRef = ref; if (!upsertItem(item, { select: false })) throw new Error('来源关联保存失败');
       await saveSource();
     },
-    sources(target) {
-      const selected = [...state.selectedIds].map(key => state.items.get(key)).filter(Boolean), boardId = state.boardId, owner = account();
+    branchesFor(source) { return this.sources({closest:selector=>selector==='.mind-node'?{dataset:{mnId:source.nodeId}}:null},source.entityId)[0]?.branches?.()||[]; },
+    sources(target, entityId = null) {
+      const selected = (entityId?[entityId]:[...state.selectedIds]).map(key => state.items.get(key)).filter(Boolean), boardId = state.boardId, owner = account();
       const nodeId = target?.closest('.mind-node')?.dataset.mnId;
       const valid = item => { if (owner !== account() || boardId !== state.boardId || !canMutateItem(item)) throw new Error('来源已切换或不可编辑'); };
       return selected.flatMap(item => {
@@ -125,7 +134,7 @@ export async function initializePlanning() {
         if (item.type === 'mindmap' && !treeNode) return [];
         const value = treeNode || item, ref = { kind: 'canvas', boardId, entityId: item.id, ...(treeNode ? { nodeId: treeNode.id } : {}) };
         return [{ title: String(value.text || '新任务').split('\n')[0].slice(0, 200), status: ['todo', 'doing', 'blocked', 'done'].includes(value.status) ? value.status : 'todo', taskRef: value.taskRef, ref,
-          branches:treeNode?()=>{const rows=[];const visit=(node,parentNodeId)=>{const row=this.sources({closest:selector=>selector==='.mind-node'?{dataset:{mnId:node.id}}:null}).find(source=>source.ref.entityId===item.id&&source.ref.nodeId===node.id);if(row)rows.push({...row,parentNodeId});for(const child of node.children||[])visit(child,node.id);};visit(treeNode,null);return rows;}:null,
+          branches:treeNode?()=>{const rows=[];const visit=(node,parentNodeId)=>{const row=this.sources({closest:selector=>selector==='.mind-node'?{dataset:{mnId:node.id}}:null},item.id).find(source=>source.ref.entityId===item.id&&source.ref.nodeId===node.id);if(row)rows.push({...row,parentNodeId});for(const child of node.children||[])visit(child,node.id);};visit(treeNode,null);return rows;}:null,
           edit: !treeNode ? async () => { const original = state.items.get(item.id); valid(original); const task = planning.getTask(original.taskRef); if (!task) throw new Error('无权访问任务'); replaceTitle(original, task.title); (await import('./editing.js')).startEditingItem(item.id, { editLinkedSource: true }); } : null,
           async bind(taskRef) { const original = state.items.get(item.id); valid(original); const copy = structuredClone(original), target = treeNode ? findNode(copy.tree, treeNode.id) : copy; if (!target) throw new Error('来源已删除'); if (target.taskRef && !sameRef(target.taskRef, taskRef)) throw new Error('来源已关联任务'); target.taskRef = taskRef; if (!upsertItem(copy, { select: false })) throw new Error('未能保存来源关联'); await saveSource(); },
           async unbind(task) { const original = state.items.get(item.id); valid(original); const copy = structuredClone(original), target = treeNode ? findNode(copy.tree, treeNode.id) : copy; if (!target) throw new Error('来源已删除'); delete target.taskRef; if (treeNode) target.text = task.title; else replaceTitle(target, task.title); target.status = task.status; if (!upsertItem(copy, { select: false })) throw new Error('未能解除来源关联'); await saveSource(); }
@@ -139,9 +148,11 @@ export async function initializePlanning() {
         if (item.taskRef) planning.updateLinked(root, item.taskRef);
         if (item.type === 'mindmap' && !root.querySelector('[contenteditable=true]') && [...root.querySelectorAll('[data-mn-id]')].some(element => { const node = findNode(item.tree, element.dataset.mnId); return node?.taskRef && element.querySelector('.mind-node-text')?.textContent !== planning.taskTitle(node.taskRef); })) { renderItem(item); continue; }
         if (item.type === 'mindmap') for (const element of root.querySelectorAll('.mind-node[data-mn-id]')) {
-          const value = findNode(item.tree, element.dataset.mnId); if (!value?.taskRef || element.querySelector('[contenteditable=true]')) continue;
+          const value = findNode(item.tree, element.dataset.mnId),hadSummary=Boolean(element.querySelector('.planning-branch-progress'));planning.renderBranchProgress(element,value);
+          if(hadSummary!==Boolean(element.querySelector('.planning-branch-progress'))&&!root.querySelector('[contenteditable=true]')){renderItem(item);break;}
+          if (!value?.taskRef || element.querySelector('[contenteditable=true]')) continue;
           const task = planning.getTask(value.taskRef); const title = element.querySelector('.mind-node-text'); if (title) title.textContent = task?.title || '无权访问';
-          element.dataset.status = task?.status || ''; const badge = element.querySelector('.planning-mind-status'); if (badge) { badge.textContent = task?.deleted ? '任务已删除' : task ? planning.statusLabel(task.status) : '无权访问'; badge.disabled = !task || task.deleted || !canMutateItem(item); }
+          element.dataset.status = task?.status || ''; const badge = element.querySelector('.planning-mind-status'); if (badge) { badge.textContent = task?.deleted ? '任务已删除' : task ? planning.statusLabel(task.status) : '无权访问'; badge.disabled = !task || task.deleted; }
         }
       }
     }

@@ -73,6 +73,7 @@ async function showWechatExportPreview(blob, filename) {
 }
 
 async function exportBoardPng() {
+  const boardId = state.boardId, epoch = state.canvasEpoch;
   const bounds = getContentBounds();
   if (!bounds || !bounds.w || !bounds.h) {
     showToast('画板为空，没有可导出的内容');
@@ -94,6 +95,9 @@ async function exportBoardPng() {
       return;
     }
     const downloadMode = await downloadBlob(blob, `${baseName}.png`);
+    if (state.boardId === boardId && state.canvasEpoch === epoch) {
+      window.dispatchEvent(new CustomEvent('muse:pet-feedback', { detail: { type: 'export' } }));
+    }
     showToast(
       downloadMode === 'preview' ? '已打开图片预览，请长按保存' : 'PNG 已导出'
     );

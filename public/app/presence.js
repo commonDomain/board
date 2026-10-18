@@ -1,3 +1,4 @@
+import { isPhoneViewer } from './phone-view-model.js';
 import { boardToScreen } from './camera-model.js';
 import { getBoardPoint } from './camera.js';
 import { els } from './elements.js';
@@ -44,6 +45,7 @@ function updateRemoteCursor(message) {
 }
 
 function renderCursors() {
+  if (isPhoneViewer()) return;
   if (!els.cursorsLayer) {
     return;
   }

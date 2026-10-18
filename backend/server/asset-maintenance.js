@@ -1,10 +1,40 @@
 import path from 'node:path';
 import fsp from 'node:fs/promises';
+import fs from 'node:fs';
 import { assetMimeFromFilename, collectStoredAssetReferences } from './asset-references.js';
-import { assetDerivativeWrites, assetWrites } from './asset-storage.js';
+import { assetDerivativeWrites, assetWrites, activeAssetUploads } from './asset-storage.js';
 import { ASSETS_DIR, ASSET_GC_MIN_AGE_MS } from './config.js';
 import { backupRuntime } from './runtime/backup.js';
 import { servicesRuntime } from './runtime/services.js';
+
+function protectedNow(assetId) {
+  const db=servicesRuntime.database;
+  return backupRuntime.backupInFlight || activeAssetUploads.has(assetId) || assetDerivativeWrites.has(assetId) ||
+    [...assetWrites.keys()].some(key=>key.startsWith(`${assetId}:`)) ||
+    db.prepare('SELECT 1 FROM asset_references WHERE asset_id=? LIMIT 1').get(assetId) ||
+    db.prepare('SELECT 1 FROM asset_upload_grants WHERE asset_id=? AND expires_at>? LIMIT 1').get(assetId,Date.now()) ||
+    db.prepare('SELECT 1 FROM user_accounts WHERE avatar_asset_id=? LIMIT 1').get(assetId);
+}
+
+// SQLite writes and file removal form one short critical section. No await is
+// permitted between the final reference check and removing files. Concurrent
+// requests cannot introduce a reference in that interval.
+function removeUnreferencedFiles(assetId, filenames, removeMetadata) {
+  const db=servicesRuntime.database;
+  db.exec('BEGIN IMMEDIATE');
+  let removedFiles=0,removedBytes=0;
+  try {
+    if (!protectedNow(assetId)) {
+      for (const filename of filenames) {
+        const filePath=path.join(ASSETS_DIR,filename);
+        try {const size=fs.statSync(filePath).size;fs.unlinkSync(filePath);removedFiles++;removedBytes+=size;}
+        catch(error){if(error.code!=='ENOENT')throw error;}
+      }
+      if(removeMetadata)db.prepare('DELETE FROM assets WHERE asset_id=?').run(assetId);
+    }
+    db.exec('COMMIT');return {removedFiles,removedBytes};
+  }catch(error){db.exec('ROLLBACK');throw error;}
+}
 
 async function collectOrphanedAssets() {
   if (backupRuntime.backupInFlight) return { removedFiles: 0, removedBytes: 0, skipped: 'backup-in-progress' };
@@ -74,19 +104,9 @@ async function collectOrphanedAssets() {
           .run(Date.now(), assetId);
         continue;
       }
-      if (orphanedAt > cutoff) continue;
-      await fsp.unlink(filePath);
-      await Promise.all([
-        fsp.unlink(path.join(ASSETS_DIR, `${assetId}.thumb.webp`)).catch((error) => {
-          if (error.code !== 'ENOENT') throw error;
-        }),
-        fsp.unlink(path.join(ASSETS_DIR, `${assetId}.medium.webp`)).catch((error) => {
-          if (error.code !== 'ENOENT') throw error;
-        })
-      ]);
-      removedFiles += 1;
-      removedBytes += stat.size;
-      servicesRuntime.database.prepare('DELETE FROM assets WHERE asset_id = ?').run(assetId);
+      if (orphanedAt >= cutoff) continue;
+      const removed=removeUnreferencedFiles(assetId,[entry.name,`${assetId}.thumb.webp`,`${assetId}.medium.webp`],true);
+      removedFiles+=removed.removedFiles;removedBytes+=removed.removedBytes;
     } catch (error) {
       if (error.code !== 'ENOENT') throw error;
     }
@@ -109,9 +129,8 @@ async function collectOrphanedAssets() {
     try {
       const stat = await fsp.stat(filePath);
       if (Math.trunc(stat.mtimeMs) > cutoff) continue;
-      await fsp.unlink(filePath);
-      removedFiles += 1;
-      removedBytes += stat.size;
+      const removed=removeUnreferencedFiles(assetId,[entry.name],false);
+      removedFiles+=removed.removedFiles;removedBytes+=removed.removedBytes;
     } catch (error) {
       if (error.code !== 'ENOENT') throw error;
     }

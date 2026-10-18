@@ -23,9 +23,9 @@ export function sanitizeSnapshot(input, ownerId) {
   plan.tasks=input.tasks.map((task,index)=>{
     const patch={};for(const key of fields)if(task[key]!==undefined)patch[key]=task[key];patch.assigneeId=task.assigneeId===ownerId?ownerId:null;
     patch.title=text(task.title,200,true);
-    return {id:take(task.id),status:'todo',priority:2,order:index,sources:[],linked:false,archived:false,parentTaskId:null,milestoneId:null,...taskPatch(patch,[ownerId]),revision:1,createdAt:Date.now(),updatedAt:Date.now()};
+    return {id:take(task.id),status:'todo',priority:2,order:index,sources:[],linked:false,archived:false,parentTaskId:null,milestoneId:null,...taskPatch(patch,[ownerId]),completedAt:task.status==='done'&&Number.isSafeInteger(task.completedAt)&&task.completedAt>0&&task.completedAt<=8640000000000000?task.completedAt:null,revision:1,createdAt:Date.now(),updatedAt:Date.now()};
   });
-  plan.reviews=input.reviews.map(review=>({id:take(review.id),createdAt:Number.isFinite(review.createdAt)?review.createdAt:Date.now(),results:text(review.results||'',4000),reasons:text(review.reasons||'',4000),next:text(review.next||'',4000)}));
+  plan.reviews=input.reviews.map(review=>({id:take(review.id),createdAt:Number.isFinite(review.createdAt)?review.createdAt:Date.now(),results:text(review.results||'',4000),reasons:text(review.reasons||'',4000),next:text(review.next||'',4000),...(review.outcome?{outcome:{current:Number.isFinite(review.outcome.current)?review.outcome.current:null,target:Number.isFinite(review.outcome.target)?review.outcome.target:null,unit:text(review.outcome.unit||'',30)}}:{})}));
   // Run all relationship checks after all tasks are present.
   return applyOperation(plan,{type:'plan.update',baseRevision:plan.revision,patch:{}},[ownerId]);
 }

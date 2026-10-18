@@ -6,14 +6,22 @@ import { initialize as initializeImpact } from './connector-impact.js';
 import { initialize as initializeConnectors } from './connector/bootstrap.js';
 import { installUiFeedback } from './ui-feedback.js';
 import { initializePlanning } from './planning-bridge.js';
+import { initializeChat } from './chat.js';
+import { initializeDeviceProfile } from './device-profile.js';
+import { isPhoneViewer } from './phone-view-model.js';
 
 async function startApplication() {
+  initializeDeviceProfile();
+  window.MuseEffects?.configureForDevice?.();
   configureInteractions();
-  initializeImpact();
-  initializeConnectors();
+  if (!isPhoneViewer()) {
+    initializeImpact();
+    initializeConnectors();
+  }
   installUiFeedback();
   await initializePlanning().catch(error => showToast(`规划功能暂不可用：${error.message}`));
   await init();
+  initializeChat();
 }
 
 startApplication().catch((error) => {

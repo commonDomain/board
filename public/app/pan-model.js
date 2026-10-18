@@ -36,7 +36,10 @@ function hasActivePen() {
       state.interaction,
       state.pendingMove,
       state.pendingCanvasIntent,
-      state.connectorDraft
+      state.connectorDraft,
+      state.sectionDraft,
+      state.sectionInteraction,
+      window.ConnectorUI?.activeGesture?.()
     ].some((gesture) => gesture?.pointerType === 'pen')
   ) {
     return true;
@@ -46,6 +49,8 @@ function hasActivePen() {
 
 function getActiveGesturePointerId() {
   const gesture =
+    window.ConnectorUI?.activeGesture?.() ||
+    state.tableCellDrag ||
     state.currentPath ||
     state.eraserPath ||
     state.currentShape ||
@@ -59,6 +64,15 @@ function getActiveGesturePointerId() {
     state.sectionInteraction ||
     state.connectorDraft;
   return Number.isFinite(gesture?.pointerId) ? gesture.pointerId : null;
+}
+
+function canStartItemGesture(event, tools = ['select', 'pan']) {
+  const owner = getActiveGesturePointerId();
+  // Native pointermove reports button=-1 while the primary button stays held.
+  // A pending item drag promotes to a transform on that move event.
+  const primaryInput = event.button === 0 || (event.type === 'pointermove' && Boolean(event.buttons & 1));
+  return primaryInput && !state.spacePan && !state.pinch && tools.includes(state.tool) &&
+    (owner === null || owner === event.pointerId) && !(event.pointerType === 'touch' && hasActivePen());
 }
 
 function getEdgePanGesture() {
@@ -81,5 +95,6 @@ export {
   getActiveTouchPointerIds,
   hasActivePen,
   getActiveGesturePointerId,
+  canStartItemGesture,
   getEdgePanGesture
 };

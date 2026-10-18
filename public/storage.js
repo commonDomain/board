@@ -2,8 +2,9 @@
 
 (function installWhiteboardStorage(global) {
   const DATABASE_NAME = 'museboard-client';
-  const DATABASE_VERSION = 5;
+  const DATABASE_VERSION = 6;
   const OUTBOX_STORE = 'outbox';
+  const OUTBOX_JOURNAL_STORE = 'outboxJournal';
   const SNAPSHOT_STORE = 'snapshots';
   const GUEST_CANVAS_STORE = 'guestCanvases';
   const GUEST_GUIDE_DISMISSAL_ID = 'guest_guide_dismissed';
@@ -12,6 +13,12 @@
   let databasePromise = null;
   let lastTimestamp = 0;
   const writeTails = new Map();
+  const outboxKnownIds = new Map();
+  const outboxRetiredIds = new Map();
+  // Keep failed writes alive across account/canvas teardown. This is a rescue
+  // copy only: callers must never treat it as durable storage.
+  const volatileOutboxes = new Map();
+  const outboxWriter = global.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`;
   let storageScope = 'legacy';
   let scopeGeneration = 0;
   let guestMemoryMode = false;
@@ -40,11 +47,15 @@
       return databasePromise;
     }
     databasePromise = new Promise((resolve, reject) => {
+      let abandoned = false;
       const request = indexedDB.open(DATABASE_NAME, DATABASE_VERSION);
       request.onupgradeneeded = () => {
         const database = request.result;
         if (!database.objectStoreNames.contains(OUTBOX_STORE)) {
           database.createObjectStore(OUTBOX_STORE, { keyPath: 'boardId' });
+        }
+        if (!database.objectStoreNames.contains(OUTBOX_JOURNAL_STORE)) {
+          database.createObjectStore(OUTBOX_JOURNAL_STORE, { keyPath: 'boardId' });
         }
         if (!database.objectStoreNames.contains(SNAPSHOT_STORE)) {
           database.createObjectStore(SNAPSHOT_STORE, { keyPath: 'boardId' });
@@ -68,9 +79,14 @@
           };
         }
       };
-      request.onsuccess = () => resolve(request.result);
+      request.onsuccess = () => {
+        const database = request.result;
+        if (abandoned) { database.close(); return; }
+        database.onversionchange = () => { database.close(); databasePromise = null; };
+        resolve(database);
+      };
       request.onerror = () => reject(request.error || new Error('Could not open IndexedDB'));
-      request.onblocked = () => reject(new Error('IndexedDB upgrade was blocked'));
+      request.onblocked = () => { abandoned = true; reject(new Error('IndexedDB upgrade was blocked')); };
     }).catch((error) => {
       databasePromise = null;
       throw error;
@@ -114,7 +130,8 @@
     const value = String(scope || '').trim();
     if (!value || value === 'legacy' || value === 'guest') return;
     const prefix = `${value}:`;
-    for (const storeName of [OUTBOX_STORE, SNAPSHOT_STORE, SHEET_DRAFT_STORE]) {
+    await Promise.allSettled([...writeTails].filter(([key]) => key.includes(`:${prefix}`)).map(([, promise]) => promise));
+    for (const storeName of [OUTBOX_STORE, OUTBOX_JOURNAL_STORE, SNAPSHOT_STORE, SHEET_DRAFT_STORE]) {
       try {
         await runTransaction(storeName, 'readwrite', (store) => {
           const cursor = store.openCursor();
@@ -134,6 +151,9 @@
         if (key?.startsWith('museboard:') && key.includes(`:${prefix}`)) localStorage.removeItem(key);
       }
     } catch {}
+    for (const records of [volatileOutboxes, outboxKnownIds, outboxRetiredIds]) {
+      for (const key of records.keys()) if (key.startsWith(prefix)) records.delete(key);
+    }
   }
 
   function readFallback(kind, boardId) {
@@ -200,8 +220,11 @@
     let primary = null;
     try {
       primary = await runTransaction(store, 'readonly', (objectStore) => objectStore.get(boardId));
-    } catch {
+    } catch (error) {
       // Private browsing and full storage quotas can make IndexedDB unavailable.
+      // An unreadable outbox must never be mistaken for an empty one and then
+      // overwritten by a fresh connection/snapshot.
+      if (kind === 'outbox' || kind === 'sheet-draft') throw error;
     }
     return newestRecord(primary, fallback);
   }
@@ -211,7 +234,21 @@
     return enqueueWrite(store, record.boardId, async () => {
       let durable = false;
       try {
-        await runTransaction(store, 'readwrite', (objectStore) => objectStore.put(record));
+        await runTransaction(store, 'readwrite', (objectStore) => {
+          if (kind !== 'sheet-draft' || Object.hasOwn(record, 'pendingInput')) return objectStore.put(record);
+          const request = objectStore.get(record.boardId);
+          request.onsuccess = () => {
+            const existing = newestRecord(request.result, readFallback(kind, record.boardId));
+            // Saving a committed workbook must not erase a formula that is
+            // still being typed. Only an explicit pendingInput:null clears it.
+            if (existing?.pendingInput) {
+              record.pendingInput = existing.pendingInput;
+              record.updatedAt = Math.max(record.updatedAt, existing.updatedAt);
+            }
+            objectStore.put(record);
+          };
+          return request;
+        });
         durable = true;
       } catch {
         durable = false;
@@ -223,39 +260,106 @@
         writeFallback(kind, record.boardId, null);
         return true;
       }
+      if (kind === 'sheet-draft' && !Object.hasOwn(record, 'pendingInput')) {
+        const existing = readFallback(kind, record.boardId);
+        if (existing?.pendingInput) {
+          record.pendingInput = existing.pendingInput;
+          record.updatedAt = Math.max(record.updatedAt, existing.updatedAt);
+        }
+      }
       const fallbackSaved = writeFallbackIfNewer(kind, record.boardId, record);
       return durable || fallbackSaved;
     });
   }
 
   async function loadOutbox(boardId) {
-    const record = await loadRecord(OUTBOX_STORE, 'outbox', scopedBoardId(boardId));
-    if (!record || ![2, 3, 4].includes(record.schema) || !Array.isArray(record.messages)) {
-      return [];
-    }
-    const before = JSON.stringify(record.messages);
-    const messages = record.messages.filter(message => message && message.type === 'op' && typeof message.opId === 'string').filter(message => Boolean(retireNoteOperation(message.op)));
-    if (before !== JSON.stringify(messages)) await saveOutbox(boardId, messages);
+    const id = scopedBoardId(boardId);
+    const records = readOutboxFallbacks(id);
+    // A fallback may contain only one tab's edits. Failure to read the main
+    // journal cannot prove that this is the complete outbox.
+    records.push(await runTransaction(OUTBOX_JOURNAL_STORE, 'readonly', store => store.get(id)));
+    records.push(await runTransaction(OUTBOX_STORE, 'readonly', store => store.get(id)));
+    records.push(volatileOutboxes.get(id)?.record);
+    const record = mergeOutboxRecords(id, records);
+    const messages = record.messages.filter(message => Boolean(retireNoteOperation(message.op)));
+    outboxKnownIds.set(id, new Set(messages.map(message => message.opId)));
+    outboxRetiredIds.set(id, new Set(record.retired));
     return messages;
   }
 
-  async function saveOutbox(boardId, messages) {
-    return saveRecord(OUTBOX_STORE, 'outbox', {
-      boardId: scopedBoardId(boardId),
-      schema: 4,
-      updatedAt: nextTimestamp(),
-      messages
+  function readOutboxFallbacks(id) {
+    const prefix = `${fallbackKey('outbox', id)}:writer:`;
+    const records = [];
+    try {
+      const legacy = localStorage.getItem(fallbackKey('outbox', id));
+      if (legacy) records.push(JSON.parse(legacy));
+      for (let index = 0; index < localStorage.length; index++) {
+        const key = localStorage.key(index);
+        if (key?.startsWith(prefix)) records.push(JSON.parse(localStorage.getItem(key)));
+      }
+    } catch (error) {
+      // Corruption must be visible; inaccessible fallback storage may still be
+      // covered by IndexedDB, but malformed saved content must not be erased.
+      if (error instanceof SyntaxError) throw error;
+    }
+    return records;
+  }
+
+  function mergeOutboxRecords(id, records) {
+    const pending = new Map(), retired = new Set();
+    const ordered = records.filter(Boolean).sort((a, b) => a.updatedAt - b.updatedAt);
+    for (const record of ordered) {
+      if (![2, 3, 4, 5].includes(record.schema) || !Array.isArray(record.messages)) throw new Error('Unrecognized local draft format');
+      for (const opId of record.retired || []) retired.add(opId);
+      for (const message of record.messages) {
+        if (!message || message.type !== 'op' || typeof message.opId !== 'string') throw new Error('Invalid local draft entry');
+        pending.set(message.opId, message);
+      }
+    }
+    for (const opId of retired) pending.delete(opId);
+    return { boardId: id, schema: 5, updatedAt: Math.max(0, ...ordered.map(record => Number(record.updatedAt) || 0)),
+      messages: [...pending.values()], retired: [...retired] };
+  }
+
+  function outboxRecord(boardId, messages) {
+    const id = scopedBoardId(boardId), nextIds = new Set(messages.map(message => message.opId));
+    const retired = outboxRetiredIds.get(id) || new Set();
+    for (const opId of outboxKnownIds.get(id) || []) if (!nextIds.has(opId)) retired.add(opId);
+    outboxKnownIds.set(id, nextIds);
+    outboxRetiredIds.set(id, retired);
+    return { boardId: id, schema: 5, updatedAt: nextTimestamp(), messages: structuredClone(messages), retired: [...retired] };
+  }
+
+  function saveOutbox(boardId, messages) {
+    const record = outboxRecord(boardId, messages);
+    const writerId = `${record.boardId}:writer:${outboxWriter}`;
+    const fallbackSaved = writeFallbackIfNewer('outbox', writerId, record);
+    volatileOutboxes.set(record.boardId, { record, durable: fallbackSaved });
+    return enqueueWrite(OUTBOX_JOURNAL_STORE, record.boardId, async () => {
+      try {
+        const fallbacks = readOutboxFallbacks(record.boardId);
+        await runTransaction(OUTBOX_JOURNAL_STORE, 'readwrite', store => {
+          const request = store.get(record.boardId);
+          request.onsuccess = () => {
+            try { store.put(mergeOutboxRecords(record.boardId, [request.result, ...fallbacks, record])); }
+            catch { store.transaction.abort(); }
+          };
+          return request;
+        });
+        // Delete only this exact writer snapshot; a newer unload journal or
+        // another tab's fallback must never be cleared by an older async write.
+        if (readFallback('outbox', writerId)?.updatedAt === record.updatedAt) writeFallback('outbox', writerId, null);
+        if (volatileOutboxes.get(record.boardId)?.record.updatedAt === record.updatedAt) volatileOutboxes.delete(record.boardId);
+        return true;
+      } catch { return fallbackSaved; }
     });
   }
 
   function flushOutboxFallback(boardId, messages) {
-    const scopedId = scopedBoardId(boardId);
-    return writeFallbackIfNewer('outbox', scopedId, {
-      boardId: scopedId,
-      schema: 4,
-      updatedAt: nextTimestamp(),
-      messages
-    });
+    const record = outboxRecord(boardId, messages);
+    const durable = writeFallbackIfNewer('outbox', `${record.boardId}:writer:${outboxWriter}`, record);
+    volatileOutboxes.set(record.boardId, { record, durable });
+    return durable;
   }
 
   async function loadSnapshot(boardId) {
@@ -288,13 +392,14 @@
   async function loadSheetDraft(boardId, itemId) {
     const id = sheetDraftId(boardId, itemId);
     const record = await loadRecord(SHEET_DRAFT_STORE, 'sheet-draft', id);
+    if (!record) return null;
     if (
       !record
       || record.schema !== 1
       || record.sourceBoardId !== boardId
       || record.itemId !== itemId
       || !record.workbook
-    ) return null;
+    ) throw new Error('工作表本地草稿格式无法读取，原记录已保留');
     const loaded = {
       boardId,
       itemId,
@@ -330,15 +435,25 @@
     });
   }
 
-  async function deleteSheetDraft(boardId, itemId) {
+  async function deleteSheetDraft(boardId, itemId, expectedUpdatedAt) {
     const id = sheetDraftId(boardId, itemId);
-    writeFallback('sheet-draft', id, null);
-    try {
-      await runTransaction(SHEET_DRAFT_STORE, 'readwrite', (store) => store.delete(id));
-      return true;
-    } catch {
-      return false;
-    }
+    if (!Number.isFinite(expectedUpdatedAt)) return false;
+    return enqueueWrite(SHEET_DRAFT_STORE, id, async () => {
+      let deleted = false;
+      const safeToDelete = record => !record || !record.pendingInput && record.updatedAt <= expectedUpdatedAt;
+      try {
+        await runTransaction(SHEET_DRAFT_STORE, 'readwrite', store => {
+          const request = store.get(id);
+          request.onsuccess = () => {
+            if (!safeToDelete(request.result) || !safeToDelete(readFallback('sheet-draft', id))) return;
+            store.delete(id); deleted = true;
+          };
+          return request;
+        });
+        if (deleted && safeToDelete(readFallback('sheet-draft', id))) writeFallback('sheet-draft', id, null);
+        return deleted;
+      } catch { return false; }
+    });
   }
 
   function guestCanvasId() {
@@ -637,6 +752,10 @@
     getGeneration: () => scopeGeneration,
     setScope,
     clearScope,
+    hasUnsafeOutbox(boardId) {
+      const entries = boardId ? [volatileOutboxes.get(scopedBoardId(boardId))] : [...volatileOutboxes.values()];
+      return entries.some(entry => entry && !entry.durable && entry.record.messages.length > 0);
+    },
     loadOutbox,
     saveOutbox,
     flushOutboxFallback,

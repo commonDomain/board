@@ -1,6 +1,7 @@
 import {
   configureCanvasSession
 } from '../canvas-session.js';
+import { reapplyPendingOperations } from '../pending-replay.js';
 import {
   updateRedoButton,
   updateUndoButton,
@@ -135,7 +136,7 @@ import {
 } from '../navigator-controller.js';
 
 function configureDocumentInteractions() {
-  configureCanvasSession({updateRedoButton,
+  configureCanvasSession({reapplyPendingOperations, updateRedoButton,
 updateUndoButton,
 isGuestMode,
 destroyAllAmapFrames,
@@ -206,6 +207,7 @@ setMindmapPlacementLoading});
     scheduleXmindAutoSync
   });
   configureHistoryController({
+    cancelActiveGesture,
     renderLayerMenu,
     applyBackground,
     indexUpsertItem,

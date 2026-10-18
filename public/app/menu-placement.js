@@ -34,7 +34,7 @@ function position(menu, anchor) {
   const preferred = dock ? (dock.width > dock.height ? 'above' : 'right') : 'below';
   const naturalWidth = preferredWidths.get(menu) || menu.offsetWidth || 320;
   const naturalHeight = Math.max(menu.scrollHeight, menu.offsetHeight);
-  const placed = chooseMenuPlacement({ anchor: anchorRect, size: { width: Math.min(naturalWidth, mobile ? 480 : 600), height: naturalHeight }, bounds, preferred, sheet: mobile && width <= 600 });
+  const placed = chooseMenuPlacement({ anchor: anchorRect, size: { width: Math.min(naturalWidth, mobile ? 480 : 600), height: naturalHeight }, bounds, preferred, sheet: mobile && width <= 600 && menu.id !== 'petMenu' });
   for (const [name, value] of Object.entries({ position: 'fixed', left: `${placed.x}px`, top: `${placed.y}px`, right: 'auto', bottom: 'auto', width: `${placed.width}px`, 'max-width': `${bounds.right - bounds.left}px`, 'max-height': `${placed.height}px`, 'min-height': '0px' })) {
     if (menu.style.getPropertyValue(name) !== value || menu.style.getPropertyPriority(name) !== 'important') menu.style.setProperty(name, value, 'important');
   }
@@ -55,7 +55,7 @@ function schedule() {
 export function placeAnchoredMenu(menu, anchor) {
   if (!menu?.matches(supported)) return;
   if(menu.matches('.tool-popover') && !menu.querySelector('.popover-heading,.tool-menu-heading')){
-    const names={brushMenu:'画笔',eraserMenu:'橡皮',selectMenu:'选择',shapeMenu:'图形与贴纸',textMenu:'文本',tableMenu:'表格',layerMenu:'图层',navigationMenu:'地图导航',mindmapMenu:'脑图',backgroundMenu:'画板背景'};
+    const names={brushMenu:'画笔',eraserMenu:'橡皮',selectMenu:'选择',shapeMenu:'图形与贴纸',textMenu:'文本',tableMenu:'表格',layerMenu:'图层',navigationMenu:'地图导航',mindmapMenu:'脑图',backgroundMenu:'画板背景',petMenu:'宠物'};
     const title=names[menu.id];
     if(title){const heading=document.createElement('header');heading.className='tool-menu-heading';heading.textContent=title;menu.prepend(heading);}
   }
@@ -68,7 +68,7 @@ export function placeAnchoredMenu(menu, anchor) {
     document.addEventListener('scroll', schedule, { capture: true, passive: true });
   }
   managed.set(menu, anchor);
-  if (!preferredWidths.has(menu)) preferredWidths.set(menu, Math.max(280, menu.offsetWidth || 320));
+  if (!preferredWidths.has(menu)) preferredWidths.set(menu, menu.id === 'petMenu' ? menu.offsetWidth || 156 : Math.max(280, menu.offsetWidth || 320));
   position(menu, anchor);
   observer.observe(menu);
 }

@@ -4,16 +4,45 @@ import { snapshotDocument } from '../history-controller.js';
 import { makeId } from '../utilities.js';
 import { upsertItem } from '../items.js';
 import { showToast } from '../interface-model.js';
-import { schedulePersistPendingOps } from '../canvas-session.js';
+import { persistPendingOps, schedulePersistPendingOps } from '../canvas-session.js';
 import { requestResync } from '../sync-queue-model.js';
 import { pumpSyncQueue } from '../sync-queue.js';
 
 import { endpoints } from './binding.js';
 import { schedule } from './controls.js';
 import { preview } from './draft.js';
-import { moveEdit } from './editing.js';
+import { endEdit, moveEdit } from './editing.js';
+import { geometry } from './routing.js';
 import { stateRuntime } from './runtime/state.js';
-import { C, aabb, baselines, button, cache, mounted, oldBounds, pathIndex, pending, smartChoices } from './state.js';
+import { C, aabb, baselines, button, cache, mounted, oldBounds, outlines, pathIndex, pending, smartChoices } from './state.js';
+
+const changedContent = new Set();
+let contentFrame = null;
+let contentBoardId = null;
+
+// Content layout is published after mounting/rebuilding finishes. Coalesce
+// owners in one frame so render order and virtualized mounting are irrelevant.
+function contentChanged(id) {
+  if (contentBoardId !== state.boardId) {
+    if (contentFrame !== null) cancelAnimationFrame(contentFrame);
+    contentFrame = null;
+    changedContent.clear();
+    contentBoardId = state.boardId;
+  }
+  if (!state.connectorIndex.has(id)) return;
+  changedContent.add(id);
+  if (contentFrame !== null) return;
+  const boardId = state.boardId;
+  contentFrame = requestAnimationFrame(() => {
+    contentFrame = null;
+    const ids = [...changedContent];
+    changedContent.clear();
+    if (boardId === state.boardId) {
+      for (const ownerId of ids) outlines.delete(ownerId);
+      invalidate(ids);
+    }
+  });
+}
 
 function invalidate(ids) {
   const affected = new Set();
@@ -23,6 +52,7 @@ function invalidate(ids) {
       previous = oldBounds.get(id);
     if (!item) smartChoices.delete(id);
     const connection = item?.type === 'connector' ? item : baselines.get(id);
+    if (item?.type === 'connector') affected.add(item.id);
     if (connection?.type === 'connector')
       for (const endpointId of [connection.source?.binding?.id, connection.target?.binding?.id].filter(Boolean)) {
         for (const peerId of state.connectorIndex.get(endpointId) || [])
@@ -72,7 +102,9 @@ function prepareBroadcast(item) {
       JSON.stringify([item.text, item.richText, item.rows, item.tree])
   ) {
     baseContentVersion = previous.contentVersion || 0;
-    item.contentVersion = baseContentVersion + 1;
+    // Content revisions belong to server commits. Advancing them per keystroke
+    // creates imaginary versions when unsent edits are coalesced or retried.
+    item.contentVersion = baseContentVersion;
     for (const connection of C.reconcile(state.items.values(), previous, item))
       baselines.set(connection.id, C.clone(connection));
     invalidate([item.id]);
@@ -114,6 +146,18 @@ function observe(item) {
   if (item.type !== 'connector' && !oldBounds.has(item.id)) oldBounds.set(item.id, aabb(item));
 }
 
+function beforeRemoteOperation(op) {
+  const edit = stateRuntime.edit;
+  if (!edit || !op) return;
+  if (op.kind === 'batch') {
+    for (const child of op.ops || []) beforeRemoteOperation(child);
+  } else if ((op.kind === 'upsert' && op.item?.id === edit.id) ||
+    (op.kind === 'delete' && op.ids?.includes(edit.id)) ||
+    (op.kind === 'set-flags' && op.targetType === 'item' && op.ids?.includes(edit.id))) {
+    endEdit(true);
+  }
+}
+
 function accepted(item) {
   baselines.set(item.id, C.clone(item));
   invalidate([item.id]);
@@ -134,9 +178,20 @@ function edgeReplay(event) {
 }
 
 function hitTest(item, p) {
+  if(window.MusePlanning?.isTaskLineHidden(item))return false;
+  if(endpoints(item).hidden)return false;
   const points = cache.get(item.id)?.result.points;
   if (!points) return false;
   return points.slice(1).some((b, i) => C.distanceToSegment(p, points[i], b) <= 6 / state.zoom);
+}
+
+function selectionGeometry(item) {
+  if(window.MusePlanning?.isTaskLineHidden(item))return null;
+  const ends = endpoints(item);
+  if (ends.hidden) return null;
+  // Reuse the rendered route, including the worker's obstacle detours.
+  const result = cache.get(item.id)?.result || geometry(item, ends);
+  return { points: result.points, radius: Math.max(0.5, Number(item.style?.width) / 2 || 0.5) };
 }
 
 async function prepareExport() {
@@ -149,7 +204,7 @@ async function prepareExport() {
 function preserveConflict(message) {
   const entry = state.syncQueue.serialize().entries.find((e) => e.opId === message.opId);
   if (!entry) return;
-  const key = `museboard.connection-conflicts.${state.boardId}`;
+  const key = conflictStorageKey();
   let entries = [];
   try {
     entries = JSON.parse(localStorage.getItem(key) || '[]');
@@ -162,7 +217,7 @@ function preserveConflict(message) {
 }
 
 function showConflictDrafts() {
-  const key = `museboard.connection-conflicts.${state.boardId}`;
+  const key = conflictStorageKey();
   let entries = [];
   try {
     entries = JSON.parse(localStorage.getItem(key) || '[]');
@@ -200,8 +255,11 @@ function showConflictDrafts() {
   );
   button(
     '恢复完整可编辑副本',
-    () => {
+    async () => {
       const queued = state.syncQueue.serialize().entries;
+      const queue = state.syncQueue, epoch = state.canvasEpoch;
+      queue.pause();
+      try {
       const recovered = new Map();
       const collect = (op, opId = null) => {
         if (!op || typeof op !== 'object') return;
@@ -239,7 +297,7 @@ function showConflictDrafts() {
         item.sectionId = null;
         item.groupId = null;
         if (item.type === 'mindmap' && item.source?.provider === 'xmind') delete item.source;
-        if (upsertItem(item, { select: true })) {
+        if (upsertItem(item, { select: true, allowConflictRecovery: true })) {
           restoredOriginalIds.add(originalId);
           restored += 1;
         }
@@ -252,34 +310,51 @@ function showConflictDrafts() {
         showToast(`已恢复 ${restored} 个副本；仍有内容未恢复，草稿和待同步操作已保留`);
         return;
       }
-      const touchesRecoveredItem = (op) => {
+      if (!await persistPendingOps()) {
+        showToast('副本尚未可靠保存，原草稿已保留，请保持此页面');
+        return;
+      }
+      if (state.syncQueue !== queue || state.canvasEpoch !== epoch) return;
+      const fullyRecovered = (op) => {
         if (!op || typeof op !== 'object') return false;
-        if (op.kind === 'batch') return (op.ops || []).some(touchesRecoveredItem);
-        if (op.item?.id) return restoredOriginalIds.has(op.item.id);
-        if (op.itemId) return restoredOriginalIds.has(op.itemId);
+        if (op.kind === 'batch') return op.ops?.length > 0 && op.ops.every(fullyRecovered);
+        if (op.kind === 'upsert' && op.item?.id) return restoredOriginalIds.has(op.item.id);
         return false;
       };
-      const discardIds = queued.filter((entry) => touchesRecoveredItem(entry.op)).map((entry) => entry.opId);
+      const discardIds = queued.filter((entry) => fullyRecovered(entry.op)).map((entry) => entry.opId);
       state.syncQueue.discard(discardIds);
       localStorage.removeItem(key);
       panel.remove();
       schedulePersistPendingOps();
       requestResync();
       pumpSyncQueue();
-      showToast(restored ? `已恢复 ${restored} 个完整可编辑副本` : '没有可恢复的完整对象');
+      showToast(queue.requiresResolution ? `已保存 ${restored} 个副本；原混合操作仍保留，需继续核对` : `已恢复 ${restored} 个完整可编辑副本`);
+      } catch (error) {
+        showToast(error.message || '副本恢复失败，原草稿仍保留');
+      } finally {
+        queue.unpause();
+        if (state.syncQueue === queue && state.canvasEpoch === epoch) pumpSyncQueue();
+      }
     },
     panel
   );
   button('关闭', () => panel.remove(), panel);
 }
 
+function conflictStorageKey() {
+  return `museboard.connection-conflicts.${window.WhiteboardStorage?.getScope?.() || 'legacy'}:${state.boardId}`;
+}
+
 export {
+  contentChanged,
   accepted,
   edgeGesture,
   edgeReplay,
   hitTest,
+  selectionGeometry,
   invalidate,
   observe,
+  beforeRemoteOperation,
   prepareBroadcast,
   prepareExport,
   prepareOperation,

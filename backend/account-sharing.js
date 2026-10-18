@@ -1,6 +1,7 @@
 'use strict';
 const crypto = require('node:crypto');
 const { sha256, randomCrockford, grouped, normalizeInviteCode, httpError } = require('./account-helpers');
+const { initializeJoinedChatHistory } = require('./chat-history');
 
 function groupForUser(account, userId) {
   return (
@@ -92,6 +93,7 @@ function joinGroup(account, userId, codeInput) {
     account.database
       .prepare('INSERT INTO share_members (group_id, user_id, joined_at) VALUES (?, ?, ?)')
       .run(group.id, userId, Date.now());
+    initializeJoinedChatHistory(account.database,userId);
     account.database.exec('COMMIT');
   } catch (error) {
     try {

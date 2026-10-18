@@ -124,7 +124,7 @@ async function sendEmailMagicLink(event) {
     });
     byId('emailSentAddress').textContent = state.pendingEmail;
     byId('emailSentTitle').textContent = '请检查你的邮箱';
-    byId('emailSentDescription').innerHTML = `魔法链接已发送至 <span id="emailSentAddress"></span>，请保持此页面打开。`;
+    byId('emailSentDescription').innerHTML = `链接已发送至 <span id="emailSentAddress"></span>，请保持此页面打开。`;
     byId('emailSentAddress').textContent = state.pendingEmail;
     form.hidden = true;
     byId('emailSentState').hidden = false;

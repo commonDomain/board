@@ -1,3 +1,4 @@
+import { isPhoneViewer } from './phone-view-model.js';
 import { isGuestMode } from './account-lifecycle.js';
 import { fetchCanvasCatalog, renderCanvasCatalog, updateCurrentCanvasLabel } from './catalog.js';
 import { canvasListRows, resetCanvasPreviewIntent } from './catalog-preview.js';
@@ -94,6 +95,7 @@ async function persistCanvasOrder(ids) {
 }
 
 function startCanvasDrag(event, row, handle) {
+  if (isPhoneViewer()) return;
   if (event.button !== 0 || state.reorderingCanvases) return;
   event.preventDefault();
   clearCanvasDropPreview({ immediate: true });

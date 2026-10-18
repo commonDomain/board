@@ -2,13 +2,16 @@ import { cssEscape } from '../utilities.js';
 import { state } from '../state.js';
 import { updateSelectionUI, selectItem } from '../selection.js';
 import { canMutateItem } from '../layers-model.js';
+import { canStartItemGesture } from '../pan-model.js';
+import { invalidateMarqueeSelection } from '../runtime/spatial-index.js';
 
 import { endpoints } from './binding.js';
 import { schedule } from './controls.js';
 import { addLabel, beginEdit, editLabel } from './editing.js';
 import { geometry } from './routing.js';
 import { stateRuntime } from './runtime/state.js';
-import { C, cache, labelDisplay, labelScale, labelWidth, mounted, pathIndex, svg, world } from './state.js';
+import { C, cache, labelDisplay, labelScale, labelWidth, mounted, pathIndex, svg } from './state.js';
+import { clientContentGeometry, worldContentRect } from './content-geometry.js';
 
 function marker(defs, id, type, color) {
   if (type === 'none') return;
@@ -61,6 +64,7 @@ function render(item) {
     'data-connector-version': 1
   });
   root.classList.add('connection-svg');
+  window.MusePlanning?.decorateTaskLine(root,item);
   root.style.visibility = ends.hidden ? 'hidden' : '';
   const defs = svg('defs');
   root.append(defs);
@@ -94,6 +98,7 @@ function render(item) {
           width: bounds.w,
           height: bounds.h
         });
+      window.MusePlanning?.decorateTaskLine(inner,item);
       mask.append(svg('rect', { x: bounds.x, y: bounds.y, width: bounds.w, height: bounds.h, fill: 'white' }));
       for (const endpoint of [ends.source, ends.target].filter((e) => e.internal)) {
         const r = endpoint.owner;
@@ -107,14 +112,17 @@ function render(item) {
           })
         );
         const node = mounted(r.id);
+        const geometry = clientContentGeometry(node);
         for (const content of node?.querySelectorAll('.text-list-content,.mind-node-text,td,th') || []) {
           const range = document.createRange();
           range.selectNodeContents(content);
           for (const glyphRect of range.getClientRects()) {
             if (!glyphRect.width) continue;
-            const box = C.bounds([world(glyphRect.left, glyphRect.top), world(glyphRect.right, glyphRect.bottom)]);
+            const box = worldContentRect(r, geometry?.rect(glyphRect));
+            if (!box) continue;
             mask.append(
-              svg('rect', { x: box.x - 2, y: box.y - 2, width: box.w + 4, height: box.h + 4, fill: 'black' })
+              svg('rect', { x: box.x - 2, y: box.y - 2, width: box.w + 4, height: box.h + 4, fill: 'black',
+                transform: `rotate(${box.rotation} ${box.x + box.w / 2} ${box.y + box.h / 2})` })
             );
           }
         }
@@ -140,9 +148,11 @@ function render(item) {
     class: 'connection-hit'
   });
   hit.addEventListener('pointerdown', (e) => {
+    if (!canStartItemGesture(e, ['select', 'pan', 'connector']) || !canMutateItem(item)) return;
     if (!['select', 'pan', 'connector'].includes(state.tool) || state.editingId || state.spacePan) return;
     e.stopPropagation();
     e.preventDefault();
+    invalidateMarqueeSelection();
     if (e.shiftKey) {
       if (state.selectedIds.has(item.id)) state.selectedIds.delete(item.id);
       else state.selectedIds.add(item.id);

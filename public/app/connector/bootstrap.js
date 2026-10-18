@@ -1,7 +1,7 @@
 import { els } from '../elements.js';
 import { state } from '../state.js';
 import { renderItem } from '../rendering.js';
-import { trackPointer, getActiveTouchPointerIds, untrackPointer } from '../pan-model.js';
+import { trackPointer, getActiveTouchPointerIds, getActiveGesturePointerId, hasActivePen, untrackPointer } from '../pan-model.js';
 import { startPinch } from '../gestures.js';
 import { setTool } from '../toolbar.js';
 
@@ -16,11 +16,14 @@ import { stateRuntime } from './runtime/state.js';
 import { cache, mounted, pending, staticAssetUrl, svg } from './state.js';
 import {
   accepted,
+  contentChanged,
   edgeGesture,
   edgeReplay,
   hitTest,
+  selectionGeometry,
   invalidate,
   observe,
+  beforeRemoteOperation,
   prepareBroadcast,
   prepareExport,
   prepareOperation,
@@ -135,7 +138,13 @@ function initialize() {
         e.button !== 0
       )
         return;
-      if (e.pointerType === 'touch' && (stateRuntime.draft || state.tool === 'connector')) {
+      if (state.pinch) return;
+      if (e.pointerType === 'touch' && hasActivePen()) {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        return;
+      }
+      if (e.pointerType === 'touch' && (stateRuntime.edit || stateRuntime.draft || state.tool === 'connector')) {
         trackPointer(e);
         const ids = getActiveTouchPointerIds();
         if (ids.length === 2) {
@@ -148,6 +157,8 @@ function initialize() {
           return;
         }
       }
+      const owner = getActiveGesturePointerId();
+      if (owner !== null && owner !== e.pointerId) return;
       if (stateRuntime.draft && !stateRuntime.draft.dragging) {
         suppressPointerClick = true;
         e.stopImmediatePropagation();
@@ -168,6 +179,7 @@ function initialize() {
       if (stateRuntime.edit?.pointerId === e.pointerId) {
         e.stopImmediatePropagation();
         untrackPointer(e);
+        moveEdit(e);
         endEdit();
         return;
       }
@@ -187,9 +199,9 @@ function initialize() {
   );
   document.addEventListener(
     'pointercancel',
-    () => {
-      endEdit(true);
-      cancel();
+    (e) => {
+      if (stateRuntime.edit?.pointerId === e.pointerId) endEdit(true);
+      if (stateRuntime.draft?.pointerId === e.pointerId) cancel();
     },
     true
   );
@@ -232,6 +244,11 @@ function initialize() {
 }
 
 window.ConnectorUI = {
+  activeGesture: () => {
+    const gesture = stateRuntime.edit || stateRuntime.draft;
+    return Number.isFinite(gesture?.pointerId) ? gesture : null;
+  },
+  cancelInteraction: () => { endEdit(true); cancel(); },
   render,
   refreshLabels,
   endpoints,
@@ -241,7 +258,9 @@ window.ConnectorUI = {
   cancel,
   invalidate,
   schedule,
+  contentChanged,
   observe,
+  beforeRemoteOperation,
   accepted,
   prepareBroadcast,
   prepareOperation,
@@ -250,6 +269,7 @@ window.ConnectorUI = {
   showConflictDrafts,
   prepareExport,
   hitTest,
+  selectionGeometry,
   edgeGesture,
   edgeReplay
 };

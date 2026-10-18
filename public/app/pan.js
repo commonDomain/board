@@ -11,8 +11,10 @@ import { selectItem } from './selection.js';
 import { state } from './state.js';
 
 import { getEdgePanGesture } from './pan-model.js';
+import { invalidateMarqueeSelection } from './runtime/spatial-index.js';
 
 let applyCamera,
+  cancelWheelZoomAnimation,
   getBoardPoint,
   registerMiddleClick,
   scheduleCameraApply,
@@ -26,6 +28,7 @@ let applyCamera,
 function configurePan(callbacks) {
   ({
     applyCamera,
+    cancelWheelZoomAnimation,
     getBoardPoint,
     registerMiddleClick,
     scheduleCameraApply,
@@ -47,6 +50,8 @@ const capturedViewportPointers = new Set();
 const canvasInteraction = window.WhiteboardCanvasInteraction;
 
 function captureViewportPointer(pointerId) {
+  cancelWheelZoomAnimation();
+  if (!state.marquee) invalidateMarqueeSelection();
   try {
     els.viewport.setPointerCapture(pointerId);
     capturedViewportPointers.add(pointerId);

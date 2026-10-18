@@ -1,16 +1,21 @@
-import { STATUSES, VIEWS, childProgress, id, matches, progress, sameHost, today, planIndex } from './model.js';
+import { STATUSES, VIEWS, childProgress, id, matches, progress, sameHost, today, planIndex,taskPatch,createPlan, attentionReasons } from './model.js';
+import { offsetDay, weekReview, branchProgress } from './productivity.js';
+import { decorateTaskLine as decorateLine, refreshTaskLines, focusTaskLines, lineKey, taskLine } from './task-lines.js';
 import { PlanningStore } from './store.js';
 import { parseQuickTask, taskList } from './workflow.js';
+import { createTaskMenu } from './task-menu.js';
+import { createDateWheel } from '../../public/app/date-wheel.js';
 
-let enabled = false, store, panel, shade, panelOpen = false, selectedPlan = null, scope = 'current', filter = 'all', query = '', queryComposing = false, refreshFrame, panelFocus, panelPosition;
+let enabled = false, store, panel, shade, panelOpen = false, selectedPlan = null, scope = 'current', filter = 'today', query = '', queryComposing = false, refreshFrame, panelFocus, panelPosition;
 const panelInert = new Map();
 let cancelPanelMove;
 const adapters = {}, mounts = new Map();
 let brainScope, brainKeys = new Set();
-const taskSelection=new Map();let undoAction,returnLocation,searchTimer;
+let revealedSource=null;
+const taskSelection=new Map();let undoAction,searchTimer,navigationVersion=0;
 const preferences=()=>ensureStore().inputs.get('preferences')||{density:'comfortable',docked:false,views:[],reminders:false};
-async function savePreferences(patch){await ensureStore().saveInput('preferences',{...preferences(),...patch});if(panelOpen)showPanel(true);}
-function planningSettings(){const pref=preferences();dialog('规划显示与提醒',form=>{const density=field(form,'列表密度',pref.density,'select',[['comfortable','舒适'],['compact','紧凑']]),docked=field(form,'固定在左侧','','checkbox'),reminders=field(form,'显示应用内待处理提醒','','checkbox');docked.checked=Boolean(pref.docked);reminders.checked=Boolean(pref.reminders);form.append(node('p','planning-hint','提醒只在打开此应用时显示，可随时关闭；不会发送到外部服务。'));return {density,docked,reminders};},f=>savePreferences({density:f.density.value,docked:f.docked.checked,reminders:f.reminders.checked}));}
+async function savePreferences(patch){await ensureStore().saveInput('preferences',{...preferences(),...patch});refreshTaskLines(preferences());if(panelOpen)showPanel(true);}
+function planningSettings(){const pref=preferences();dialog('规划显示与提醒',form=>{const density=field(form,'列表密度',pref.density,'select',[['comfortable','舒适'],['compact','紧凑']]),docked=field(form,'固定在左侧','','checkbox'),reminders=field(form,'显示应用内待处理提醒','','checkbox');docked.checked=Boolean(pref.docked);reminders.checked=Boolean(pref.reminders);const lines=field(form,'显示全部任务连线','','checkbox');lines.checked=Boolean(pref.allTaskLines);form.append(node('p','planning-hint','提醒只在打开此应用时显示，可随时关闭；不会发送到外部服务。'));return {density,docked,reminders,lines};},f=>savePreferences({density:f.density.value,docked:f.docked.checked,reminders:f.reminders.checked,allTaskLines:f.lines.checked}));}
 function saveView(){dialog('保存常用筛选',form=>({name:field(form,'筛选名称')}),async f=>{const pref=preferences(),views=(pref.views||[]).filter(v=>v.name!==f.name.value);views.push({name:f.name.value,scope,filter,query});await savePreferences({views:views.slice(-20)});});}
 function manageViews(){dialog('管理常用筛选',form=>{for(const view of preferences().views||[]){const row=node('div','planning-actions');row.append(node('span','',view.name),button('删除筛选',async()=>{await savePreferences({views:(preferences().views||[]).filter(v=>v.name!==view.name)});row.remove();},'planning-quiet'));form.append(row);}return {};},async()=>{} ,'完成');}
 const node = (tag, className, content) => { const element = document.createElement(tag); if (className) element.className = className; if (content !== undefined) element.textContent = content; return element; };
@@ -42,7 +47,7 @@ function changed() {
   refreshFrame = requestAnimationFrame(() => {
     refreshFrame = null; if (!enabled) return;
     renderPanel();
-    for (const [element, data] of mounts) { if (!element.isConnected) { mounts.delete(element); continue; } if (data.renderState === componentState(data)) continue; const scroll = element.querySelector('.planning-body')?.scrollTop || 0, quick=[...element.querySelectorAll('.planning-quick-form')],focus=quick.find(form=>form.contains(document.activeElement))&&document.activeElement; renderComponent(element, data); const body = element.querySelector('.planning-body'); if(body){for(const form of quick){const target=(form.dataset.placement==='column'&&[...body.querySelectorAll('.planning-column')].find(column=>column.dataset.status===form.dataset.status))||element.querySelector('.planning-component-footer');if(target)placeQuickForm(target,form);}body.scrollTop = scroll;}focus?.focus({preventScroll:true}); }
+    for (const [element, data] of mounts) { if (!element.isConnected) { data.layoutObserver?.disconnect(); mounts.delete(element); continue; } if (data.renderState === componentState(data)) continue; const scroll = element.querySelector('.planning-body')?.scrollTop || 0, quick=[...element.querySelectorAll('.planning-quick-form')],focus=quick.find(form=>form.contains(document.activeElement))&&document.activeElement; renderComponent(element, data); const body = element.querySelector('.planning-body'); if(body){for(const form of quick){const target=(form.dataset.placement==='column'&&[...body.querySelectorAll('.planning-column')].find(column=>column.dataset.status===form.dataset.status))||element.querySelector('.planning-component-footer');if(target)placeQuickForm(target,form);}body.scrollTop = scroll;}focus?.focus({preventScroll:true}); }
     adapters.canvas?.repaint?.(); adapters.notebook?.repaint?.();
     adapters.canvas?.refreshConnections?.(); adapters.notebook?.refreshConnections?.();
     const references = [...(adapters.canvas?.brainReferences?.() || []), ...(adapters.notebook?.brainReferences?.() || [])];
@@ -53,6 +58,10 @@ function changed() {
 }
 function header(title, close) { const row = node('div', 'planning-heading'), copy = node('div', 'planning-heading-copy'); copy.append(node('strong', '', title)); if (title === '规划与跟踪') copy.append(node('span', 'planning-subtitle', '让想法有进度，让成果可见')); const dismiss = button('关闭', close, 'planning-quiet planning-close'); dismiss.setAttribute('aria-label', '关闭'); row.append(copy, dismiss); return row; }
 function field(form, label, value = '', type = 'text', options = []) {
+  if (type === 'date') {
+    const wrap = node('div', 'planning-field'), control = createDateWheel({ label, value });
+    wrap.append(node('span', '', label), control.root); form.append(wrap); return control.input;
+  }
   const wrap = node('label', 'planning-field'); wrap.append(node('span', '', label));
   const input = node(type === 'textarea' ? 'textarea' : type === 'select' ? 'select' : 'input');
   if (input.tagName === 'INPUT') input.type = type;
@@ -65,6 +74,7 @@ function dialog(title, build, submit, label = '保存', options = {}) {
   if(options.drawer)closeTaskDetails();
   const context = adapter()?.host(), owner = ensureStore().scope, currentStore = store;
   const root = node('dialog', 'planning-dialog planning-toplevel'); root.setAttribute('aria-label', title);
+  if (options.className) root.classList.add(options.className);
   if (options.drawer) root.classList.add('planning-property-panel');
   const form = node('form', 'planning-form'); root.append(header(title, () => root.close()), form);
   const fields = build(form), error = node('p', 'planning-error'); error.setAttribute('role', 'status'); form.append(error);
@@ -119,15 +129,25 @@ async function taskChange(planId,taskId,patch) {
 }
 function showUndo() {
   document.querySelector('.planning-undo')?.remove();const action=undoAction;if(!action)return;
-  const bar=node('div','planning-undo planning-toplevel');bar.setAttribute('role','status');bar.append(node('span','','任务已更新'),button('撤销',async()=>{await operation(action.planId,{type:'task.update',id:action.taskId,baseRevision:action.revision,patch:action.patch});bar.remove();undoAction=null;}));document.body.append(bar);setTimeout(()=>bar.remove(),8000);
+  const bar=node('div','planning-undo planning-toplevel');bar.setAttribute('role','status');bar.append(node('span','',action.label||'任务已更新'),button('撤销',async control=>{control.disabled=true;try{if(action.run)await action.run();else await operation(action.planId,{type:'task.update',id:action.taskId,baseRevision:action.revision,patch:action.patch});bar.remove();if(undoAction===action)undoAction=null;}finally{control.disabled=false;}}));document.body.append(bar);setTimeout(()=>bar.remove(),10000);
 }
-function chooseStatus(ref) { const task=ensureStore().task(ref);if(!task||task.deleted)return;dialog('修改任务状态',form=>({status:field(form,'状态',task.status,'select',Object.entries(STATUSES))}),f=>taskChange(ref.planId,ref.taskId,{status:f.status.value})); }
+function chooseStatus(ref) {
+  const task=ensureStore().task(ref);if(!task||task.deleted)return;
+  dialog('修改任务状态', form => {
+    const status=field(form,'状态',task.status,'select',Object.entries(STATUSES)), waiting=field(form,'等待对象 / 解除条件',task.waitingFor||''), check=field(form,'下次检查日期',task.checkDate||offsetDay(1),'date');
+    const reveal=()=>{waiting.closest('.planning-field').hidden=check.closest('.planning-field').hidden=status.value!=='blocked';};status.addEventListener('change',reveal);reveal();return {status,waiting,check};
+  },f=>taskChange(ref.planId,ref.taskId,{status:f.status.value,...(f.status.value==='blocked'?{waitingFor:f.waiting.value,checkDate:f.check.value||null}:task.status==='blocked'?{waitingFor:'',checkDate:null}:{})}));
+}
 function confirmDeletion(title, description, submit) {
-  return dialog(title, form => { form.append(node('p', 'planning-delete-description', description)); return {}; }, submit, '确认删除');
+  return dialog(title, form => { if (description) form.append(node('p', 'planning-delete-description', description)); return {}; }, submit, '确认删除', description ? {} : { className: 'planning-compact-dialog' });
 }
-function deleteTask(plan, task, after = () => {}) {
+async function deleteTask(plan, task, after = () => {}) {
   if(!canWritePlan(plan))throw new Error('请打开规划所属内容取得编辑权限');
-  return confirmDeletion('删除任务', `将“${task.title}”移入回收站？30 天内可恢复，关联原文保留。永久清理会移除任务正文，仅保留标识以防重复操作。`, async () => { await operation(plan.id, { type: 'task.delete', id: task.id, baseRevision: task.revision }); after(); });
+  // Structural deletes keep confirmation: restoring a task cannot silently restore dependencies.
+  const structural=task.parentTaskId||task.dependsOn?.length||plan.tasks.some(t=>t.parentTaskId===task.id||t.dependsOn?.includes(task.id));
+  const remove=async()=>{await operation(plan.id,{type:'task.delete',id:task.id,baseRevision:task.revision});after();undoAction={label:'已移入回收站 · 30 天内可恢复',run:()=>operation(plan.id,{type:'task.restore',id:task.id})};showUndo();};
+  if(structural)return confirmDeletion('删除有关联的任务','删除会解除父子关系和前置依赖；恢复任务不会恢复这些关系。',remove);
+  return remove();
 }
 function editTask(ref, draft = null) {
   const current = ensureStore().task(ref), plan = store.plans.get(ref.planId);
@@ -137,20 +157,20 @@ function editTask(ref, draft = null) {
   const copyId = id('task');
   let editFields;
   const saveEdits=async f=>{
-    const values={...draft?.operation?.patch,title:f.title.value,status:f.status.value,dueDate:f.due.value||null,scheduledDate:f.scheduled.value||null,checkDate:f.check.value||null,waitingFor:f.waiting.value,focused:f.focused.checked,verified:f.verified.checked,dependsOn:[...f.dependencies.selectedOptions].map(option=>option.value).filter(Boolean),priority:Number(f.priority.value),milestoneId:f.milestone.value||null,blockedReason:f.reason.value,evidence:f.evidence.value,assigneeId:f.assignee.value||null};
+    const values={...draft?.operation?.patch,title:f.title.value,status:f.status.value,dueDate:f.due.value||null,scheduledDate:f.scheduled.value||null,checkDate:f.check.value||null,waitingFor:f.waiting.value,focused:f.focused.checked,verified:f.status.value==='done'&&f.verified.checked,dependsOn:[...f.dependencies.selectedOptions].map(option=>option.value).filter(Boolean),priority:Number(f.priority.value),milestoneId:f.milestone.value||null,blockedReason:f.reason.value,evidence:f.evidence.value,assigneeId:f.assignee.value||null};
     const original=key=>current[key]??(typeof values[key]==='boolean'?false:Array.isArray(values[key])?[]:typeof values[key]==='string'?'':null);
     const patch=Object.fromEntries(Object.entries(values).filter(([key,value])=>JSON.stringify(value)!==JSON.stringify(original(key))));
     if(Object.keys(patch).length)await operation(ref.planId,{type:'task.update',id:task.id,baseRevision:revision,patch},Object.fromEntries(Object.keys(patch).map(key=>[key,current[key]??null])));
     if(draft)await store.discard(draft.opId);
   };
-  dialog('任务详情', form => {
+  return dialog('任务详情', form => {
     if (draft) {
       const patch = draft.operation.patch, extra = [];
       if (patch.archived !== undefined) extra.push(patch.archived ? '归档任务' : '恢复任务');
       if (patch.order !== undefined) extra.push('调整排序');
       if (patch.sources !== undefined || patch.linked !== undefined) extra.push('更新来源关联');
       form.append(node('p', 'planning-draft-intent', `检查原草稿后重新提交${extra.length ? ` · 同时${extra.join('、')}` : ''}`));
-      const labels={title:'任务标题',status:'状态',assigneeId:'负责人',dueDate:'截止日期',scheduledDate:'执行日期',priority:'优先级',evidence:'成果',blockedReason:'阻塞说明',focused:'下一步重点',verified:'验收',waitingFor:'等待对象',checkDate:'检查日期',milestoneId:'里程碑',archived:'归档',parentTaskId:'父任务',dependsOn:'前置依赖'};
+      const labels={title:'任务标题',status:'状态',assigneeId:'负责人',dueDate:'截止日期',scheduledDate:'执行日期',priority:'优先级',evidence:'成果',blockedReason:'阻塞说明',focused:'今日重点',verified:'验收',waitingFor:'等待对象',checkDate:'检查日期',milestoneId:'里程碑',archived:'归档',parentTaskId:'父任务',dependsOn:'前置依赖'};
       const comparison=node('div','planning-conflict-comparison');for(const [key,value] of Object.entries(patch)){if(!labels[key])continue;const original=draft.baseValues?.[key];const format=value=>key==='status'?STATUSES[value]||'空':key==='assigneeId'?store.members.find(m=>m.id===value)?.username||'未分配':typeof value==='boolean'?value?'是':'否':value??'空';comparison.append(node('p','',`${labels[key]}：${original===undefined?'':`原值 ${format(original)} · `}当前 ${format(current[key])} → 本次 ${format(value)}`));}form.append(comparison);
     }
     const title = field(form, '任务标题', task.title); title.required = true;
@@ -160,19 +180,26 @@ function editTask(ref, draft = null) {
     const milestone = field(form, '所属里程碑', task.milestoneId, 'select', [['', '未分组'], ...plan.milestones.map(m => [m.id, m.title])]);
     const reason = field(form, '阻塞说明', task.blockedReason, 'textarea'), evidence = field(form, '成果与链接', task.evidence, 'textarea');
     const scheduled=field(form,'执行日期',task.scheduledDate,'date'),waiting=field(form,'等待对象 / 解除条件',task.waitingFor||''),check=field(form,'下次检查日期',task.checkDate,'date');
-    const focused=field(form,'作为下一步重点','','checkbox');focused.checked=Boolean(task.focused);
+    const focused=field(form,'作为今日重点','','checkbox');focused.checked=Boolean(task.focused)&&task.scheduledDate===today();
+    focused.addEventListener('change',()=>{if(focused.checked)scheduled.value=today();});
     const verified=field(form,'成果已验收','','checkbox');verified.checked=Boolean(task.verified);
     const dependencies=field(form,'阻塞于哪些任务','','select',plan.tasks.filter(t=>t.id!==task.id&&!t.archived).map(t=>[t.id,t.title]));dependencies.multiple=true;dependencies.size=Math.min(4,Math.max(1,plan.tasks.length-1));for(const option of dependencies.options)option.selected=task.dependsOn?.includes(option.value)||false;
-    const extras=node('details','planning-form-details');extras.append(node('summary','','成果、等待与依赖'));extras.open=task.status==='blocked';for(const input of [reason,evidence,waiting,check,verified,dependencies])extras.append(input.closest('label'));form.append(extras);
+    const group=(label,inputs,open=false)=>{const section=node('details','planning-form-details');section.open=open;section.append(node('summary','',label));for(const input of inputs)section.append(input.closest('.planning-field'));form.append(section);return section;};
+    form.append(scheduled.closest('.planning-field'),due.closest('.planning-field'));
+    const waitingSection=group('等待与前置依赖',[reason,waiting,check,dependencies],task.status==='blocked');
+    const deliverySection=group('成果与验收',[evidence,verified],task.status==='done');
+    group('负责人、优先级与分组',[assignee,priority,milestone,focused]);
+    status.addEventListener('change',()=>{waitingSection.open=status.value==='blocked';deliverySection.open=status.value==='done';if(status.value==='blocked'&&!check.value)check.value=offsetDay(1);});
+    if(task.chatSource)form.append(button('打开来源聊天',()=>{form.closest('dialog').close();showPanel(false);window.dispatchEvent(new CustomEvent('muse:open-chat-source',{detail:task.chatSource}));},'planning-quiet'));
     form.append(node('p','planning-hint','执行日期用于安排工作；截止日期是交付承诺。完成任务与成果验收分别记录。'));
     const actions = node('div', 'planning-actions');
     const breakdown = button('脑图拆解', async () => {await saveEdits(editFields);await store.clearInput(`task:${ref.planId}:${ref.taskId}`);actions.closest('dialog').close();decomposeTask(store.plans.get(plan.id),store.task(ref));}); breakdown.disabled = !writable() || task.archived; actions.append(breakdown);
     const children = childProgress(plan, task.id); if (children.total) form.append(node('p', 'planning-hint', `子任务进度：${children.done}/${children.total} 项完成（规划进度按末级任务统计）`));
     if (task.parentTaskId) { const parent = plan.tasks.find(t => t.id === task.parentTaskId); if (parent) actions.append(button(`父任务：${parent.title}`, () => { actions.closest('dialog').close(); editTask({ planId: plan.id, taskId: parent.id }); })); }
-    const locate=button('定位来源',()=>{actions.closest('dialog').persistInput?.();return locateTask(task);});locate.disabled=!task.sources.length;actions.append(locate, button(task.archived ? '恢复任务' : '归档任务', async () => { await operation(plan.id, { type: 'task.update', id: task.id, baseRevision: revision, patch: { archived: !task.archived } }); actions.closest('dialog').close(); }));
+    const locate=button('定位来源',()=>{actions.closest('dialog').persistInput?.();return locateTask(ref);});locate.disabled=!task.sources.length;actions.append(locate, button(task.archived ? '恢复任务' : '归档任务', async () => { await operation(plan.id, { type: 'task.update', id: task.id, baseRevision: revision, patch: { archived: !task.archived } }); actions.closest('dialog').close(); }));
     if(!sameHost(plan.host,adapter()?.host())){actions.append(button('打开规划所属内容',async()=>{const root=actions.closest('dialog');root.persistInput?.();root.close();await openHost(plan.host);editTask(ref);}));if(!canWritePlan(plan))form.append(node('p','planning-warning','请打开规划所属画布后编辑。当前输入会保留。'));}
-    for(const [index,source] of task.sources.entries())actions.append(button(`来源 ${index+1}${source.nodeId?' · 脑图/待办':''}`,()=>locateTask(task,index),'planning-quiet'));
-    actions.append(button('复制为新任务', async () => { const { id: _id, revision: _rev, createdAt: _created, updatedAt: _updated, linkState:_linkState, ...patch } = task; await operation(plan.id, { type: 'task.create', id: copyId, patch: { ...patch, parentTaskId: null, order: plan.tasks.length, archived: false, assigneeId: store.members.some(member => member.id === task.assigneeId) ? task.assigneeId : null, linked: false, sources: [] } }); actions.closest('dialog').close(); }));
+    locate.title=task.sources.length>1?`选择 ${task.sources.length} 个来源之一`:'定位关联内容';
+    actions.append(button('复制为新任务', async () => { const { id: _id, revision: _rev, createdAt: _created, updatedAt: _updated, completedAt:_completed, linkState:_linkState, ...patch } = task; await operation(plan.id, { type: 'task.create', id: copyId, patch: { ...patch, parentTaskId: null, order: plan.tasks.length, archived: false, assigneeId: store.members.some(member => member.id === task.assigneeId) ? task.assigneeId : null, linked: false, sources: [] } }); actions.closest('dialog').close(); }));
     form.append(actions);
     const danger = button('删除任务', () => deleteTask(plan, current, () => danger.closest('dialog')?.close()), 'planning-danger'); danger.disabled = !writable(); form.append(danger);
     if (!task.linked && task.sources.length) form.append(button('重新关联来源', async () => { await adapter().relink(task, ref); await operation(ref.planId, { type: 'task.update', id: task.id, baseRevision: store.task(ref).revision, patch: { linked: true } }); actions.closest('dialog').close(); }));
@@ -200,6 +227,11 @@ function decomposeTask(plan, task) {
       f.steps.disabled = true;
     }
     await completeBreakdown(plan.id, { id: task.id, source, children: selected.map(({ id, title, source }) => ({ id, title, source })) });
+    const hostAdapter=adapter();
+    queueMicrotask(()=>dialog('拆解已创建',form=>{
+      form.append(node('p','planning-hint','子节点仍是普通脑图内容。选择需要执行的节点，再加入规划。'));
+      form.append(button('选择执行节点加入规划',()=>{const rows=hostAdapter.branchesFor?.(source)||[];if(!rows.length)throw new Error('请在脑图节点的任务关联中选择分支');form.closest('dialog').close();joinSources(rows,{choose:true,hierarchy:true});},'planning-primary'));return {};
+    },async()=>{},'暂不转为任务'));
   }, '创建拆解');
 }
 async function completeBreakdown(planId, op) {
@@ -249,12 +281,30 @@ function linkExisting(source) {
   }, '确认关联');
 }
 async function openHost(host) {const service=host.kind==='canvas'?adapters.canvas:adapters.notebook;await service?.openHost?.(host);changed();}
-async function locateTask(task,index=0) {
+function navigationAdapter(kind) {
+  if(kind==='notebook'&&!adapters.notebook)window.MuseNotebook?.initialize({});
+  const service=kind==='canvas'?adapters.canvas:adapters.notebook;
+  if(!service)throw new Error('无法打开来源，请先打开所属画布或笔记后重试');
+  return service;
+}
+async function locateTask(ref,index=null) {
+  const task=ensureStore().task(ref);if(!task||task.deleted)throw new Error('任务不存在或无权访问');
   if (!task.sources.length) throw new Error('来源已删除、未关联或无权访问');
-  if(!returnLocation)returnLocation=adapter()?.captureLocation?.();
-  const source = task.sources[index]; await (source.kind === 'canvas' ? adapters.canvas : adapters.notebook)?.locate(source);
-  document.querySelector('.planning-dialog')?.close();
-  const bar=node('div','planning-return planning-toplevel');bar.append(button('返回刚才的任务',async()=>{await (returnLocation?.host.kind==='canvas'?adapters.canvas:adapters.notebook)?.restoreLocation?.(returnLocation);returnLocation=null;bar.remove();editTask({planId:task.sources.length? [...store.plans.values()].find(p=>p.tasks.some(t=>t.id===task.id))?.id:'',taskId:task.id});}));document.querySelector('.planning-return')?.remove();document.body.append(bar);
+  if(index===null&&task.sources.length>1){dialog('选择任务来源',form=>{for(const [i,source] of task.sources.entries())form.append(button(`${source.kind==='canvas'?'画布':'笔记'} · ${source.nodeId?'脑图节点 / 待办':'正文'} ${i+1}`,async()=>{form.closest('dialog').close();await locateTask(ref,i);},'planning-quiet'));return {};},async()=>{},'完成');return;}
+  index??=0;
+  const source=task.sources[index];if(!source)throw new Error('来源已改变，请重新选择');
+  const service=navigationAdapter(source.kind);if(!service.locate)throw new Error('当前来源暂不支持定位');
+  const currentStore=ensureStore(),version=++navigationVersion,location=adapter()?.captureLocation?.(),wasOpen=panelOpen;
+  const current=()=>currentStore===store&&currentStore.active()&&version===navigationVersion;
+  closeTaskDetails();showPanel(false);document.querySelector('.planning-return')?.remove();
+  try{await service.locate(source);}catch(error){if(!current())return;if(wasOpen)showPanel(true);throw error;}
+  if(!current())return;
+  const bar=node('div','planning-return planning-toplevel');bar.append(button('返回刚才的任务',async()=>{
+    if(!current()){bar.remove();return;}
+    if(location)await navigationAdapter(location.host.kind).restoreLocation(location);
+    if(!current())return;
+    bar.remove();if(wasOpen)showPanel(true);editTask(ref);
+  }));document.querySelector('.planning-return')?.remove();document.body.append(bar);
 }
 function placeQuickForm(parent, form) {
   const addControl = [...parent.children].find(child => child.matches('.planning-column-add, .planning-add, .planning-plan-footer'));
@@ -283,7 +333,7 @@ function addTask(planId, anchor, status = 'todo') {
     event.preventDefault(); if (save.disabled || composing) return;
     if (currentStore !== store || !currentStore.active() || !sameHost(context, adapter()?.host())) { error.textContent = '内容已切换，请重新添加'; return; }
     save.disabled = true; error.textContent = '';
-    try {const parsed=parseQuickTask(input.value,store.members);await operation(planId, { type: 'task.create', id: taskId, patch: { title:parseToggle.checked?parsed.title:input.value,...(parseToggle.checked?parsed.patch:{}), status: filter === 'blocked' && panelPlan ? 'blocked' : status, ...(scope === 'mine' || filter === 'mine' ? { assigneeId: store.scope } : {}) } });await currentStore.clearInput(inputKey);if(continuous){taskId=id('task');input.value='';preview.textContent='';input.focus();}else form.remove(); changed(); }
+    try {const parsed=parseQuickTask(input.value,store.members);await operation(planId, { type: 'task.create', id: taskId, patch: { ...(panelPlan&&filter==='today'?{scheduledDate:today()}:{}),title:parseToggle.checked?parsed.title:input.value,...(parseToggle.checked?parsed.patch:{}), status: filter === 'blocked' && panelPlan ? 'blocked' : status, ...(scope === 'mine' || filter === 'mine' ? { assigneeId: store.scope } : {}) } });await currentStore.clearInput(inputKey);if(continuous){taskId=id('task');input.value='';preview.textContent='';input.focus();}else form.remove(); changed(); }
     catch (failure) { error.textContent = failure.message; }
     finally { save.disabled = false;continuous=false; }
   });
@@ -301,14 +351,73 @@ function selectTask(planId,taskId) {let selected=taskSelection.get(planId);if(!s
 async function moveTask(planId,taskId,direction){const plan=store.plans.get(planId),list=plan.tasks.filter(t=>!t.archived).sort((a,b)=>a.order-b.order),index=list.findIndex(t=>t.id===taskId),task=list[index],neighbor=list[index+direction];if(!neighbor)return;await operation(planId,{type:'task.batch',operations:[{type:'task.update',id:task.id,baseRevision:task.revision,patch:{order:neighbor.order}},{type:'task.update',id:neighbor.id,baseRevision:neighbor.revision,patch:{order:task.order}}]});}
 function showBatchActions(planId) {
   document.querySelector('.planning-bulk-actions')?.remove();const selected=taskSelection.get(planId);if(!selected?.size)return;
-  const bar=node('div','planning-bulk-actions planning-toplevel');bar.append(node('strong','',`已选择 ${selected.size} 项`),button('统一修改',()=>dialog('批量修改任务',form=>({status:field(form,'状态','','select',[['','保持不变'],...Object.entries(STATUSES)]),date:field(form,'执行日期','','date'),due:field(form,'截止日期','','date'),owner:field(form,'负责人','keep','select',[['keep','保持不变'],['','未分配'],...store.members.map(m=>[m.id,m.username||m.id])]),archive:field(form,'归档所选任务','','checkbox')}),async f=>{const plan=store.plans.get(planId),patch={};if(f.status.value)patch.status=f.status.value;if(f.date.value)patch.scheduledDate=f.date.value;if(f.due.value)patch.dueDate=f.due.value;if(f.owner.value!=='keep')patch.assigneeId=f.owner.value||null;if(f.archive.checked)patch.archived=true;if(!Object.keys(patch).length)throw new Error('请选择需要修改的属性');await operation(planId,{type:'task.batch',operations:[...selected].map(id=>({type:'task.update',id,baseRevision:planIndex(plan).byId.get(id).revision,patch}))});selected.clear();bar.remove();})),button('取消选择',()=>{selected.clear();bar.remove();changed();},'planning-quiet'));document.body.append(bar);
+  const bar=node('div','planning-bulk-actions planning-toplevel');bar.append(node('strong','',`已选择 ${selected.size} 项`),button('统一修改',()=>dialog('批量修改任务',form=>({status:field(form,'状态','','select',[['','保持不变'],...Object.entries(STATUSES)]),date:field(form,'执行日期','','date'),due:field(form,'截止日期','','date'),owner:field(form,'负责人','keep','select',[['keep','保持不变'],['','未分配'],...store.members.map(m=>[m.id,m.username||m.id])]),archive:field(form,'归档所选任务','','checkbox')}),async f=>{const plan=store.plans.get(planId),patch={};if(f.status.value)patch.status=f.status.value;if(f.date.value)patch.scheduledDate=f.date.value;if(f.due.value)patch.dueDate=f.due.value;if(f.owner.value!=='keep')patch.assigneeId=f.owner.value||null;if(f.archive.checked)patch.archived=true;if(!Object.keys(patch).length)throw new Error('请选择需要修改的属性');await operation(planId,{type:'task.batch',operations:[...selected].map(id=>({type:'task.update',id,baseRevision:planIndex(plan).byId.get(id).revision,patch}))});selected.clear();bar.remove();})),button('取消选择',()=>{selected.clear();bar.remove();changed();},'planning-quiet'));bar.append(...scheduleActions(planId,[...selected]),button('删除所选',()=>confirmDeletion('批量删除任务',`将所选 ${selected.size} 项任务移入回收站？父子关系和依赖会解除。`,async()=>{const plan=store.plans.get(planId);await operation(planId,{type:'task.batch',operations:[...selected].map(id=>({type:'task.delete',id,baseRevision:planIndex(plan).byId.get(id).revision}))});selected.clear();bar.remove();}),'planning-danger'));document.body.append(bar);
 }
 function summary(plan) {
   const value = plan.partial?plan.progress:progress(plan), root = node('div', 'planning-summary');
   const data = node('div', 'planning-summary-data'); data.append(node('span', '', value.total ? `${value.done}/${value.total} 项完成` : '尚无任务'), node('strong', '', value.percent === null ? '—' : `${value.percent}%`));
-  const track = node('div', 'planning-progress'); track.setAttribute('role', 'progressbar'); track.setAttribute('aria-label', '任务完成率'); track.setAttribute('aria-valuemin', '0'); track.setAttribute('aria-valuemax', '100'); track.setAttribute('aria-valuenow', String(value.percent ?? 0)); const fill = node('span'); fill.style.width = `${value.percent ?? 0}%`; track.append(fill); root.append(data, track);
+  const track = node('div', 'planning-progress'); track.setAttribute('role', 'progressbar'); track.setAttribute('aria-label', '任务完成率'); track.setAttribute('aria-valuemin', '0'); track.setAttribute('aria-valuemax', '100'); track.setAttribute('aria-valuenow', String(value.percent ?? 0)); const fill = node('span'); fill.style.width = `${value.percent ?? 0}%`; track.append(fill);track.title='按未归档的末级任务统计；新增、删除或拆解任务会改变分母。'; root.append(data, track);
+  if(!plan.partial){const active=plan.tasks.filter(t=>!t.archived),blocked=active.filter(t=>t.status==='blocked').length,unverified=active.filter(t=>t.status==='done'&&!t.verified).length;root.append(node('small','planning-progress-context',`阻塞 ${blocked} · 待验收 ${unverified} · 活动任务 ${active.length}`));const hint=node('small','planning-hint','完成率按未归档的末级任务统计；新增、删除或拆解任务会改变分母。');root.append(hint);}
   if (plan.target) root.append(node('span', 'planning-outcome', `成果 ${plan.current ?? 0}/${plan.target}${plan.unit ? ` ${plan.unit}` : ''}`));
   return root;
+}
+function scheduleActions(planId, taskIds) {
+  return [['安排今天',today()],['推迟到明天',offsetDay(1)],['移除执行日期',null]].map(([label,date])=>button(label,()=>batchChange(planId,taskIds,{scheduledDate:date,...(date!==today()?{focused:false}:{})}),'planning-quiet'));
+}
+async function batchChange(planId, taskIds, patch) {
+  const plan=store.plans.get(planId), tasks=taskIds.map(taskId=>plan.tasks.find(task=>task.id===taskId));
+  if(tasks.some(task=>!task)||!tasks.length)throw new Error('任务已改变，请重新选择');
+  const previous=tasks.map(task=>({id:task.id,patch:Object.fromEntries(Object.keys(patch).map(key=>[key,task[key]??(typeof patch[key]==='boolean'?false:null)]))}));
+  const result=await operation(planId,{type:'task.batch',operations:tasks.map(task=>({type:'task.update',id:task.id,baseRevision:task.revision,patch}))});
+  taskSelection.delete(planId);document.querySelector('.planning-bulk-actions')?.remove();
+  const operations=previous.map(task=>({type:'task.update',...task,baseRevision:result.tasks.find(t=>t.id===task.id).revision}));
+  undoAction={label:`已安排 ${tasks.length} 项任务`,run:()=>operation(planId,{type:'task.batch',operations})};showUndo();changed();
+}
+function checkWaiting(plan, task) {
+  dialog('检查等待结果',form=>{
+    form.append(node('p','planning-hint',task.waitingFor||task.blockedReason||task.title));
+    return {result:field(form,'检查结果','waiting','select',[['waiting','仍需等待'],['ready','条件已满足，开始执行']]),waiting:field(form,'等待对象 / 解除条件',task.waitingFor||''),date:field(form,'下次检查日期',offsetDay(1),'date')};
+  },f=>taskChange(plan.id,task.id,f.result.value==='ready'?{status:'doing',waitingFor:'',checkDate:null,blockedReason:''}:{waitingFor:f.waiting.value,checkDate:f.date.value||null}));
+}
+function appendTaskActions(root, plan, task) {
+  if(task.status==='done'||task.archived)return;
+  const actions=node('div','planning-task-next-actions'),reasons=attentionReasons(task,planIndex(plan).byId);
+  if(reasons.length)actions.append(node('small','planning-attention-reason',reasons.join(' · ')));
+  if(filter==='unscheduled')actions.append(...scheduleActions(plan.id,[task.id]).slice(0,2),button('安排本周',()=>{
+    const weekday=(new Date(`${today()}T00:00:00Z`).getUTCDay()+6)%7,days=Array.from({length:7-weekday},(_,i)=>offsetDay(i));
+    dialog('安排本周',form=>({date:field(form,'执行日期',today(),'select',days.map(day=>[day,day]))}),f=>batchChange(plan.id,[task.id],{scheduledDate:f.date.value}));
+  },'planning-quiet'));
+  else {
+    if(task.status==='blocked'||task.waitingFor||task.checkDate)actions.append(button('检查等待结果',()=>checkWaiting(plan,task),'planning-quiet'));
+    else if(task.status==='todo'&&matches(task,'next',store.scope,Date.now(),planIndex(plan).byId))actions.append(button('开始执行',()=>taskChange(plan.id,task.id,{status:'doing'}),'planning-quiet'));
+    if(reasons.includes('已逾期'))actions.append(button('重新安排',()=>editTask({planId:plan.id,taskId:task.id}),'planning-quiet'));
+  }
+  if(actions.childNodes.length)root.append(actions);
+}
+function planOverview(plan) {
+  dialog('规划概览与复盘',form=>{
+    const render=()=>{
+      plan=store.plans.get(plan.id);if(!plan||plan.deleted){form.replaceChildren(node('p','','规划已不可用'));return;}
+      overview.replaceChildren(node('h3','',plan.name),summary(plan));
+      if(plan.goal)overview.append(node('p','',plan.goal));
+      overview.append(button('本周回顾',()=>editReview(plan),'planning-primary'),button('添加复盘记录',()=>editReview(plan,null,false),'planning-quiet'));
+      for(const review of [...plan.reviews].reverse()){
+        const entry=node('section','planning-review');entry.append(node('strong','',today(review.createdAt)),node('p','',review.results||'未填写成果'),node('p','',`原因：${review.reasons||'未填写'}`),node('p','',`调整：${review.next||'未填写'}`));
+        if(canWritePlan(plan))entry.append(button('编辑复盘',()=>editReview(plan,review),'planning-quiet'),button('将调整转为任务',()=>batchAdd(plan.id,review.next||'','todo',{reviewId:review.id}),'planning-quiet'),button('删除复盘',()=>confirmDeletion('删除复盘记录','任务保留，解除复盘来源。',async()=>{await operation(plan.id,{type:'review.delete',id:review.id,baseRevision:store.plans.get(plan.id).revision});render();}),'planning-danger'));
+        overview.append(entry);
+      }
+      if(!canWritePlan(plan))for(const control of overview.querySelectorAll('button'))control.disabled=true;
+    };
+    const overview=node('div','planning-overview');form.append(overview);render();
+    const refresh=()=>{if(overview.isConnected)render();};window.addEventListener('muse:planning-review-saved',refresh);queueMicrotask(()=>form.closest('dialog')?.addEventListener('close',()=>window.removeEventListener('muse:planning-review-saved',refresh),{once:true}));return {};
+  },async()=>{},'完成');
+}
+function editReview(plan,review=null,weekly=true) {
+  const generated=weekReview(plan), reviewId=review?.id||id('review'),revision=plan.revision;
+  dialog(review?'编辑复盘':weekly?'本周回顾':'添加复盘',form=>{
+    if(weekly&&!review)form.append(node('p','planning-hint',`汇总当前可访问任务；本周从周一开始。${generated.unknownCompletions?`${generated.unknownCompletions} 项历史完成任务没有完成时间，未计入本周完成。`:''}成果变化与上次有记录的复盘对比。`));
+    return {results:field(form,'完成成果',review?.results??(weekly?generated.results:''),'textarea'),reasons:field(form,'未完成原因',review?.reasons||'','textarea'),next:field(form,'下一步调整',review?.next||'','textarea')};
+  },async f=>{await operation(plan.id,{type:review?'review.update':'review.create',id:reviewId,...(review?{baseRevision:revision}:{}),patch:{results:f.results.value,reasons:f.reasons.value,next:f.next.value}});window.dispatchEvent(new Event('muse:planning-review-saved'));},'保存复盘');
 }
 function taskRow(plan, task, compact = false) {
   const root = node('div', `planning-task${task.archived ? ' is-archived' : ''}`); root.dataset.taskId = task.id; root.dataset.status = task.status;
@@ -322,22 +431,23 @@ function taskRow(plan, task, compact = false) {
   const stateLabel = button(STATUSES[task.status],()=>chooseStatus(ref),`planning-status planning-status-${task.status} planning-meta-button`); metadata.append(stateLabel);
   if (task.parentTaskId) { const parent = plan.tasks.find(t => t.id === task.parentTaskId); if (parent) metadata.append(node('span', 'planning-parent-task', `子任务 · ${parent.title}`)); }
   const children = childProgress(plan, task.id); if (children.total) metadata.append(node('span', 'planning-child-progress', `拆解 ${children.done}/${children.total}`));
-  const scheduled=button(task.scheduledDate?`安排 ${formatDate(task.scheduledDate)}`:'安排日期',()=>editProperty(ref,'scheduledDate'),'planning-meta-button');metadata.append(scheduled);
-  const due = button(task.dueDate?`截止 ${formatDate(task.dueDate)}`:'截止日期',()=>editProperty(ref,'dueDate'),'planning-due planning-meta-button');due.prepend(icon('calendar'));due.title=task.dueDate||'设置交付截止日期';metadata.append(due);
+  const scheduled=button(task.scheduledDate?`安排 ${formatDate(task.scheduledDate)}`:'安排日期',()=>editProperty(ref,'scheduledDate'),'planning-meta-button');metadata.append(scheduled);if(!task.scheduledDate)scheduled.classList.add('planning-secondary-control');
+  const due = button(task.dueDate?`截止 ${formatDate(task.dueDate)}`:'截止日期',()=>editProperty(ref,'dueDate'),'planning-due planning-meta-button');due.prepend(icon('calendar'));due.title=task.dueDate||'设置交付截止日期';metadata.append(due);if(!task.dueDate)due.classList.add('planning-secondary-control');
   if (task.priority === 1) metadata.append(node('span', 'planning-priority', '高优先级'));
-  {const name=task.assigneeId?owner?.username||'原负责人':'分配负责人',assignee=button(name,()=>editProperty(ref,'assigneeId'),'planning-assignee planning-meta-button');if(task.assigneeId){const avatar=node('span','planning-avatar',Array.from(name)[0]);assignee.prepend(avatar);}metadata.append(assignee);}
-  metadata.append(button(task.focused?'★ 下一步':'设为重点',()=>taskChange(plan.id,task.id,{focused:!task.focused,...(!task.assigneeId?{assigneeId:store.scope}:{})}),'planning-meta-button'));
+  {const name=task.assigneeId?owner?.username||'原负责人':'分配负责人',assignee=button(name,()=>editProperty(ref,'assigneeId'),'planning-assignee planning-meta-button planning-secondary-control');if(task.assigneeId){const avatar=node('span','planning-avatar',Array.from(name)[0]);assignee.prepend(avatar);}metadata.append(assignee);}
+  if(task.focused&&task.scheduledDate===today())metadata.append(node('span','planning-priority','★ 今日重点'));
   if(task.verified)metadata.append(node('span','planning-verified','已验收'));
   if(task.dependsOn?.some(id=>planIndex(plan).byId.get(id)?.status!=='done'))metadata.append(node('span','planning-dependency','等待前置任务'));
   if(task.linkState==='unavailable')metadata.append(node('span','planning-warning','来源暂时无法读取'));
   if (!task.linked && task.sources.length) metadata.append(node('span', '', '来源待关联'));
   if (matches(task, 'overdue', store.scope)) { root.classList.add('is-overdue'); metadata.append(node('span', 'planning-overdue-label', '已逾期')); }
   const content = node('div', 'planning-task-copy'); content.append(text, metadata); root.append(checkbox, content);
-  const menu=node('details','planning-row-menu'),toggle=node('summary','','更多');toggle.setAttribute('aria-label',`更多任务操作：${task.title}`);menu.append(toggle,button('选择任务',()=>selectTask(plan.id,task.id),'planning-quiet'),button('优先级',()=>editProperty(ref,'priority'),'planning-quiet'),button('移到某状态',()=>chooseStatus(ref),'planning-quiet'),button('上移',()=>moveTask(plan.id,task.id,-1),'planning-quiet'),button('下移',()=>moveTask(plan.id,task.id,1),'planning-quiet'));
-  const remove = button('删除任务', () => deleteTask(plan, task), 'planning-row-action planning-danger'); remove.setAttribute('aria-label', `删除任务：${task.title}`); remove.title = '删除任务'; remove.disabled = !canWritePlan(plan); menu.append(remove);root.append(menu);root.classList.toggle('is-selected',taskSelection.get(plan.id)?.has(task.id)||false);
+  const remove = button('删除任务', () => deleteTask(plan, task), 'planning-quiet planning-danger'); remove.setAttribute('aria-label', `删除任务：${task.title}`); remove.title = '删除任务'; remove.disabled = !canWritePlan(plan);
+  const menu = createTaskMenu(task.title, [button('选择任务',()=>selectTask(plan.id,task.id),'planning-quiet'),button(task.focused&&task.scheduledDate===today()?'取消今日重点':'设为今日重点',()=>taskChange(plan.id,task.id,{focused:!(task.focused&&task.scheduledDate===today()),...(!(task.focused&&task.scheduledDate===today())?{scheduledDate:today()}:{})})),...scheduleActions(plan.id,[task.id]),button('定位来源',()=>locateTask(ref),'planning-read-action'),button('负责人',()=>editProperty(ref,'assigneeId'),'planning-quiet'),button('截止日期',()=>editProperty(ref,'dueDate'),'planning-quiet'),button('优先级',()=>editProperty(ref,'priority'),'planning-quiet'),button('移到某状态',()=>chooseStatus(ref),'planning-quiet'),button('上移',()=>moveTask(plan.id,task.id,-1),'planning-quiet'),button('下移',()=>moveTask(plan.id,task.id,1),'planning-quiet'),remove],root);
+  root.append(menu);if(['attention','unscheduled','today'].includes(filter)&&compact)appendTaskActions(root,plan,task);root.classList.toggle('is-selected',taskSelection.get(plan.id)?.has(task.id)||false);
   root.addEventListener('click', event => { if (event.button===0&&!event.target.closest('button,input,select,textarea,details,a')) { event.stopPropagation(); editTask(ref); } });
   if (!compact && task.blockedReason) root.append(node('small', 'planning-blocked-reason', task.blockedReason));
-  for(const control of root.querySelectorAll('button'))if(!control.classList.contains('planning-task-title')){control.disabled=!canWritePlan(plan);if(control.disabled)control.title='请打开所属内容取得编辑权限';}
+  for(const control of root.querySelectorAll('button'))if(control.classList.contains('planning-read-action'))control.disabled=!task.sources.length;else if(!control.classList.contains('planning-task-title')&&!control.classList.contains('planning-row-menu-toggle')){control.disabled=!canWritePlan(plan);if(control.disabled)control.title='请打开所属内容取得编辑权限';}
   return root;
 }
 function planDetails(plan, draft = null) {
@@ -346,13 +456,13 @@ function planDetails(plan, draft = null) {
   plan = { ...plan, ...draft?.operation?.patch };
   let updateTracking = () => {};
   const ownOperation = async op => { const result = await operation(plan.id, op); revision = result.revision; plan = result; updateTracking(); return result; };
-  dialog('规划设置与复盘', form => {
+  dialog('规划设置', form => {
     if (draft) form.append(node('p', 'planning-draft-intent', `检查原草稿后重新提交${draft.operation.patch.host ? ' · 同时迁移规划宿主' : ''}${draft.operation.patch.archived !== undefined ? draft.operation.patch.archived ? ' · 同时归档规划' : ' · 同时恢复规划' : ''}`));
     const name = field(form, '规划名称', plan.name); name.required = true;
     const goal = field(form, '目标', plan.goal, 'textarea'), criteria = field(form, '完成标准', plan.criteria, 'textarea');
     const current = field(form, '当前成果值', plan.current, 'number'), target = field(form, '目标值', plan.target, 'number'), unit = field(form, '单位', plan.unit);
     const wip=field(form,'进行中提醒数量（0 为关闭）',plan.wipLimit||0,'number');wip.step='1';wip.max='30';
-    const milestones = node('section', 'planning-milestones'), reviews = node('section', 'planning-reviews');
+    const milestones = node('section', 'planning-milestones');
     updateTracking = () => {
     milestones.replaceChildren(node('strong', 'planning-section-label', '里程碑'));
     for (const milestone of plan.milestones) {
@@ -365,30 +475,61 @@ function planDetails(plan, draft = null) {
     }
     if (!plan.milestones.length) milestones.append(node('p', 'planning-hint', '把重要的交付节点记录在这里。'));
     milestones.append(button('添加里程碑', () => { const milestoneId = id('milestone'); return dialog('添加里程碑', inner => ({ title: field(inner, '里程碑名称'), criteria: field(inner, '完成标准', '', 'textarea') }), f => ownOperation({ type: 'milestone.create', id: milestoneId, patch: { title: f.title.value, criteria: f.criteria.value } })); }, 'planning-quiet'));
-    reviews.replaceChildren(node('strong', 'planning-section-label', '复盘记录'), button('添加复盘记录', () => { const reviewId = id('review'); return dialog('复盘记录', inner => ({ results: field(inner, '完成成果', '', 'textarea'), reasons: field(inner, '未完成原因', '', 'textarea'), next: field(inner, '下一步调整', '', 'textarea') }), f => ownOperation({ type: 'review.create', id: reviewId, patch: { results: f.results.value, reasons: f.reasons.value, next: f.next.value } })); }, 'planning-quiet'));
-    for (const review of [...plan.reviews].reverse()) { const block = node('div', 'planning-review'); block.append(node('strong', '', today(review.createdAt)), node('p', '', `成果：${review.results || '未填写'}`), node('p', '', `原因：${review.reasons || '未填写'}`), node('p', '', `调整：${review.next || '未填写'}`),button('编辑复盘',()=>dialog('编辑复盘',inner=>({results:field(inner,'完成成果',review.results,'textarea'),reasons:field(inner,'未完成原因',review.reasons,'textarea'),next:field(inner,'下一步调整',review.next,'textarea')}),f=>ownOperation({type:'review.update',id:review.id,baseRevision:revision,patch:{results:f.results.value,reasons:f.reasons.value,next:f.next.value}})),'planning-quiet'),button('将调整转为任务',()=>batchAdd(plan.id,review.next||'','todo',{evidence:`来自复盘 ${today(review.createdAt)}：${review.results}`,reviewId:review.id}),'planning-quiet'), button('删除复盘记录', () => confirmDeletion('删除复盘记录', '删除这条复盘记录？规划、任务和其他复盘记录保留。', () => ownOperation({ type: 'review.delete', id: review.id, baseRevision: revision })), 'planning-danger')); reviews.append(block); }
     };
-    updateTracking(); form.append(milestones, reviews);
+    updateTracking(); form.append(milestones);
     if(plan.ownerId===store.scope){const management=node('div','planning-actions');management.append(button('归档规划',async()=>{await ownOperation({type:'plan.update',baseRevision:revision,patch:{archived:true}});management.closest('dialog').close();},'planning-quiet'),button('删除规划',()=>confirmDeletion('删除规划','移入回收站，30 天内可恢复；所有引用暂时不可使用。',async()=>{await ownOperation({type:'plan.delete',baseRevision:revision});management.closest('dialog')?.close();}),'planning-danger'));form.append(management);}
     return { name, goal, criteria, current, target, unit,wip };
   }, async f => { await operation(plan.id, { type: 'plan.update', baseRevision: revision, patch: { ...draft?.operation?.patch, name: f.name.value, goal: f.goal.value, criteria: f.criteria.value, current: f.current.value === '' ? null : Number(f.current.value), target: f.target.value === '' ? null : Number(f.target.value), unit: f.unit.value,wipLimit:Number(f.wip.value) } }); if (draft) await store.discard(draft.opId); },'保存',{inputKey:`plan:${plan.id}`});
 }
 function createPlanning(view = 'list', point = null, insert = false) {
   if (!enabled) return;
-  checkWrite(); const currentHost = adapter().host(), newPlanId = id('plan'), milestoneIds = [id('milestone'), id('milestone')], taskIds = [id('task'), id('task'), id('task')];
-  dialog(insert ? '插入规划' : '新建规划', form => ({ name: field(form, '规划名称', '新规划'), template: field(form, '起始模板', '', 'select', [['', '空白规划'], ['weekly', '个人周计划'], ['team', '小团队项目'], ['creative', '创意交付']]) }), async f => {
-    await ready(); let plan = store.plans.get(newPlanId) || await store.create(currentHost, f.name.value, clientId(), newPlanId); selectedPlan = plan.id;
-    const templates = { weekly: { goal: '明确本周最重要的成果', criteria: '周末检查成果并记录下一周重点', milestones: ['本周重点', '周末复盘'], tasks: ['确定本周三项重点', '推进最重要的成果', '记录本周复盘与下周调整'] }, team: { goal: '明确项目交付目标', criteria: '按约定的交付标准验收', milestones: ['方案确认', '交付验收'], tasks: ['确认范围与完成标准', '分配交付任务', '验收成果并记录复盘'] }, creative: { goal: '把创意变成可交付作品', criteria: '完成作品并确认交付成果', milestones: ['方案选择', '作品交付'], tasks: ['收集素材并选择方案', '制作可交付作品', '确认交付并记录反馈'] } };
-    if (templates[f.template.value]) {
-      const template = templates[f.template.value]; if (plan.goal !== template.goal || plan.criteria !== template.criteria) plan = await operation(plan.id, { type: 'plan.update', baseRevision: plan.revision, patch: { goal: template.goal, criteria: template.criteria } });
-      for (const [index, title] of template.milestones.entries()) if (!plan.milestones.some(m => m.id === milestoneIds[index])) plan = await operation(plan.id, { type: 'milestone.create', id: milestoneIds[index], patch: { title, criteria: '' } });
-      for (const [index, title] of template.tasks.entries()) if (!plan.tasks.some(task => task.id === taskIds[index])) plan = await operation(plan.id, { type: 'task.create', id: taskIds[index], patch: { title } });
-    }
-    if (insert || f.template.value) await adapter().insert(plan.id, view, point);
+  checkWrite(); const currentHost = adapter().host(), newPlanId = id('plan');
+  const root = dialog(insert ? '插入规划' : '新建规划', form => {
+    const name = field(form, '规划名称', '新规划'); name.required = true;
+    return { name };
+  }, async f => {
+    await ready(); const plan = store.plans.get(newPlanId) || await store.create(currentHost, f.name.value, clientId(), newPlanId); selectedPlan = plan.id;
+    if (insert) await adapter().insert(plan.id, view, point);
     if (!insert) showPanel(true);
-  }, insert ? '插入规划' : '创建规划');
+  }, insert ? '插入规划' : '创建规划', { className: 'planning-compact-dialog' });
+  root.querySelector('input').select();
 }
 function insertPlanning(point = null) { return createPlanning('list', point, true); }
+async function createTaskFromChat(material,read){
+  if(!enabled)throw new Error('规划功能未启用');await ready();read.assertCurrent?.();
+  const currentHost=adapter().host();if(currentHost.kind!=='canvas'||currentHost.boardId!==material.source.boardId)throw new Error('请在来源画布创建任务');
+  const currentStore=ensureStore(),assertContext=()=>{read.assertCurrent?.();if(currentStore!==store||!currentStore.active()||!sameHost(currentHost,adapter()?.host()))throw new DOMException('聊天任务上下文已改变','AbortError');};
+  await currentStore.refresh();assertContext();const options=[...currentStore.plans.values()].filter(p=>!p.archived&&!p.deleted&&sameHost(p.host,currentHost)).map(p=>[p.id,p.name]);
+  const newPlanId=id('plan'),taskId=id('task');let committedPlan=null,committedPatch=null;
+  const root=dialog('从聊天创建任务',form=>{
+    const select=field(form,'目标规划',options[0]?.[0]||'','select',[['','在当前画布新建规划'],...options]),name=field(form,'新规划名称','聊天待办'),title=field(form,'任务标题',material.title),evidence=field(form,'消息内容',material.text||material.title,'textarea');name.maxLength=100;title.maxLength=200;evidence.maxLength=4000;
+    const hint=node('p','planning-hint','任务与当前画布成员共享，保留原消息入口。图片和视频通过来源消息查看。');form.append(hint);return {select,name,title,evidence};
+  },async (f,currentDialog)=>{
+    const destination=committedPlan||f.select.value,creating=!destination||destination===newPlanId;
+    const planName=creating?createPlan({id:newPlanId,host:currentHost,name:f.name.value},currentStore.scope).name:null;
+    const patch=committedPatch||taskPatch({title:f.title.value,evidence:f.evidence.value,chatSource:material.source},[]);
+    const controls=[f.select,f.name,f.title,f.evidence],disabled=controls.map(control=>control.disabled);controls.forEach(control=>{control.disabled=true;});
+    const assertOpen=()=>{assertContext();if(!currentDialog.open)throw new DOMException('聊天任务操作已取消','AbortError');};
+    try{
+      assertOpen();await ready();assertOpen();
+      if(!currentStore.plans.get(destination||newPlanId)?.tasks.some(t=>t.id===taskId)){await read();assertOpen();}
+      let plan;
+      if(creating){
+        committedPlan=newPlanId;
+        const pendingCreation=[...currentStore.drafts.values()].some(draft=>draft.planId===newPlanId&&draft.plan);
+        plan=!pendingCreation&&currentStore.plans.get(newPlanId)||await currentStore.create(currentHost,planName,clientId(),newPlanId);
+      }else plan=await currentStore.loadPlan(destination);
+      assertOpen();if(!plan||plan.archived||plan.deleted||!sameHost(plan.host,currentHost))throw new Error('规划已失效，请重新选择');
+      committedPlan=plan.id;
+      const pendingTask=[...currentStore.drafts.values()].some(draft=>draft.planId===plan.id&&draft.operation?.type==='task.create'&&draft.operation.id===taskId);
+      if(pendingTask||!plan.tasks.some(t=>t.id===taskId)){await ready();assertOpen();committedPatch=patch;plan=await currentStore.operate(plan.id,{type:'task.create',id:taskId,patch},clientId());assertOpen();}
+      selectedPlan=plan.id;
+      if(plan.id===newPlanId){await adapter().ensureComponent(plan.id);assertOpen();}
+      showPanel(true);
+    }finally{controls.forEach((control,index)=>{control.disabled=disabled[index];});f.select.disabled=Boolean(committedPlan);f.name.disabled=committedPlan===newPlanId;f.title.disabled=f.evidence.disabled=Boolean(committedPatch);}
+  },'创建任务');
+  await new Promise(resolve=>root.addEventListener('close',resolve,{once:true}));
+}
 function joinSources(sources,settings={}) {
   if (!enabled || !sources.length) return;
   checkWrite();
@@ -401,7 +542,8 @@ function joinSources(sources,settings={}) {
       const row = node('div', 'planning-source-preview'), checked = node('input'); checked.type = 'checkbox'; checked.checked = !settings.choose&& !source.taskRef;checked.disabled=Boolean(source.taskRef); checked.setAttribute('aria-label', `加入：${source.title}`);
       const title = field(row, '任务标题', source.title || '新任务'); title.maxLength = 200; row.prepend(checked); form.append(row); rows.push({ checked, title, source, taskId: id('task') });
     }
-    form.append(node('p', 'planning-hint', '只关联勾选内容；脑图按明确选择的节点建立任务。'));
+    form.append(node('p', 'planning-hint', '只关联勾选内容；普通概念和资料节点不会自动成为任务。已关联节点不可重复创建任务。'));
+    if(sources.length>100)form.append(node('p','planning-warning','本次显示前 100 个节点。其余节点可从较小分支继续选择。'));
     return { select, name, rows };
   }, async f => {
     await ready(); const rows = f.rows.filter(r => r.checked.checked); if (!rows.length) throw new Error('请至少选择一项内容');
@@ -419,20 +561,34 @@ function joinSources(sources,settings={}) {
     }
     if (rows.some(row => row.source.ref.nodeId) && sameHost(plan.host, adapter()?.host())) await adapter().ensureComponent(plan.id, rows[0].source.ref);
     for (const row of rows) if (row.source.ref.nodeId) await adapter().ensureTaskConnections(plan.id, row.source.ref.entityId);
-    showPanel(true);
+    filter='all';scope=inCurrent(plan)?'current':'all';query='';showPanel(true);
   }, '确认加入');
 }
 function renderComponent(root, data) {
+  renderComponentContent(root, data);
+  refreshComponentLayout(root, data);
+}
+function refreshComponentLayout(root, data) {
+  data.layoutObserver ||= new ResizeObserver(() => {
+    if (!root.isConnected) { data.layoutObserver.disconnect(); mounts.delete(root); return; }
+    data.refreshConnections?.();
+  });
+  data.layoutObserver.disconnect();
+  for (const target of [root, ...root.querySelectorAll('.planning-component-heading, .planning-body, [data-task-id]')]) data.layoutObserver.observe(target);
+  data.refreshConnections?.();
+}
+function renderComponentContent(root, data) {
   const plan = enabled ? ensureStore().plans.get(data.planRef) : null;
   data.renderState = componentState(data);
   root.replaceChildren(); root.className = 'planning-component';
+  root.dataset.planView = data.planView || 'list';
   if (!enabled) { root.append(node('p', 'planning-hint', '规划功能未启用')); return; }
   if (!plan || plan.archived) { root.append(node('p', 'planning-hint', plan?.archived ? '规划已归档' : store.cloud || store.guest ? '无权访问或规划已删除' : '离线 · 规划尚未载入')); return; }
   if(plan.partial){root.append(node('p','planning-hint','正在载入规划任务…'));store.loadPlan(plan.id).catch(report);return;}
   root.dataset.planId = plan.id;
   const heading = node('div', 'planning-component-heading planning-component-drag'), name = node('strong', 'planning-grip', plan.name); name.prepend(icon('grip')); name.title = '拖动移动 · 双击编辑规划';
-  const controls = node('div', 'planning-component-actions'), edit = button('编辑规划', () => planDetails(plan), 'planning-quiet'); controls.append(edit);
-  if (data.remove) { const remove = button('删除组件', () => confirmDeletion('删除规划组件', '仅删除当前位置的规划组件，规划与任务仍保留在规划侧栏中。', async () => { checkWrite(); await data.remove(); }), 'planning-row-action planning-danger'); remove.setAttribute('aria-label', '删除规划组件'); remove.title = '删除规划组件'; remove.disabled = !data.writable?.(); controls.append(remove); }
+  const controls = node('div', 'planning-component-actions'), edit = button('编辑规划', () => planDetails(plan), 'planning-quiet'); controls.append(button('概览与复盘',()=>planOverview(plan),'planning-quiet'),edit);
+  if (data.remove) { const remove = button('删除组件', () => confirmDeletion('删除规划组件', '', async () => { checkWrite(); await data.remove(); }), 'planning-row-action planning-danger'); remove.setAttribute('aria-label', '删除规划组件'); remove.title = '删除规划组件'; remove.disabled = !data.writable?.(); controls.append(remove); }
   heading.append(name, controls);
   const tabs = node('div', 'planning-view-tabs');
   VIEWS.forEach((view, index) => { const tab = button(['清单', '看板', '日历'][index], () => { data.setView(view); }, 'planning-quiet'); tab.setAttribute('aria-pressed', String(view === data.planView)); tabs.append(tab); });
@@ -455,7 +611,7 @@ function renderComponent(root, data) {
       };
       column.addEventListener('dragover', event => { event.preventDefault(); event.stopPropagation(); }); column.addEventListener('drop', event => reorder(event).catch(report));
       if(status==='doing'&&plan.wipLimit&&list.length>plan.wipLimit)column.append(node('p','planning-wip-warning',`已有 ${list.length} 项进行中，建议先完成再开始`));
-      taskList(column,list,task=>{const row=taskRow(plan,task);row.draggable=writable();row.addEventListener('dragstart',event=>{event.stopPropagation();event.dataTransfer.setData('application/x-muse-task',task.id);event.dataTransfer.effectAllowed='move';});row.addEventListener('drop',event=>reorder(event,task).catch(report));return row;},()=>adapter()?.refreshConnections?.());
+      taskList(column,list,task=>{const row=taskRow(plan,task);row.draggable=writable();row.addEventListener('dragstart',event=>{event.stopPropagation();event.dataTransfer.setData('application/x-muse-task',task.id);event.dataTransfer.effectAllowed='move';});row.addEventListener('drop',event=>reorder(event,task).catch(report));return row;},()=>refreshComponentLayout(root,data));
       column.append(button('+ 添加任务', anchor => addTask(plan.id, anchor, status), 'planning-column-add'));
       body.append(column);
     }
@@ -471,9 +627,9 @@ function renderComponent(root, data) {
     for (let i = 0; i < (first.getUTCDay() + 6) % 7; i++) grid.append(node('div', 'planning-calendar-day is-empty'));
     const dates=new Map();for(const task of tasks)for(const value of new Set([task.dueDate,task.scheduledDate].filter(Boolean))){if(!dates.has(value))dates.set(value,[]);dates.get(value).push(task);}
     for (let day = 1; day <= days; day++) { const value = `${month}-${String(day).padStart(2, '0')}`, cell = node('div', `planning-calendar-day${value === today() ? ' is-today' : ''}`); cell.append(node('strong', 'planning-day-number', day),button('+',()=>dialog('按日添加任务',form=>({title:field(form,'任务标题')}),f=>operation(plan.id,{type:'task.create',id:id('task'),patch:{title:f.title.value,scheduledDate:value,assigneeId:store.scope}}),'添加'),'planning-day-add'));const list=dates.get(value)||[];for(const task of list.slice(0,3)){const event=button(`${task.dueDate===value?'截止 · ':''}${task.title}`,()=>editTask({planId:plan.id,taskId:task.id}),'planning-calendar-task');event.dataset.taskId=task.id;event.dataset.status=task.status;event.title=`${task.title} · ${STATUSES[task.status]}`;cell.append(event);}if(list.length>3)cell.append(button(`还有 ${list.length-3} 项`,()=>dialog(`${value} 的任务`,form=>{taskList(form,list,task=>taskRow(plan,task),()=>{});return {};},()=>{}),'planning-quiet'));grid.append(cell); }
-    if(data.calendarMode==='agenda'){for(const [date,list] of [...dates].filter(([day])=>day.startsWith(month)).sort(([a],[b])=>a.localeCompare(b))){body.append(node('h4','',date));taskList(body,list,task=>taskRow(plan,task),()=>adapter()?.refreshConnections?.());}}else body.append(grid);
-    body.append(node('h4', '', '未安排'));taskList(body,tasks.filter(t=>!t.dueDate&&!t.scheduledDate),task=>taskRow(plan,task),()=>adapter()?.refreshConnections?.());
-  } else taskList(body,tasks,task=>taskRow(plan,task),()=>adapter()?.refreshConnections?.());
+    if(data.calendarMode==='agenda'){for(const [date,list] of [...dates].filter(([day])=>day.startsWith(month)).sort(([a],[b])=>a.localeCompare(b))){body.append(node('h4','',date));taskList(body,list,task=>taskRow(plan,task),()=>refreshComponentLayout(root,data));}}else body.append(grid);
+    body.append(node('h4', '', '未安排'));taskList(body,tasks.filter(t=>!t.dueDate&&!t.scheduledDate),task=>taskRow(plan,task),()=>refreshComponentLayout(root,data));
+  } else taskList(body,tasks,task=>taskRow(plan,task),()=>refreshComponentLayout(root,data));
   if (!tasks.length) body.append(node('p', 'planning-empty', '添加第一项任务，开始安排与跟踪。'));
   root.append(body);
   const shown = new Set([...body.querySelectorAll('[data-task-id]')].map(row => row.dataset.taskId)), outside = data.planView==='calendar'?tasks.filter(task => task.sources.length && !shown.has(task.id)):[];
@@ -482,8 +638,8 @@ function renderComponent(root, data) {
   footer.append(button('添加任务', anchor => addTask(plan.id, anchor), 'planning-add')); root.append(footer);
 }
 function mount(data, setView, controls = {}) {
-  const root = node('section', 'planning-component'); root.setAttribute('aria-label', '规划组件');
-  const entry = { ...data, ...controls, setView: view => { entry.planView = view; renderComponent(root, entry); if (writable()) return setView(view); } }; mounts.set(root, entry);
+  const root = node('section', 'planning-component'); root.setAttribute('aria-label', '规划组件'); root.tabIndex = 0;
+  const entry = { ...data, refreshConnections: adapter()?.refreshConnections, ...controls, setView: view => { entry.planView = view; renderComponent(root, entry); if (writable()) return setView(view); } }; mounts.set(root, entry);
   let middleDown,middleClick;
   root.addEventListener('pointerdown', event => {
     if(event.button===1){
@@ -491,7 +647,7 @@ function mount(data, setView, controls = {}) {
       return;
     }
     const dragArea = event.target.closest('.planning-component-drag') || event.target === root || event.pointerType !== 'touch' && event.target.classList.contains('planning-body');
-    if (dragArea && !event.target.closest('button,input,select,textarea')) { if (controls.move?.(event) !== false) event.stopPropagation(); }
+    if (dragArea && !event.target.closest('button,input,select,textarea')) { if (controls.move?.(event) !== false) { root.focus({preventScroll:true}); event.stopPropagation(); } }
     else event.stopPropagation();
   });
   root.addEventListener('pointerup',event=>{
@@ -505,8 +661,27 @@ function mount(data, setView, controls = {}) {
   // Match worksheet previews: zoom reaches the canvas, ordinary wheel input
   // stays inside the planning list or board columns.
   root.addEventListener('wheel', event => { if (!event.ctrlKey && !event.metaKey) event.stopPropagation(); }, { passive: true });
-  root.addEventListener('scroll', () => adapter()?.refreshConnections?.(), true);
-  for (const name of ['keydown', 'contextmenu']) root.addEventListener(name, event => event.stopPropagation());
+  root.addEventListener('scroll', () => entry.refreshConnections?.(), true);
+  // Object actions belong to the host editor; text fields keep their native menu.
+  root.addEventListener('contextmenu', event => {
+    if (event.target.closest('input,textarea,select,[contenteditable=true]')) event.stopPropagation();
+  });
+  root.addEventListener('keydown', event => {
+    const editing = event.target.closest('input,textarea,select,[contenteditable=true]');
+    const key = event.key.toLowerCase();
+    if (!event.defaultPrevented && !event.isComposing && event.keyCode !== 229 && !editing) {
+      if ((event.ctrlKey || event.metaKey) && ['c','x','v','d','z','y','s','g','a'].includes(key)) {
+        if (['c','x','d'].includes(key)) controls.select?.();
+        return;
+      }
+      if (['Delete','Backspace','Escape','ContextMenu'].includes(event.key) && !event.target.closest('button,.planning-task,.planning-quick-form')) {
+        if (['Delete','Backspace'].includes(event.key)) controls.select?.();
+        return;
+      }
+      if (event.shiftKey && event.key === 'F10') return;
+    }
+    event.stopPropagation();
+  });
   renderComponent(root, entry); return root;
 }
 function renderLinked(ref, bodyText = '') {
@@ -557,14 +732,14 @@ function renderPanel() {
   panel.classList.toggle('planning-notes', Boolean(window.__independentNotesActive)); panel.replaceChildren(header('规划与跟踪', () => showPanel(false)));
   const reset = button('复位位置',async()=>{panelPosition=null;await savePreferences({position:null,width:336,docked:false});applyPanelPosition();}, 'planning-reset-position'); reset.title = '恢复面板位置'; panel.querySelector('.planning-heading').insertBefore(reset, panel.querySelector('.planning-close'));
   const search = node('div', 'planning-search'), searchInput = field(search, '搜索规划任务', query, 'search'); search.prepend(icon('search')); searchInput.placeholder = '搜索任务、阻塞说明、成果…'; searchInput.addEventListener('compositionstart', () => { queryComposing = true; }); searchInput.addEventListener('input', event => { query = searchInput.value; if (!event.isComposing && !queryComposing){clearTimeout(searchTimer);searchTimer=setTimeout(renderPanel,100);} }); searchInput.addEventListener('compositionend', () => { queryComposing = false; query = searchInput.value; renderPanel(); }); panel.append(search);
-  const presets=node('div','planning-presets');for(const [value,label] of [['today','今日安排'],['next','下一步'],['waiting','等待事项']]){const control=button(label,()=>{filter=value;scope='mine';renderPanel();},'planning-quiet');control.setAttribute('aria-pressed',String(filter===value));presets.append(control);}panel.append(presets);
+  const presets=node('div','planning-presets');for(const [value,label] of [['today','今天'],['unscheduled','待安排'],['attention','等待处理']]){const control=button(label,()=>{filter=value;selectedPlan=null;if(['trash','archived'].includes(scope))scope='current';renderPanel();},'planning-quiet');control.setAttribute('aria-pressed',String(filter===value));presets.append(control);}panel.append(presets);
   const selectors = node('div', 'planning-panel-selectors');
   const viewScope = field(selectors, '查看范围', scope, 'select', [['current', '当前画布 / 笔记'], ['mine', '我的任务'], ['all', '全部可访问规划'], ['archived', '已归档规划'],['trash','回收站']]);
   viewScope.addEventListener('change', () => { scope = viewScope.value; selectedPlan = null; renderPanel(); });
-  const taskFilter = field(selectors, '任务筛选', filter, 'select', [['all', '全部任务'],['unfinished','未完成'], ['mine', '我的未完成'],['today','今日安排'],['next','下一步重点'],['waiting','等待事项'], ['week', '本周到期'], ['overdue', '已逾期'], ['blocked', '阻塞'], ['archived', '归档任务']]);
-  taskFilter.addEventListener('change', () => { filter = taskFilter.value; renderPanel(); });const filterBox=node('details','planning-filter-box');filterBox.open=innerWidth>700;filterBox.append(node('summary','',`筛选 · ${viewScope.selectedOptions[0]?.textContent||'当前内容'}`),selectors);panel.append(filterBox);
-  const actions = node('div', 'planning-actions planning-panel-toolbar'); actions.append(button('新建规划', () => createPlanning(), 'planning-quiet'), button('刷新', () => store.refresh(), 'planning-quiet'),button('保存筛选',saveView,'planning-quiet'),button('显示设置',planningSettings,'planning-quiet')); panel.append(actions);
-  const views=preferences().views||[];if(views.length){const saved=field(panel,'常用筛选','','select',[['','选择常用筛选'],...views.map((view,i)=>[String(i),view.name])]);saved.addEventListener('change',()=>{const view=views[Number(saved.value)];if(saved.value!==''&&view){scope=view.scope;filter=view.filter;query=view.query;renderPanel();}});panel.append(button('管理筛选',manageViews,'planning-quiet'));}
+  const taskFilter = field(selectors, '任务筛选', filter, 'select', [['all', '全部任务'],['unfinished','未完成'], ['today','今天'],['unscheduled','待安排'],['attention','等待处理'],['focused','今日重点'],['next','下一步（可执行）'],['waiting','全部等待事项'], ['week', '本周到期'], ['overdue', '已逾期'], ['blocked', '阻塞'], ['archived', '归档任务']]);
+  taskFilter.addEventListener('change', () => { filter = taskFilter.value; renderPanel(); });const filterBox=node('details','planning-filter-box');filterBox.open=scope!=='current';filterBox.append(node('summary','',`筛选 · ${viewScope.selectedOptions[0]?.textContent||'当前内容'}`),selectors);panel.append(filterBox);
+  const actions = node('div', 'planning-actions planning-panel-toolbar'); actions.append(button('新建规划', () => createPlanning(), 'planning-quiet'), button('刷新', () => store.refresh(), 'planning-quiet'),button('保存筛选',saveView,'planning-quiet'),button('显示设置',planningSettings,'planning-quiet')); panel.append(actions);for(const control of [...actions.children])if(['刷新','保存筛选'].includes(control.textContent))filterBox.append(control);
+  const views=preferences().views||[];if(views.length){const saved=field(filterBox,'常用筛选','','select',[['','选择常用筛选'],...views.map((view,i)=>[String(i),view.name])]);saved.addEventListener('change',()=>{const view=views[Number(saved.value)];if(saved.value!==''&&view){scope=view.filter==='mine'?'mine':view.scope;filter=view.filter==='mine'?'unfinished':view.filter;query=view.query;renderPanel();}});filterBox.append(button('管理筛选',manageViews,'planning-quiet'));}
   const content = node('div', 'planning-panel-content'); panel.append(content);
   const plans = [...ensureStore().plans.values()].filter(p=>!p.purged&&(scope==='trash'?p.deleted||p.ownerId===store.scope&&(p.trashCount>0||p.deletedTasks?.some(t=>t.snapshot)):!p.deleted&&(scope==='archived'?p.archived:!p.archived&&(scope!=='current'||inCurrent(p)))));
   for (const plan of plans) {
@@ -572,10 +747,11 @@ function renderPanel() {
     heading.append(button(plan.name, () => { selectedPlan = selectedPlan === plan.id ? null : plan.id; renderPanel(); }, 'planning-plan-name'));
     if(plan.deleted)heading.append(button('恢复规划',()=>operation(plan.id,{type:'plan.restore',baseRevision:plan.revision})),button('永久清理',()=>confirmDeletion('永久清理规划','清理后不能恢复正文，关联内容会显示规划不可用；最小操作回执仍保留。',()=>operation(plan.id,{type:'plan.purge',baseRevision:plan.revision})),'planning-danger'));
     else if (plan.archived) heading.append(button('恢复到当前内容', () => operation(plan.id, { type: 'plan.update', baseRevision: plan.revision, patch: { host: adapter().host(), archived: false } })),button('移入回收站',()=>confirmDeletion('删除规划','30 天内可恢复。',()=>operation(plan.id,{type:'plan.delete',baseRevision:plan.revision})),'planning-danger'));
-    else heading.append(button('设置',async()=>planDetails(await store.loadPlan(plan.id)), 'planning-quiet')); section.append(heading, summary(plan));
+    else heading.append(button('概览',async()=>planOverview(await store.loadPlan(plan.id)),'planning-quiet'),button('设置',async()=>planDetails(await store.loadPlan(plan.id)), 'planning-quiet')); section.append(heading, summary(plan));
     if (!selectedPlan || selectedPlan === plan.id || scope === 'mine') {
       if(plan.partial){section.append(node('p','planning-hint','正在载入任务…'));store.loadPlan(plan.id).catch(report);}
-      const tasks = scope==='trash'?[]:plan.tasks.filter(t => (scope !== 'mine' || t.assigneeId === store.scope) && matches(t, filter, store.scope,Date.now(),planIndex(plan).byId) && (!query.trim() || `${t.title} ${t.blockedReason} ${t.evidence}`.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()))).sort((a, b) => a.order - b.order);
+      const tasks = scope==='trash'?[]:plan.tasks.filter(t => (scope !== 'mine' || t.assigneeId === store.scope) && matches(t, filter, store.scope,Date.now(),planIndex(plan).byId) && (!query.trim() || `${t.title} ${t.blockedReason} ${t.evidence}`.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()))).sort((a, b) => filter==='today'?Number(Boolean(b.focused))-Number(Boolean(a.focused))||a.order-b.order:a.order-b.order);
+      if(!tasks.length&&!plan.partial&&!plan.archived&&scope!=='trash'&&['today','unscheduled','attention','focused','next','waiting'].includes(filter)&&selectedPlan!==plan.id)continue;
       taskList(section,tasks,task=>taskRow(plan,task,true),()=>adapter()?.refreshConnections?.());
       if(!plan.deleted&&plan.ownerId===store.scope&&(scope==='trash'||filter==='archived'))for(const record of plan.deletedTasks||[]){if(!record.snapshot)continue;const row=node('div','planning-trash-task');row.append(node('span','',record.title),button('恢复任务',()=>operation(plan.id,{type:'task.restore',id:record.id}),'planning-quiet'),button('永久清理任务',()=>confirmDeletion('永久清理任务','正文清理后无法恢复；原引用保留最小标识。',()=>operation(plan.id,{type:'task.purge',id:record.id})),'planning-danger'));section.append(row);}
       if (!tasks.length) section.append(node('p', 'planning-filter-empty', query || filter !== 'all' ? '没有符合条件的任务' : scope === 'mine' ? '还没有分配给你的任务' : '添加一项任务，开始推进计划'));
@@ -583,6 +759,7 @@ function renderPanel() {
     }
     content.append(section);
   }
+  if(plans.length&&!content.querySelector('.planning-panel-plan')){const empty=node('div','planning-empty');empty.append(node('p','',filter==='attention'?'目前没有需要处理的事项':filter==='today'?'今天还没有安排任务':'没有符合条件的任务'),button('查看待安排任务',()=>{filter='unscheduled';query='';renderPanel();},'planning-quiet'),button('查看全部任务',()=>{filter='all';query='';renderPanel();},'planning-quiet'));content.append(empty);}
   for (const quick of quickForms) {
     const target = [...content.querySelectorAll('.planning-panel-plan')].find(section => section.dataset.planId === quick.dataset.planId);
     if (target) placeQuickForm(target,quick);
@@ -630,39 +807,83 @@ async function initialize(canvasAdapter) {
   const response = await fetch('/api/plans/capabilities', { cache: 'no-store' }); enabled = Boolean((await response.json()).enabled);
   if (!enabled) return;
   attachButton(document.querySelector('#toolDock .toolbar-insert')); ensureStore();
-  for (const name of ['muse:account-changing', 'muse:logout', 'muse:auth-expired']) window.addEventListener(name, () => { store?.dispose(); store = null; selectedPlan = null; query = '';scope='current';filter='all';panelPosition=null;taskSelection.clear();undoAction=null;returnLocation=null;clearTimeout(searchTimer);document.querySelectorAll('.planning-bulk-actions,.planning-undo,.planning-return').forEach(root=>root.remove());panel?.style.removeProperty('width');panel?.replaceChildren(); showPanel(false); document.querySelectorAll('.planning-dialog').forEach(root => root.close()); changed(); });
+  for (const name of ['muse:account-changing', 'muse:logout', 'muse:auth-expired']) window.addEventListener(name, () => { store?.dispose(); store = null; selectedPlan = null; query = '';scope='current';filter='today';panelPosition=null;taskSelection.clear();undoAction=null;navigationVersion++;revealedSource=null;clearTimeout(searchTimer);document.querySelectorAll('.planning-bulk-actions,.planning-undo,.planning-return,.planning-reminder').forEach(root=>root.remove());panel?.style.removeProperty('width');panel?.replaceChildren(); showPanel(false); document.querySelectorAll('.planning-dialog').forEach(root => root.close()); changed(); });
   window.addEventListener('online', () => ensureStore().refresh().catch(report));
+  for(const event of ['pointerdown','focusin'])document.addEventListener(event,event=>focusTaskLines(event.target,preferences()),true);
   window.addEventListener('muse:sharing-changed',()=>ensureStore().refresh().catch(report));
   window.addEventListener('resize', () => { if (panelOpen) showPanel(true); });
   window.addEventListener('pointerup',()=>{if(panelOpen&&innerWidth>700&&panel.offsetWidth&&Math.abs(panel.offsetWidth-(preferences().width||336))>2)savePreferences({width:panel.offsetWidth}).catch(report);});
   document.addEventListener('visibilitychange', () => { if (!document.hidden) ensureStore().refresh().catch(report); });
   setInterval(()=>{if(!document.hidden&&(panelOpen||[...mounts.keys()].some(root=>root.isConnected&&root.getClientRects().length))){ensureStore().refresh({incremental:true}).catch(()=>{});if(preferences().reminders)showReminders();}},30000);
 }
-function showReminders(){const due=[...store.plans.values()].filter(p=>!p.archived&&!p.deleted).flatMap(p=>p.tasks).filter(t=>!t.archived&&t.status!=='done'&&t.assigneeId===store.scope&&(t.scheduledDate===today()||t.checkDate&&t.checkDate<=today()));if(!due.length)return;const key=`reminder:${today()}`;if(store.inputs.has(key))return;store.saveInput(key,{shown:true}).catch(()=>{});adapter()?.toast?.(`今天有 ${due.length} 项安排或等待事项需要检查，可在规划中查看。`);}
-function contextActions(sources, point) {
+function showReminders(){
+  const entries=[...store.plans.values()].filter(p=>!p.archived&&!p.deleted).flatMap(plan=>plan.tasks.filter(task=>!task.archived&&task.status!=='done'&&task.assigneeId===store.scope&&(task.scheduledDate===today()||attentionReasons(task,planIndex(plan).byId).length)).map(task=>({plan,task})));
+  if(!entries.length)return;const key=`reminder:${today()}`;if(store.inputs.has(key))return;store.saveInput(key,{shown:true}).catch(report);
+  const reminder=node('details','planning-reminder planning-toplevel');reminder.append(node('summary','',`今天有 ${entries.length} 项任务需要处理`));
+  const list=node('div','planning-reminder-list');
+  for(const {plan,task} of entries){const row=node('div','planning-actions');row.append(button(task.title,()=>editTask({planId:plan.id,taskId:task.id}),'planning-quiet'),button('定位来源',()=>locateTask({planId:plan.id,taskId:task.id}),'planning-quiet'),button('明天检查',async()=>{await taskChange(plan.id,task.id,{checkDate:offsetDay(1)});row.remove();},'planning-quiet'));row.children[1].disabled=!task.sources.length;row.children[2].disabled=!canWritePlan(plan);list.append(row);}
+  reminder.append(list,button('关闭提醒',()=>reminder.remove(),'planning-quiet'));document.querySelector('.planning-reminder')?.remove();document.body.append(reminder);
+}
+function sourceActions(sources) {
   if (!enabled) return [];
   const actions = [];
   if (sources?.length) {
-    actions.push({ label: '加入规划', icon: 'list-checks', group: 'planning', action: () => joinSources(sources), disabled: !writable() });
+    if(sources.some(source=>!source.taskRef))actions.push({ label: '加入规划', icon: 'list-checks', group: 'planning', action: () => joinSources(sources), disabled: !writable() });
     if(sources.length===1&&sources[0].ref?.nodeId&&sources[0].branches)actions.push({label:'选择分支加入规划',icon:'list-checks',group:'planning',action:()=>joinSources(sources[0].branches(),{choose:true,hierarchy:true}),disabled:!writable()});
     if (sources.length === 1 && sources[0].ref?.nodeId && !sources[0].taskRef) actions.push({ label: '关联已有任务', icon: 'link', group: 'planning', action: () => linkExisting(sources[0]), disabled: !writable() });
     if (sources.length === 1 && sources[0].taskRef) {
       const ref = sources[0].taskRef;
       const deleted = ensureStore().task(ref);
       if (deleted?.deleted) return [{ label: '解除任务关联', icon: 'unlink', group: 'planning', action: () => sources[0].unbind(deleted), disabled: !writable() }];
-      actions.push({ label: '任务详情', icon: 'list-checks', group: 'planning', action: () => editTask(ref) });
-      if (sources[0].ref?.nodeId) actions.push({ label: '添加任务连线', icon: 'link', group: 'planning', action: async () => { await ready(); await adapter().ensureComponent(ref.planId, sources[0].ref); await adapter().ensureTaskConnections(ref.planId, sources[0].ref.entityId); }, disabled: !writable() });
+      actions.push({ label: '定位关联任务', icon: 'list-checks', group: 'planning', action: () => locateTaskFromNode(ref) });
+      actions.push({label:'修改任务状态',action:()=>chooseStatus(ref),disabled:!writable()});
+      if (sources[0].ref?.nodeId) {
+        const key=lineKey({...sources[0].ref,...ref});
+        actions.push({label:'显示任务连线',action:async()=>{await savePreferences({hiddenTaskLines:(preferences().hiddenTaskLines||[]).filter(value=>value!==key)});if(writable()){await ready();await adapter().ensureComponent(ref.planId,sources[0].ref);await adapter().ensureTaskConnections(ref.planId,sources[0].ref.entityId);}}});
+        actions.push({label:'隐藏任务连线',action:()=>savePreferences({hiddenTaskLines:[...new Set([...(preferences().hiddenTaskLines||[]),key])].slice(-2000)})});
+      }
       if (sources[0].edit) actions.push({ label: '编辑来源正文', icon: 'text-cursor', group: 'planning', action: () => sources[0].edit(), disabled: !writable() });
       actions.push({ label: '解除任务关联', icon: 'unlink', group: 'planning', action: async () => { const task = ensureStore().task(ref); if (!task) throw new Error('无权访问任务，不能提取任务内容'); await sources[0].unbind(task); const remaining = task.sources.filter(s => JSON.stringify(s) !== JSON.stringify(sources[0].ref)); await operation(ref.planId, { type: 'task.update', id: task.id, baseRevision: task.revision, patch: { sources: remaining, linked: remaining.length > 0 } }); }, disabled: !writable() });
     }
   }
   return actions;
 }
+function contextActions(sources) {
+  const actions=sourceActions(sources);if(!actions.length)return [];
+  return [{label:'任务关联',icon:'link',group:'planning',action:()=>dialog('任务关联',form=>{
+    form.append(node('p','planning-hint','隐藏连线仅改变本设备显示，任务徽标与状态同步保留；解除任务关联才停止同步。'));
+    for(const action of actions){const control=button(action.label,()=>{form.closest('dialog').close();return action.action();},'planning-quiet');control.disabled=Boolean(action.disabled);form.append(control);}
+    form.append(button(preferences().allTaskLines?'仅突出选中节点的连线':'显示全部任务连线',()=>savePreferences({allTaskLines:!preferences().allTaskLines}).then(()=>form.closest('dialog').close()),'planning-quiet'));return {};
+  },async()=>{},'完成')}];
+}
+function viewTree(tree,entityId) {
+  if(!revealedSource||revealedSource.entityId!==entityId||!sameHost(revealedSource,adapter()?.host()))return tree;
+  const visit=node=>{if(node.id===revealedSource.nodeId)return {found:true,node};const children=(node.children||[]).map(visit);const found=children.some(child=>child.found);return {found,node:found?{...node,collapsed:false,children:children.map(child=>child.node)}:node};};
+  return visit(tree).node;
+}
+function renderBranchProgress(root,tree) {
+  root.querySelector(':scope > .planning-branch-progress')?.remove();
+  if(!enabled||!tree?.collapsed)return;
+  const value=branchProgress(tree,ref=>ensureStore().task(ref));if(!value.total)return;
+  const badge=node('span','planning-branch-progress',`任务 ${value.done}/${value.total}${value.blocked?` · 阻塞 ${value.blocked}`:''}`);badge.title='按不同关联任务统计；普通节点不计入';root.append(badge);
+}
+async function locateTaskFromNode(ref) {
+  const currentStore=ensureStore(),version=++navigationVersion,host=adapter()?.host(),location=adapter()?.captureLocation?.(),plan=await currentStore.loadPlan(ref.planId);
+  const current=()=>currentStore===store&&currentStore.active()&&version===navigationVersion;
+  if(!current()||!sameHost(host,adapter()?.host()))return;
+  if(!plan)throw new Error('任务不可访问');
+  const details=editTask(ref);if(!details)return;
+  document.querySelector('.planning-return')?.remove();
+  if(location)details.querySelector('.planning-form-footer').prepend(button('返回脑图位置',async()=>{
+    if(!current())return;
+    closeTaskDetails();await navigationAdapter(location.host.kind).restoreLocation(location);
+  },'planning-quiet'));
+}
 window.MusePlanning = {
-  initialize, attachButton, registerNotebook: value => { adapters.notebook = value; changed(); }, contextActions, mount, showPanel, createPlanning, insertPlanning, joinSources,
+  initialize, attachButton, registerNotebook: value => { adapters.notebook = value; changed(); }, contextActions, mount, showPanel, createPlanning, insertPlanning, joinSources,createTaskFromChat,
   renderLinked, updateLinked, statusLabel: status => STATUSES[status] || '', canvasSources: target => adapters.canvas?.sources(target) || [],
   get enabled() { return enabled; }, get store() { return enabled ? ensureStore() : null; }, getTask: ref => enabled ? ensureStore().task(ref) : null,
-  editTask,chooseStatus, taskTitle: ref => ensureStore().task(ref)?.title || (ensureStore().plans.get(ref.planId)?.partial?'正在载入':'无权访问'), notify: changed,
+  editTask,chooseStatus,locateTaskFromNode,renderBranchProgress,branchProgress:tree=>branchProgress(tree,ref=>ensureStore().task(ref)),viewTree,revealSource:source=>{const previous=revealedSource;revealedSource=source;return previous;},isTaskLineHidden:item=>enabled&&Boolean(taskLine(item)&&(preferences().hiddenTaskLines||[]).includes(lineKey(taskLine(item)))),decorateTaskLine:(root,item)=>{if(enabled)decorateLine(root,item,preferences());}, taskTitle: ref => ensureStore().task(ref)?.title || (ensureStore().plans.get(ref.planId)?.partial?'正在载入':'无权访问'), notify: changed,
   refresh: message => enabled ? message?.planId&&ensureStore().plans.has(message.planId) ? ensureStore().loadPlan(message.planId,true) : ensureStore().refresh({incremental:!message?.type||message.type==='planning-changed'}) : Promise.resolve(), archiveHost: async host => { if (enabled) return ensureStore().archiveHost(host); const localStore = new PlanningStore(() => {}); try { if (localStore.guest) { await localStore.load(); await localStore.archiveHost(host); } } finally { localStore.dispose(); } },
   moveCanvasComponent: (event, itemId) => adapters.canvas?.moveComponent(event, itemId),
   updateTask: (ref, patch, baseRevision = null) => { const task = ensureStore().task(ref); if (!task || task.deleted) return Promise.reject(new Error(task?.deleted ? '任务已删除，请解除关联后编辑原文' : '任务不存在或无权访问')); return operation(ref.planId, { type: 'task.update', id: task.id, baseRevision: baseRevision ?? task.revision, patch }); }

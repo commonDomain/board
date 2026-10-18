@@ -6,6 +6,38 @@
   const decoder = new TextDecoder();
   const VERSION = 'v1';
   let transportPromise = null;
+  let transportSession = null;
+
+  // Upload progress uses the same encrypted envelope and session as ordinary fetch.
+  async function requestWithProgress(input, init, progress) {
+    if (typeof progress !== 'function') return nativeFetch(input, init);
+    const request = new Request(input, init);
+    const body = await request.arrayBuffer();
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      const abort = () => xhr.abort();
+      const finish = () => request.signal.removeEventListener('abort', abort);
+      if (request.signal.aborted) { reject(request.signal.reason); return; }
+      xhr.open(request.method, request.url);
+      xhr.withCredentials = request.credentials === 'include';
+      xhr.responseType = 'arraybuffer';
+      for (const [name, value] of request.headers) xhr.setRequestHeader(name, value);
+      xhr.upload.onprogress = event => progress(event.loaded, event.lengthComputable ? event.total : body.byteLength);
+      xhr.onload = () => {
+        finish();
+        const headers = new Headers();
+        for (const line of xhr.getAllResponseHeaders().trim().split(/[\r\n]+/)) {
+          const split = line.indexOf(':');
+          if (split > 0) headers.append(line.slice(0, split), line.slice(split + 1).trim());
+        }
+        resolve(new Response(xhr.status === 204 || xhr.status === 304 ? null : xhr.response, { status: xhr.status, statusText: xhr.statusText, headers }));
+      };
+      xhr.onerror = () => { finish(); reject(new TypeError('图片上传连接中断')); };
+      xhr.onabort = () => { finish(); reject(request.signal.reason || new DOMException('上传已取消', 'AbortError')); };
+      request.signal.addEventListener('abort', abort, { once: true });
+      xhr.send(body);
+    });
+  }
 
   function bytesToBase64Url(bytes) {
     let binary = '';
@@ -26,6 +58,7 @@
     if (!pathname.startsWith('/api/')) return true;
     if (pathname === '/api/transport/handshake' || pathname === '/api/health' || pathname === '/api/webhooks/resend' || pathname === '/api/xmind/oauth/callback') return true;
     if (!['GET', 'HEAD'].includes(method)) return false;
+    if(/^\/api\/canvases\/[^/]+\/chat\/videos\/[a-f0-9]{32}\/(?:original|preview|thumb)$/.test(pathname))return true;
     return /^\/api\/(?:assets\/[^/]+|avatars\/[^/]+|canvases\/[^/]+\/preview|xmind\/maps\/[^/]+\/thumbnail|navigation\/map-frame)$/.test(pathname);
   }
 
@@ -43,7 +76,7 @@
     const pair = await crypto.subtle.generateKey({ name: 'ECDH', namedCurve: 'P-256' }, true, ['deriveBits']);
     const clientPublicKey = new Uint8Array(await crypto.subtle.exportKey('raw', pair.publicKey));
     const response = await nativeFetch('/api/transport/handshake', {
-      method: 'POST', credentials: 'same-origin', cache: 'no-store',
+      method: 'POST', credentials: 'same-origin', cache: 'no-store', signal: AbortSignal.timeout(15000),
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ version: VERSION, clientPublicKey: bytesToBase64Url(clientPublicKey) })
     });
@@ -62,12 +95,19 @@
     };
   }
 
+  function startTransport() {
+    transportSession = null;
+    const pending = createTransport().then((value) => { if (transportPromise === pending) transportSession = value; return value; })
+      .catch((error) => { if (transportPromise === pending) transportPromise = null; throw error; });
+    transportPromise = pending;
+    return pending;
+  }
+
   async function transport() {
-    if (!transportPromise) transportPromise = createTransport().catch((error) => { transportPromise = null; throw error; });
-    const value = await transportPromise;
+    const pending = transportPromise || startTransport();
+    const value = await pending;
     if (value.enabled && value.expiresAt - Date.now() < 15_000) {
-      transportPromise = createTransport();
-      return transportPromise;
+      return transportPromise === pending ? startTransport() : transportPromise || startTransport();
     }
     return value;
   }
@@ -78,7 +118,7 @@
     const method = source.method.toUpperCase();
     if (url.origin !== location.origin || isExempt(method, url.pathname)) return nativeFetch(input, init);
     const session = await transport();
-    if (!session.enabled) return nativeFetch(input, init);
+    if (!session.enabled) return requestWithProgress(input, init, init?.onUploadProgress);
 
     const body = ['GET', 'HEAD'].includes(method) ? new Uint8Array() : new Uint8Array(await source.clone().arrayBuffer());
     const contentType = source.headers.get('content-type') || '';
@@ -112,12 +152,13 @@
       requestInit.body = ciphertext;
     }
     url.search = '';
-    const response = await nativeFetch(url.href, requestInit);
+    const response = await requestWithProgress(url.href, requestInit, init?.onUploadProgress);
     if (response.headers.get('x-muse-encrypted') !== VERSION) {
       if (!retried && response.status === 409) {
         const problem = await response.clone().json().catch(() => null);
         if (problem?.code === 'API_ENCRYPTION_SESSION_EXPIRED') {
-          transportPromise = null;
+          // Only the rejected session may be cleared; late responses share the new handshake.
+          if (transportSession === session) { transportPromise = null; transportSession = null; }
           return encryptedFetch(input, init, true);
         }
       }

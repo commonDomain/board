@@ -161,8 +161,6 @@ The linked technical documents currently use Chinese.
 | Collaboration, operation queues, and commit acknowledgments | [Synchronization](docs/sync-mechanism.md) |
 | Connectors, endpoints, and compatibility rules | [Connector system](docs/connector-system.md) |
 | Planning components and data lifecycle | [Planning](docs/planning.md) |
-| Note storage, permissions, and recovery | [Notebook reliability](docs/notes-workspace-reliability.md) |
-| Phone and tablet interactions | [Mobile adaptation](docs/mobile-adaptation.md) |
 
 <details>
 <summary><strong>Deployment, configuration, and data maintenance</strong></summary>
@@ -278,8 +276,6 @@ Layouts prioritize iPad and Android tablets, supporting orientation changes and 
 - Tap to confirm placement of text and similar canvas objects; swiping does not immediately create content. Selected content exposes editing and additional actions in the touch action bar.
 - Spreadsheets scroll with one finger and edit cells with a double tap. Switch to range selection with the drag-selection control, and long-press for the cell menu.
 - Adding a second finger cancels an unfinished stroke and switches to view navigation. System gesture cancellation does not commit unfinished strokes or transforms.
-
-See [mobile adaptation and acceptance](docs/mobile-adaptation.md) for implementation and verification scope. Browser touch emulation covers the main interactions; pen input, system keyboards, file picking, and downloading still require physical-device acceptance on iPad and Android.
 
 Temporarily override configuration in PowerShell:
 
@@ -457,7 +453,7 @@ The service user needs write access to `DATA_DIR`. Monitor its capacity and back
 | `ASSET_GC_INTERVAL_MS` | `21600000` | Orphan asset cleanup interval |
 | `ASSET_GC_ENABLED` | `1` | Enable automatic orphan asset cleanup |
 | `BACKUP_INTERVAL_MS` | `86400000` | Online backup interval: 24 hours |
-| `BACKUP_RETENTION_COUNT` | `7` | Number of backups retained |
+| `BACKUP_RETENTION_COUNT` | `100` | Number of backups retained |
 | `BACKUP_INITIAL_DELAY_MS` | `5000` | Initial backup delay after startup |
 | `AUTOMATIC_BACKUPS_ENABLED` | `1` | Enable automatic online backups |
 | `SNAPSHOT_CHUNK_THRESHOLD_BYTES` | `4194304` | Threshold for chunked snapshots |
@@ -524,7 +520,7 @@ Run `npm start` again. SQLite WAL restores committed transactions; unfinished tr
 3. Restore the most recent verified complete backup into a new `DATA_DIR`.
 4. Start with the new directory, check health, and verify a sample board.
 
-The project uses strict v2 online backup packages. Every `BACKUP_INTERVAL_MS` (24 hours by default), SQLite's online backup API produces matching `.sqlite`, `.assets.json`, and independent `.assets` resources. Original images are verified individually by SHA-256, and `.sqlite` is published last as the completion marker. An initial backup runs after `BACKUP_INITIAL_DELAY_MS` (five seconds); rotation retains `BACKUP_RETENTION_COUNT` packages (seven). Legacy manifests are excluded from recovery and do not block startup; a corrupt v2 manifest pauses asset GC to avoid accidental deletion. Recovery accepts only complete v2 packages:
+The project uses strict v2 online backup packages. Every `BACKUP_INTERVAL_MS` (24 hours by default), SQLite's online backup API produces matching `.sqlite`, `.assets.json`, and independent `.assets` resources. Original images are verified individually by SHA-256, and `.sqlite` is published last as the completion marker. An initial backup runs after `BACKUP_INITIAL_DELAY_MS` (five seconds); rotation retains `BACKUP_RETENTION_COUNT` packages (100). Legacy manifests are excluded from recovery and do not block startup; a corrupt v2 manifest pauses asset GC to avoid accidental deletion. Recovery accepts only complete v2 packages:
 
 ```powershell
 npm.cmd run recover:backup -- --backup "D:\museboard-data\backups\whiteboard-TIMESTAMP.sqlite" --target-data-dir "D:\museboard-recovery"

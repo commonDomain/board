@@ -1,5 +1,6 @@
 // Content copies are independent; source metadata enables navigation and region previews.
 export const VERSION = 1;
+const tablet = () => typeof document !== 'undefined' && document.documentElement?.dataset.formFactor === 'tablet';
 export const uid = (prefix = 'nt') => `${prefix}_${crypto.randomUUID().replaceAll('-', '')}`;
 export const clone = value => structuredClone(value);
 export const textDoc = text => ({ type: 'doc', content: String(text || '').split('\n').map(line => ({ type: 'paragraph', ...(line ? { content: [{ type: 'text', text: line }] } : {}) })) });
@@ -90,9 +91,10 @@ export function fromCanvas(item, source = {}, point = { x: 64, y: 64 }) {
   if (type === 'planning') Object.assign(element, { planRef: item.planRef, planView: item.planView || 'list' });
   if (item.taskRef) element.taskRef = clone(item.taskRef);
   element.origin = { kind: 'canvas', boardId: source.boardId || '', entityId: item.id, label: source.label || '' };
+  if(item.chatSource)element.chatSource=clone(item.chatSource);
   element.w = Math.min(1100, Math.max(160, Number(item.w) || element.w));
   element.h = Math.min(1600, Math.max(60, Number(item.h) || element.h));
-  if (type === 'image') Object.assign(element, { src: item.src, alt: item.alt || '', assetId: item.assetId });
+  if (type === 'image') Object.assign(element, { src: item.src, alt: item.alt || '', assetId: item.assetId, ...(tablet() ? { naturalWidth: item.naturalWidth, naturalHeight: item.naturalHeight } : {}) });
   else if (type === 'mindmap') element.tree = cloneTree(item.tree);
   else if (type === 'ink') Object.assign(element, { points: (item.pts || []).map(p => [p.x * element.w / (item.baseW || item.w || element.w), p.y * element.h / (item.baseH || item.h || element.h), p.pressure ?? 0.5]), color: item.stroke || '#34313d', size: item.strokeWidth || 3, opacity: item.opacity ?? 1, brushType: item.brushType || 'brush' });
   else if (type === 'shape') Object.assign(element, { shape: ['rect', 'ellipse', 'triangle'].includes(item.shape) ? item.shape : 'rect', color: item.stroke || '#7660bd', fill: item.fill || '#f0ebfa' });
@@ -127,7 +129,8 @@ export function toCanvas(element, point = { x: 0, y: 0 }) {
   if (type === 'mindmap') item.tree = cloneTree(element.tree);
   if (type === 'planning') Object.assign(item, { planRef: element.planRef, planView: element.planView || 'list' });
   if (element.taskRef) item.taskRef = clone(element.taskRef);
-  if (type === 'image') Object.assign(item, { src: element.src, assetId: element.assetId, naturalWidth: element.w, naturalHeight: element.h });
+  if(element.chatSource)item.chatSource=clone(element.chatSource);
+  if (type === 'image') Object.assign(item, { src: element.src, assetId: element.assetId, naturalWidth: tablet() ? element.naturalWidth : element.w, naturalHeight: tablet() ? element.naturalHeight : element.h });
   if (type === 'ink') Object.assign(item, { pts: element.points.map(p => ({ x: p[0], y: p[1], pressure: p[2] ?? 0.5 })), baseW: element.w, baseH: element.h, stroke: element.color, strokeWidth: element.size, opacity: element.opacity ?? 1, brushType: element.brushType || 'brush' });
   if (type === 'shape') Object.assign(item, { shape: element.shape, stroke: element.color, strokeWidth: 2, fill: element.fill });
   if (type === 'text' && element.doc?.content?.length === 1 && element.doc.content[0].type === 'table') Object.assign(item, { type: 'table', rows: element.doc.content[0].content.map(row => row.content.map(plainText)) });
@@ -174,6 +177,7 @@ export function validateNotebook(book, { local = false } = {}) {
     if (!sections.has(page.sectionId) || typeof page.title !== 'string' || page.title.length > 200 || !Array.isArray(page.elements) || page.elements.length > 5000) fail('笔记页面无效');
     for (const element of page.elements) {
       takeId(element?.id);
+      if(element.chatSource&&(!/^[\w-]{1,128}$/.test(element.chatSource.boardId||'')||!Number.isSafeInteger(element.chatSource.sequence)||element.chatSource.sequence<1))fail('聊天来源无效');
       if (!types.has(element.type) || !['native', 'canvas'].includes(element.origin?.kind)) fail('笔记元素类型无效');
       if (element.type === 'planning' && (!ids.test(element.planRef || '') || !['list', 'kanban', 'calendar'].includes(element.planView))) fail('规划组件无效');
       if (element.type === 'connector') {

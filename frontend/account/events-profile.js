@@ -40,7 +40,7 @@ function wireProfileEvents() {
   byId('closeProfileButton').addEventListener('click', () => {
     discardPendingAvatar();
     byId('profileDialog').hidden = true;
-    byId('accountButton').focus();
+    (window.__independentNotesActive ? document.querySelector('[data-account-profile]') : byId('accountButton'))?.focus();
   });
   byId('profileForm').addEventListener('submit', async (event) => {
     event.preventDefault();

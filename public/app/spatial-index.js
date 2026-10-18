@@ -6,13 +6,14 @@ import {
 import { els } from './elements.js';
 import { canMutateItem } from './layers-model.js';
 import { isItemVisible } from './layer-visibility.js';
-import { pickPrimarySelection } from './marquee-model.js';
+import { itemIntersectsMarquee, pickPrimarySelection } from './marquee-model.js';
 import { clearMindNodeSelection } from './mindmap-editing-model.js';
 import { canvasInteraction } from './pan.js';
 import { spatialIndexRuntime } from './runtime/spatial-index.js';
-import { selectionChangedIds } from './selection-model.js';
+import { getBoundsOfItems, selectionChangedIds } from './selection-model.js';
 import { updateSelectionUI } from './selection.js';
 import { state } from './state.js';
+import { getCanvasRenderPolicy } from './render-resources-model.js';
 import { staticAssetUrl } from './utilities.js';
 import {
   updateItemLoadMetrics,
@@ -21,12 +22,14 @@ import {
   removeConnectorFromIndex,
   indexConnector,
   rebuildConnectorIndex,
-  geometryWorkerItem
+  geometryWorkerItem,
+  queryItemsInRect
 } from './spatial-index-model.js';
 
 let geometryWorker = null;
 
 let geometrySelectionInFlight = false;
+let geometryDataVersion = 0;
 
 function rebuildSpatialIndex() {
   updateCanvasLoadTier(true);
@@ -49,7 +52,7 @@ function refreshAdaptiveCanvasModes() {
   const wasIndexed = state.spatialIndexEnabled;
   updateCanvasLoadTier(false);
   const shouldIndex = state.loadTier !== 'small';
-  const shouldVirtualize = state.loadTier === 'large' || state.loadTier === 'extreme';
+  const shouldVirtualize = getCanvasRenderPolicy().bounded || state.loadTier === 'large' || state.loadTier === 'extreme';
   if (shouldIndex !== wasIndexed) {
     state.spatialIndexEnabled = shouldIndex;
     if (shouldIndex) {
@@ -109,7 +112,7 @@ function updateCanvasLoadTier(forceComplexityScan = false) {
     }
   }
   state.spatialIndexEnabled = state.loadTier !== 'small';
-  state.viewportVirtualizationEnabled = state.loadTier === 'large' || state.loadTier === 'extreme';
+  state.viewportVirtualizationEnabled = getCanvasRenderPolicy().bounded || state.loadTier === 'large' || state.loadTier === 'extreme';
 }
 
 function ensureGeometryWorker() {
@@ -131,8 +134,23 @@ function ensureGeometryWorker() {
     if (message.sequence === spatialIndexRuntime.latestGeometrySelectionSequence && (state.marquee || finalizing)) {
       const previousIds = state.selectedIds;
       const previousPrimary = state.selectedId;
+      // A remote transform or deletion can land while the worker is selecting.
+      // In that case rebuild candidates from the live index, including objects
+      // that moved into the marquee after the worker took its snapshot.
+      const marquee = message.marquee;
+      let candidates = message.ids || [];
+      if (marquee && message.dataVersion !== geometryDataVersion) {
+        const points = marquee.mode === 'lasso' ? marquee.points : [marquee.start, marquee.current];
+        const xs = points.map(point => point.x), ys = points.map(point => point.y);
+        const x = Math.min(...xs), y = Math.min(...ys);
+        candidates = queryItemsInRect({ x, y, w: Math.max(...xs) - x, h: Math.max(...ys) - y }).map(item => item.id);
+      }
       const nextIds = new Set(
-        (message.ids || []).filter((id) => state.items.has(id) && canMutateItem(state.items.get(id)))
+        candidates.filter((id) => {
+          const item = state.items.get(id);
+          return item && canMutateItem(item) &&
+            marquee && itemIntersectsMarquee(item, marquee);
+        })
       );
       state.selectedIds = nextIds;
       state.selectedId = pickPrimarySelection(state.marquee?.start || finalizing.start, nextIds);
@@ -140,7 +158,7 @@ function ensureGeometryWorker() {
       updateSelectionUI({
         panels: !state.marquee,
         itemIds: selectionChangedIds(previousIds, nextIds, previousPrimary, state.selectedId),
-        selectionBounds: message.bounds
+        selectionBounds: getBoundsOfItems(nextIds)
       });
       if (finalizing) spatialIndexRuntime.geometryMarqueeFinalize = null;
     }
@@ -161,6 +179,7 @@ function ensureGeometryWorker() {
 }
 
 function syncGeometryWorker() {
+  geometryDataVersion += 1;
   if (state.loadTier === 'extreme') {
     ensureGeometryWorker()?.postMessage({ type: 'reset', items: Array.from(state.items.values(), geometryWorkerItem) });
   } else if (geometryWorker) {
@@ -181,6 +200,7 @@ function requestWorkerMarqueeSelection(marquee) {
   const request = {
     type: 'select',
     sequence,
+    dataVersion: geometryDataVersion,
     mode: marquee.mode,
     start: marquee.start,
     current: marquee.current,
@@ -196,6 +216,7 @@ function requestWorkerMarqueeSelection(marquee) {
 }
 
 function indexUpsertItem(item) {
+  geometryDataVersion += 1;
   updateItemLoadMetrics(item);
   refreshAdaptiveCanvasModes();
   if (state.spatialIndexEnabled) state.spatialIndex.upsert(item.id, item, item);
@@ -204,6 +225,7 @@ function indexUpsertItem(item) {
 }
 
 function indexRemoveItem(id) {
+  geometryDataVersion += 1;
   removeItemLoadMetrics(id);
   removeConnectorFromIndex(id);
   state.connectorIndex.delete(id);

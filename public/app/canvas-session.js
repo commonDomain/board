@@ -19,6 +19,7 @@ import { destroyAllSheetRecords, flushAllSheetSaves, sheetDraftWrites } from './
 
 import { state } from './state.js';
 import { clearSyncRetry } from './sync-queue-model.js';
+let reapplyPendingOperations;
 
 import { cssEscape } from './utilities.js';
 
@@ -27,6 +28,8 @@ import { serializePendingOperations, flushPendingOpsStorage } from './canvas-ses
 let updateRedoButton, updateUndoButton, isGuestMode, destroyAllAmapFrames, applyBackground, cancelWheelZoomAnimation, centerOnOrigin, closeCanvasMenu, renderCanvasCatalog, updateCurrentCanvasLabel, restorePendingCut, connect, renderBoardLock, setConnection, finishEditing, cancelActiveGesture, openAdaptiveDialog, setEffectBusy, destroyAllKdocsInstances, renderCursors, renderGuides, updatePresence, renderAll, markDirty, updateSaveText, closeSheetEditor, cacheBoardSnapshot, flushBoardCache, restoreCachedSnapshot, enqueueOperation, scheduleAutoSave, setMindmapPlacementLoading;
 
 function configureCanvasSession(callbacks) {
+  eventsRuntime.captureDraftInputs = captureDraftInputs;
+  reapplyPendingOperations = callbacks.reapplyPendingOperations;
   ({updateRedoButton,
 updateUndoButton,
 isGuestMode,
@@ -62,9 +65,16 @@ setMindmapPlacementLoading} = callbacks);
 }
 
 function schedulePersistPendingOps() {
+  if (state.draftRestoreFailed || state.draftRestoring) return;
   clearTimeout(state.pendingOpsTimer);
+  state.draftStorageSerial = (state.draftStorageSerial || 0) + 1;
+  state.draftStoragePending = true;
   try {
-    window.WhiteboardStorage?.flushOutboxFallback(state.boardId, serializePendingOperations());
+    if (window.WhiteboardStorage?.flushOutboxFallback(state.boardId, serializePendingOperations()) === true) {
+      state.draftStorageSafeSerial = state.draftStorageSerial;
+      state.draftStoragePending = false;
+      state.draftStorageFailed = false;
+    }
   } catch (error) {
     console.warn('Could not journal pending operations', error);
   }
@@ -73,25 +83,51 @@ function schedulePersistPendingOps() {
 
 async function persistPendingOps() {
   clearTimeout(state.pendingOpsTimer);
+  if (state.draftRestoreFailed || state.draftRestoring || !state.boardId) return false;
+  if (isGuestMode()) return cacheBoardSnapshot({ requireLatest: true });
+  const boardId = state.boardId, epoch = state.canvasEpoch;
+  const serial = state.draftStorageSerial || 0;
+  const generation = window.WhiteboardStorage?.getGeneration();
+  let saved = false;
   try {
     const messages = serializePendingOperations();
-    const saved = await window.WhiteboardStorage?.saveOutbox(state.boardId, messages);
-    if (state.syncQueue.length && saved === false) {
-      showToast('本地离线队列空间不足，请保持页面开启直到同步完成');
-    }
+    saved = await window.WhiteboardStorage?.saveOutbox(boardId, messages) === true;
   } catch (error) {
     console.warn('Could not persist pending operations', error);
   }
+  if (state.boardId !== boardId || state.canvasEpoch !== epoch ||
+      generation !== window.WhiteboardStorage?.getGeneration() || serial !== (state.draftStorageSerial || 0)) return saved;
+  const durable = saved || (serial > 0 && state.draftStorageSafeSerial >= serial);
+  const failed = !durable && state.syncQueue.length > 0;
+  if (failed && !state.draftStorageFailed) {
+    eventsRuntime.editableInputHandler?.flush?.();
+    if (serial !== (state.draftStorageSerial || 0)) return false;
+  }
+  if (failed && !state.draftStorageFailed) showToast('本地草稿保存失败，已暂停新增编辑；正在自动重试，请保留此页面');
+  state.draftStorageFailed = failed;
+  state.draftStoragePending = false;
+  if (durable) state.draftStorageSafeSerial = serial;
+  clearTimeout(state.draftStorageRetryTimer);
+  state.draftStorageRetryTimer = null;
+  if (failed) state.draftStorageRetryTimer = setTimeout(() => {
+    if (state.boardId === boardId && state.canvasEpoch === epoch) void persistPendingOps();
+  }, 5000);
+  renderBoardLock();
   updateSaveText();
+  return durable;
 }
 
 function handlePageHide() {
   if (state.pendingCut) restorePendingCut();
+  captureDraftInputs();
+  flushPendingOpsStorage();
+  flushBoardCache();
+}
+
+function captureDraftInputs() {
   eventsRuntime.editableInputHandler?.flush?.();
   commitMindMapEditForPageHide();
   commitMindMapNoteForPageHide();
-  flushPendingOpsStorage();
-  flushBoardCache();
 }
 
 function commitMindMapNoteForPageHide() {
@@ -131,6 +167,8 @@ function commitMindMapEditForPageHide() {
   if (node.text === value) {
     return;
   }
+  if (!editing.beforeItems) editing.beforeItems = structuredClone([...state.items.values()]);
+  editing.changed = true;
   node.text = value;
   fitMindMapItem(item);
   state.items.set(item.id, item);
@@ -146,24 +184,37 @@ async function restorePendingOps() {
     return;
   }
   try {
-    const entries = (await window.WhiteboardStorage?.loadOutbox(state.boardId)) || [];
+    if (!window.WhiteboardStorage?.loadOutbox) throw new Error('Local draft storage is unavailable');
+    const entries = await window.WhiteboardStorage.loadOutbox(state.boardId);
     if (epoch !== state.canvasEpoch || generation !== window.WhiteboardStorage?.getGeneration()) return;
     state.syncQueue.restore({ version: window.WhiteboardSyncQueue.VERSION, entries });
-    if (state.syncQueue.blockedReason === 'Background type is unsupported.') {
+    if (state.syncQueue.restoreIssueCount) throw new Error('Some local draft operations could not be decoded; original storage retained');
+    // Retry old permission failures once after the notebook asset policy fix.
+    // Any remaining failure receives a specific new message and stays blocked.
+    if (['Background type is unsupported.', 'This image is not available to the current account.'].includes(state.syncQueue.blockedReason)) {
       state.syncQueue.resume();
       schedulePersistPendingOps();
     }
     if (state.syncQueue.length) {
+      state.draftStorageSerial = (state.draftStorageSerial || 0) + 1;
+      state.draftStorageFailed = window.WhiteboardStorage?.hasUnsafeOutbox?.(state.boardId) === true;
+      if (!state.draftStorageFailed) state.draftStorageSafeSerial = state.draftStorageSerial;
       state.dirty = true;
       scheduleAutoSave();
     }
     updateSaveText();
   } catch (error) {
     console.warn('Could not restore pending operations', error);
+    if (epoch === state.canvasEpoch && generation === window.WhiteboardStorage?.getGeneration()) state.draftRestoreFailed = true;
+    throw error;
   }
 }
 
 async function persistCurrentCanvasForSwitch() {
+  if (state.draftRestoreFailed || state.draftRestoring) {
+    showToast('正在恢复本地草稿，请稍后再切换画布');
+    return false;
+  }
   if (!state.boardId) return true;
   if (state.pendingCut) restorePendingCut();
   if (sheetStoreRuntime.sheetEditor?.isOpen?.() && sheetStoreRuntime.sheetEditor.commitPending?.() === false) {
@@ -173,7 +224,7 @@ async function persistCurrentCanvasForSwitch() {
   if (state.boardId) flushAllSheetSaves();
   const sheetDrafts = Array.from(sheetDraftWrites.values()).filter((draft) => draft.boardId === state.boardId);
   await Promise.all(sheetDrafts.map((draft) => draft.promise).filter(Boolean));
-  if (sheetDrafts.some((draft) => draft.status === 'blocked')) {
+  if (sheetDrafts.some((draft) => draft.status === 'blocked' || draft.inputFailed)) {
     showToast('工作表本地恢复副本保存失败，暂时无法切换画布');
     return false;
   }
@@ -183,6 +234,7 @@ async function persistCurrentCanvasForSwitch() {
   commitMindMapNoteForPageHide();
   cancelActiveGesture();
   cancelConnectorDraft();
+  const pendingSerial = state.draftStorageSerial;
   if (isGuestMode()) {
     return (await cacheBoardSnapshot({ requireLatest: true })) === true;
   }
@@ -191,7 +243,7 @@ async function persistCurrentCanvasForSwitch() {
     let outboxSaved = false;
     try {
       window.WhiteboardStorage?.flushOutboxFallback(state.boardId, pending);
-      outboxSaved = (await window.WhiteboardStorage?.saveOutbox(state.boardId, pending)) !== false;
+      outboxSaved = (await window.WhiteboardStorage?.saveOutbox(state.boardId, pending)) === true;
     } catch (error) {
       console.warn('Could not persist canvas outbox before switching', error);
     }
@@ -209,18 +261,49 @@ async function persistCurrentCanvasForSwitch() {
       return false;
     }
   }
+  if (pendingSerial !== state.draftStorageSerial) return persistCurrentCanvasForSwitch();
   return true;
 }
 
 async function restoreLocalBoardStateAndConnect() {
-  const restoration = Promise.all([restorePendingOps(), restoreCachedSnapshot()]);
+  if (state.draftRestoring) return;
+  clearTimeout(state.draftRestoreRetryTimer);
+  state.draftRestoreRetryTimer = null;
+  const epoch = state.canvasEpoch;
+  const boardId = state.boardId;
+  state.draftRestoring = true;
+  state.draftRestoreFailed = false;
+  renderBoardLock();
+  const restoration = Promise.all([restorePendingOps(), restoreCachedSnapshot()]).then(() => {
+    if (state.canvasEpoch === epoch && state.boardId === boardId) {
+      state.draftRestoring = false;
+      reapplyPendingOperations();
+      renderBoardLock();
+      if (state.draftStorageFailed) void persistPendingOps();
+    }
+  });
   // Open the socket while IndexedDB is being read, but do not send the join
   // revision until the local cache and outbox are ready.
   connect(restoration);
-  await restoration;
+  try { await restoration; }
+  catch (error) {
+    if (state.canvasEpoch !== epoch || state.boardId !== boardId) return;
+    state.draftRestoring = false;
+    state.draftRestoreFailed = true;
+    renderBoardLock();
+    clearTimeout(state.draftRestoreRetryTimer);
+    state.draftRestoreRetryTimer = setTimeout(() => {
+      if (state.canvasEpoch === epoch && state.boardId === boardId) void restoreLocalBoardStateAndConnect();
+    }, 5000);
+  }
 }
 
 function resetCanvasRuntime() {
+  clearTimeout(state.draftStorageRetryTimer);
+  clearTimeout(state.draftRestoreRetryTimer);
+  Object.assign(state, { draftStorageSerial: 0, draftStorageSafeSerial: 0, draftStoragePending: false,
+    draftStorageFailed: false, draftRestoreFailed: false, draftRestoring: false,
+    draftStorageRetryTimer: null, draftRestoreRetryTimer: null });
   state.preparingCut = false;
   if (state.pendingCut) {
     state.pendingCut = null;
@@ -230,6 +313,7 @@ function resetCanvasRuntime() {
   state.canvasEpoch = (state.canvasEpoch || 0) + 1;
   cancelWheelZoomAnimation();
   state.compatibilityReadOnly = false;
+  state.accessReadOnly = false;
   state.backgroundDrift = wallpaperDriftDefault();
   state.connectorLineJumps = false;
   cancelActiveGesture();
@@ -239,6 +323,8 @@ function resetCanvasRuntime() {
   clearTimeout(state.mindNodePanelTimer);
   clearTimeout(state.saveResponseTimer);
   clearTimeout(state.operationAckTimer);
+  clearTimeout(state.syncDispatchTimer);
+  state.syncDispatchTimer = null;
   clearTimeout(state.resyncResponseTimer);
   clearTimeout(state.xmindAutoSyncTimer);
   clearTimeout(state.xmindRemoteCheckTimer);
@@ -255,6 +341,7 @@ function resetCanvasRuntime() {
   state.connectorEndpoints = new Map();
   state.loadTier = 'small';
   state.inkPointCount = 0;
+  state.inkItemCount = 0;
   state.renderComplexity = 0;
   state.renderComplexityByItem = new Map();
   state.inkPointCountByItem = new Map();

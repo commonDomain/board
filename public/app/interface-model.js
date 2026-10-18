@@ -1,3 +1,4 @@
+import { isPhoneViewer } from './phone-view-model.js';
 function isWechatWebView() {
   return (
     /MicroMessenger/i.test(navigator.userAgent || '') ||
@@ -26,6 +27,7 @@ function captureElementRect(element) {
 }
 
 function morphSurface(surface, anchor) {
+  if (isPhoneViewer()) return null;
   if (!surface || !anchor) return null;
   return window.MuseEffects?.morphPopover(surface, anchor) || null;
 }
@@ -35,6 +37,7 @@ function cancelSurfaceMorph(surface) {
 }
 
 function openMenuSurface(surface, anchor) {
+  if (isPhoneViewer()) return null;
   return window.MuseEffects?.openMenu(surface, anchor) || null;
 }
 
@@ -44,7 +47,7 @@ function cancelMenuSurface(surface) {
 
 function closeMenuSurface(surface, onFinish, options = {}) {
   if (!surface) return null;
-  if (options.immediate || window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
+  if (isPhoneViewer() || options.immediate || window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
     cancelMenuSurface(surface);
     onFinish?.();
     return null;

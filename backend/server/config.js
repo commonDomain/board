@@ -101,7 +101,7 @@ const MAINTENANCE_INTERVAL_MS = integerSetting('MAINTENANCE_INTERVAL_MS', 60 * 6
 
 const BACKUP_INTERVAL_MS = integerSetting('BACKUP_INTERVAL_MS', 24 * 60 * 60 * 1000, { minimum: 60_000 });
 
-const BACKUP_RETENTION_COUNT = integerSetting('BACKUP_RETENTION_COUNT', 7, {
+const BACKUP_RETENTION_COUNT = integerSetting('BACKUP_RETENTION_COUNT', 100, {
   minimum: 1,
   maximum: 100
 });

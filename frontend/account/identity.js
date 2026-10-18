@@ -13,5 +13,6 @@ function renderIdentity() {
   byId('openProfileButton').querySelector('span').textContent = user ? '修改用户信息' : '登录 / 创建账号';
   byId('logoutButton').hidden = !user;
   refreshIcons(byId('accountButton'));
+  window.dispatchEvent(new CustomEvent('muse:identity-changed'));
 }
 export { renderIdentity };

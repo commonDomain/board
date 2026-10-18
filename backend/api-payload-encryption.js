@@ -67,6 +67,7 @@ class ApiPayloadEncryption {
     if (!String(pathname).startsWith('/api/')) return true;
     if (pathname === '/api/transport/handshake' || pathname === '/api/health' || pathname === '/api/webhooks/resend' || pathname === '/api/xmind/oauth/callback') return true;
     if (!['GET', 'HEAD'].includes(String(method).toUpperCase())) return false;
+    if(/^\/api\/canvases\/[^/]+\/chat\/videos\/[a-f0-9]{32}\/(?:original|preview|thumb)$/.test(pathname))return true;
     return /^\/api\/(?:assets\/[^/]+|avatars\/[^/]+|canvases\/[^/]+\/preview|xmind\/maps\/[^/]+\/thumbnail|navigation\/map-frame)$/.test(pathname);
   }
 

@@ -1,4 +1,5 @@
 import { state } from './state.js';
+import { isLocalEditingBlocked, isRemoteBoardLocked } from './connection-model.js';
 
 import { normalizeClientGroup, normalizeClientSection } from './layers-model.js';
 import { normalizeClientLayers } from './layer-visibility.js';
@@ -26,6 +27,7 @@ import {
 } from './history-controller-model.js';
 
 let renderLayerMenu,
+  cancelActiveGesture,
   applyBackground,
   indexUpsertItem,
   renderAll,
@@ -39,6 +41,7 @@ let renderLayerMenu,
 function configureHistoryController(callbacks) {
   ({
     renderLayerMenu,
+    cancelActiveGesture,
     applyBackground,
     indexUpsertItem,
     renderAll,
@@ -208,6 +211,8 @@ function applyHistoryPatch(entry, direction) {
 }
 
 function undoLastChange() {
+  if (isLocalEditingBlocked() || isRemoteBoardLocked()) return;
+  cancelActiveGesture();
   if (state.pendingCut) {
     restorePendingCut();
     return;
@@ -233,6 +238,8 @@ function undoLastChange() {
 }
 
 function redoLastChange() {
+  if (isLocalEditingBlocked() || isRemoteBoardLocked()) return;
+  cancelActiveGesture();
   if (state.pendingCut) return;
   const next = popHistoryState('redo');
   if (!next) {

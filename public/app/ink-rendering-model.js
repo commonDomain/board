@@ -1,5 +1,9 @@
 import { state } from './state.js';
 import { clamp, createSvg } from './utilities.js';
+import { getCanvasRenderPolicy, getInkPixelRatio, shrinkInkSurfaces } from './render-resources-model.js';
+import { planImageSources } from './image-render-policy-model.js';
+
+let lastInkRasterBudget = Infinity;
 
 function hashString(value) {
   let hash = 2166136261;
@@ -33,6 +37,14 @@ function normalizeBrushPoints(points) {
 }
 
 function renderInk(item) {
+  const policy = getCanvasRenderPolicy({ exporting: state.exporting });
+  if (policy.bounded) {
+    const budget = Math.min(policy.maxRasterPixels, policy.totalInkPixels / Math.max(1, state.inkItemCount || 1));
+    // Adding strokes must also reduce existing buffers; limiting only the new
+    // stroke leaves the older, larger buffers outside the aggregate budget.
+    if (budget < lastInkRasterBudget) shrinkInkSurfaces(budget);
+    lastInkRasterBudget = budget;
+  }
   const engine = window.WhiteboardBrushEngine;
   if (!engine?.render) {
     console.warn('[render] Brush engine is unavailable; ink items render blank.');
@@ -47,16 +59,8 @@ function renderInk(item) {
   const points = normalizeBrushPoints(item.pts);
   const width = Math.max(1, Number(item.baseW || item.w) || 1);
   const height = Math.max(1, Number(item.baseH || item.h) || 1);
-  const pixelRatio = Math.max(
-    0.05,
-    Math.min(
-      2.5,
-      Math.max(1, window.devicePixelRatio || 1),
-      4096 / width,
-      4096 / height,
-      Math.sqrt(4_000_000 / (width * height))
-    )
-  );
+  const pixelRatio = getInkPixelRatio(width, height, window.devicePixelRatio,
+    policy, { inkCount: state.inkItemCount, zoom: state.zoom });
   if (!engine?.render || !points.length) {
     return canvas;
   }
@@ -170,18 +174,24 @@ function itemEdgePoint(item, towardPoint) {
 }
 
 function renderImage(item) {
+  const bounded = getCanvasRenderPolicy({ exporting: state.exporting }).bounded;
   const img = document.createElement('img');
   img.alt = '粘贴图片';
   img.draggable = false;
   img.decoding = 'async';
-  img.loading = 'lazy';
+  img.loading = bounded ? 'eager' : 'lazy';
   img.fetchPriority = state.selectedIds.has(item.id) ? 'high' : 'low';
-  img.src = getImageLodSource(item);
-  img.dataset.source = img.src;
+  if (!bounded) {
+    img.src = getImageLodSource(item);
+    img.dataset.source = img.src;
+  }
   return img;
 }
 
 function getImageLodSource(item) {
+  if (getCanvasRenderPolicy({ exporting: state.exporting }).bounded) {
+    return planImageSources([item], state.zoom, window.devicePixelRatio, getCanvasRenderPolicy())[0].source;
+  }
   if (state.exporting || !item.assetId || !/^[a-f0-9]{64}$/.test(item.assetId)) return item.src;
   const naturalWidth = Math.max(1, Number(item.naturalWidth) || Number(item.w) || 1);
   const naturalHeight = Math.max(1, Number(item.naturalHeight) || Number(item.h) || 1);

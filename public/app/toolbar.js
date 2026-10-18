@@ -1,3 +1,4 @@
+import { isPhoneViewer } from './phone-view-model.js';
 
 
 import {
@@ -179,6 +180,16 @@ function wireToolbar() {
     event.stopPropagation();
     togglePopover(els.backgroundMenu, els.backgroundButton);
   });
+  els.petButton?.addEventListener('click', (event) => {
+    event.stopPropagation();
+    togglePopover(els.petMenu, els.petButton);
+  });
+  els.petMenu?.addEventListener('keydown', (event) => {
+    if (event.key !== 'Escape' || event.isComposing) return;
+    event.preventDefault();
+    event.stopPropagation();
+    closePopovers();
+  });
   els.backgroundDriftToggle?.addEventListener('click', () => {
     setBackgroundDrift(state.backgroundDrift !== true);
   });
@@ -213,7 +224,7 @@ function setDocumentBarCollapsed(collapsed) {
 function applyDocumentBarVisibility() {
   const documentBar = document.querySelector('.document-bar');
   if (!documentBar || !els.documentBarToggle || !els.documentBarContent) return;
-  const collapsed = state.documentBarCollapsed;
+  const collapsed = !isPhoneViewer() && state.documentBarCollapsed;
   documentBar.classList.toggle('is-collapsed', collapsed);
   els.documentBarContent.setAttribute('aria-hidden', String(collapsed));
   els.documentBarToggle.setAttribute('aria-expanded', String(!collapsed));
@@ -256,7 +267,7 @@ function applyToolDockVisibility(options = {}) {
   if (!els.toolDock || !els.dockExpandButton) {
     return;
   }
-  const collapsed = state.toolDockCollapsed && !window.matchMedia('(max-width: 1100px)').matches;
+  const collapsed = !isPhoneViewer() && state.toolDockCollapsed && !window.matchMedia('(max-width: 1100px)').matches;
   const changed = options.wasCollapsed !== undefined && options.wasCollapsed !== collapsed;
   cancelSurfaceMorph(els.toolDock);
   cancelSurfaceMorph(els.dockExpandButton);
@@ -498,6 +509,7 @@ function buildTableMenu() {
 }
 
 function setTool(tool) {
+  if (isPhoneViewer()) tool = 'pan';
   if (state.compatibilityReadOnly && !['pan', 'select'].includes(tool)) return;
   if (tool !== state.tool) {
     cancelActiveGesture();
@@ -532,6 +544,11 @@ function restoreNavigationTool() {
 
 function updateCanvasStartState() {
   if (!els.canvasStart) return;
+  if (isPhoneViewer()) {
+    els.canvasStart.hidden = true;
+    if (els.noCanvasStart) els.noCanvasStart.hidden = true;
+    return;
+  }
   const withoutCanvas = !state.boardId && state.canvasCatalogLoadedAt > 0;
   if (els.noCanvasStart) els.noCanvasStart.hidden = !withoutCanvas;
   const description = document.getElementById('noCanvasStartDescription');

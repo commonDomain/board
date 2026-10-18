@@ -82,6 +82,7 @@ export class NotebookStore {
     this.versions = new Map(); this.generations = new Map(); this.durable = new Map(); this.writes = new Map(); this.baselines = new Map(); this.conflicts = new Set(); this.rejected = new Map(); this.remoteMissing = new Set(); this.cloudAvailable = guest;
     this.clientId = uid('client'); this.disposed = false; this.controller = new AbortController(); this.retryDelay = 1000; this.localLeases = new Set(); this.heldLocks = new Map(); this.acquiringLocks = new Map(); this.remoteChanges = new Set();
     this.localSnapshots = new Map(); this.loadingBooks = new Map(); this.remoteLeases = new Map(); this.leaseRequests = new Map();this.recoveredDrafts=new Map();this.leaseTails=new Map();this.releasingLeases=new Set();this.desiredLeases=new Set();
+    this.savedTimes = new Map();
     // A window's outbox remains private while that window is alive, even if offline.
     this.liveClient=false;
     if(typeof navigator!=='undefined'&&navigator.locks) navigator.locks.request(`muse-note-client:${scope}:${this.clientId}`,async()=>{
@@ -106,6 +107,7 @@ export class NotebookStore {
       for (const record of await localBooks(this.scope)) {
         if(record.draft){drafts.push(record);continue;}
         this.books.set(record.book.id, record.book); this.versions.set(record.book.id, record.version);
+        if (record.savedAt) this.savedTimes.set(record.book.id,record.savedAt);
         this.localSnapshots.set(record.book.id,clone(record.book));
         if (record.dirty) this.dirty.add(record.book.id); else this.baselines.set(record.book.id, clone(record.book));
         if (record.pending) this.pending.set(record.book.id, record.pending);
@@ -162,7 +164,7 @@ export class NotebookStore {
     const work = previous.catch(() => {}).then(async () => {
       const book = this.books.get(id); if (!book || book.unloaded) return;
       const generation = this.generations.get(id) || 0; const version = this.versions.get(id) || 0;
-      const record = { book: clone(book), version: version + 1, dirty: this.dirty.has(id), pending: clone(this.pending.get(id)), writer: this.clientId };
+      const record = { book: clone(book), version: version + 1, dirty: this.dirty.has(id), pending: clone(this.pending.get(id)), writer: this.clientId, savedAt:this.dirty.has(id) ? Date.now() : (!this.guest && book.access?.savedAt) || this.savedTimes.get(id) };
       const captured=clone(record.book);let sharedSnapshot,mergedRemote=false;
       await transaction('books', (store, fail) => {
         const key = `${this.scope}:${id}`; const get = store.get(key);
@@ -191,6 +193,7 @@ export class NotebookStore {
         Object.assign(book,merged);
       }this.baselines.set(id,clone(record.book));}
       this.durable.set(id, generation); this.localUnavailable = false; this.channel?.postMessage({id,writer:this.clientId});
+      this.savedTimes.set(id,record.savedAt);
     });
     this.writes.set(id, work); return work;
   }
@@ -259,6 +262,7 @@ export class NotebookStore {
             for(const page of book.pages)if(result.pageRevisions?.[page.id]!==undefined)page.revision=result.pageRevisions[page.id];
           }
           this.baselines.set(id,clone(acknowledged)); this.pending.delete(id); this.failures.delete(id);
+          if (book.access) book.access.savedAt = result.savedAt || result.notebook?.access?.savedAt || Date.now();
           if (same && generation === (this.generations.get(id) || 0)) this.dirty.delete(id);
         } else if (generation === (this.generations.get(id) || 0)) this.dirty.delete(id);
         try { await this.persistBook(id); } catch (error) { this.dirty.add(id); throw error; }

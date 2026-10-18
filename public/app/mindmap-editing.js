@@ -153,7 +153,12 @@ function startMindNodeEdit(item, path, options = {}) {
     state.mindmapEditing = null;
     if (!commit && editing.beforeItems) {
       const restored = editing.beforeItems.find((entry) => entry.id === item.id);
-      if (restored) state.items.set(item.id, structuredClone(restored));
+      if (restored) {
+        const next = { ...structuredClone(restored), contentVersion: state.items.get(item.id)?.contentVersion || 0 };
+        state.items.set(item.id, next);
+        broadcastUpsert(next);
+        markDirty(true);
+      }
       renderItem(state.items.get(item.id) || item);
       updateContextPanel();
       return;
@@ -278,6 +283,7 @@ function startMindNodeNoteEdit(item, path, element) {
   const editor = document.createElement('textarea');
   editor.className = 'mind-note-editor';
   editor.value = node.note || '';
+  const initialNote = node.note || '';
   editor.placeholder = '补充备注；Ctrl/⌘ + Enter 保存';
   editor.setAttribute('aria-label', `节点备注：${node.text}`);
   element.appendChild(editor);
@@ -285,9 +291,9 @@ function startMindNodeNoteEdit(item, path, element) {
   const finish = (commit) => {
     if (settled) return;
     settled = true;
-    const value = editor.value.trim().slice(0, 4000);
+    const value = commit ? editor.value.trim().slice(0, 4000) : initialNote;
     editor.remove();
-    if (!commit || value === (node.note || '')) {
+    if (value === (getMindNodeAtPath(state.items.get(item.id)?.tree, path)?.note || '')) {
       return;
     }
     const nextTree = JSON.parse(JSON.stringify(item.tree));

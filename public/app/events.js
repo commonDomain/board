@@ -1,3 +1,4 @@
+import { isPhoneViewer } from './phone-view-model.js';
 import { setBackground } from './background.js';
 import { fitZoom, onViewportWheel, resetRotation, resetZoom, setZoom, zoomBy } from './camera.js';
 import { preventBrowserKeyboardZoom, preventBrowserWheelZoom, zoomSliderLevels } from './camera-model.js';
@@ -52,7 +53,7 @@ import { state } from './state.js';
 import { addTableDimension, deleteTableDimension, onTableCellFocus } from './table-rendering.js';
 import { rememberTextSelection } from './text-input.js';
 import { restoreNavigationTool, setTextToolbarMode } from './toolbar.js';
-import { clamp, cssEscape, debounce } from './utilities.js';
+import { clamp, cssEscape } from './utilities.js';
 import {
   closeXmindBrowser,
   closeXmindProviderDialog,
@@ -67,16 +68,33 @@ import {
 
 function wireBoard() {
   observeInteractionViewportBounds();
-  window.addEventListener('orientationchange', () => { cancelActiveGesture(); state.pointerPositions.clear(); });
+  const interruptGesture = () => {
+    state.localBoardEditGesture = false;
+    state.spacePan = false;
+    els.viewport.classList.remove('space-pan');
+    hideSectionHoverLabel();
+    cancelActiveGesture();
+    cancelConnectorDraft();
+    state.pointerPositions.clear();
+  };
+  window.addEventListener('orientationchange', interruptGesture);
+  window.addEventListener('pagehide', interruptGesture);
+  document.addEventListener('visibilitychange', () => { if (document.hidden) interruptGesture(); });
   // Intercept browser zoom before a nested control can stop the wheel event
   // from reaching the viewport's canvas-zoom handler.
   window.addEventListener('wheel', preventBrowserWheelZoom, { capture: true, passive: false });
   window.addEventListener('keydown', preventBrowserKeyboardZoom, true);
+  // Capture navigation before nested editors or widgets receive a gesture.
+  els.viewport.addEventListener('pointerdown', event => {
+    if (!isPhoneViewer()) return;
+    onBoardPointerDown(event);
+    event.stopImmediatePropagation();
+  }, { capture: true, passive: false });
   els.viewport.addEventListener('pointerdown', onBoardPointerDown);
   els.viewport.addEventListener(
     'pointerdown',
     (event) => {
-      if (event.button !== 0 || isRemoteBoardLocked()) return;
+      if (isPhoneViewer() || event.button !== 0 || isRemoteBoardLocked()) return;
       const itemId = event.target.closest?.('.board-item')?.dataset?.itemId || null;
       state.localBoardEditGesture = state.tool !== 'pan' && (state.tool !== 'select' || Boolean(itemId));
       if (state.localBoardEditGesture) sendBoardEditActivity(itemId);
@@ -151,7 +169,9 @@ function wireBoard() {
     cancelConnectorDraft();
     state.pointerPositions.clear();
   });
-  eventsRuntime.editableInputHandler = debounce(onEditableInput, 160);
+  // Capture every accepted input before another event can replace its DOM.
+  // Only transport batching is delayed; local draft capture is never debounced.
+  eventsRuntime.editableInputHandler = onEditableInput;
   els.itemsLayer.addEventListener('input', onEditableInputImmediate);
   els.itemsLayer.addEventListener('input', eventsRuntime.editableInputHandler);
   els.itemsLayer.addEventListener('focusin', onTableCellFocus);
