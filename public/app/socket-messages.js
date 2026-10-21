@@ -31,6 +31,10 @@ import { requestResync } from './sync-queue-model.js';
 import { setTool } from './toolbar.js';
 
 function handleSocketMessage(message) {
+  if (message.type === 'gomoku-changed') {
+    window.dispatchEvent(new CustomEvent('muse:gomoku-changed',{detail:message}));
+    return;
+  }
   if (message.type === 'chat-changed') {
     window.dispatchEvent(new CustomEvent('muse:chat-changed',{detail:message}));
     return;

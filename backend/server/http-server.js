@@ -6,6 +6,8 @@ import { handleNotebookApi, canReadNotebookAsset } from './notebooks.js';
 import { handlePlanningApi } from './planning.js';
 import { handleChatApi, canReadChatAsset } from './chat.js';
 import { handlePushApi } from './web-push.js';
+import { handleGomokuApi } from './gomoku.js';
+import { handleQuickTransferApi } from './quick-transfer.js';
 import { handleChatVideoApi } from './chat-videos.js';
 import { assetExtensionForMime, writeAssetBuffer } from './asset-storage.js';
 import { isWebpBuffer } from './avatar-validation.js';
@@ -39,7 +41,7 @@ import { serverStateRuntime } from './runtime/server-state.js';
 import { servicesRuntime } from './runtime/services.js';
 import { searchCanvases } from './search.js';
 import { apiPayloadEncryption } from './services.js';
-import { serveStatic, serveStaticFile } from './static-assets.js';
+import { getAppVersion, serveStatic, serveStaticFile } from './static-assets.js';
 import { handleXmindApi } from './xmind-api.js';
 
 const server = http.createServer(async (req, res) => {
@@ -81,6 +83,10 @@ const server = http.createServer(async (req, res) => {
       return;
     }
     await prepareEncryptedApiRequest(req, res, requestUrl);
+    if (req.method === 'GET' && requestUrl.pathname === '/api/app-version') {
+      sendJson(res, 200, { buildId: await getAppVersion() });
+      return;
+    }
     const apiWrite = requestUrl.pathname.startsWith('/api/') && !['GET', 'HEAD', 'OPTIONS'].includes(req.method);
     if (apiWrite && !apiWriteIpLimit(clientIp(req))) {
       sendJson(res, 429, { error: 'Too many write requests.', code: 'RATE_LIMITED' });
@@ -96,6 +102,8 @@ const server = http.createServer(async (req, res) => {
     if (await handleXmindApi(req, res, requestUrl)) return;
     if (await handleAccountApi(req, res, requestUrl)) return;
     if (await handlePushApi(req, res, requestUrl)) return;
+    if (await handleGomokuApi(req, res, requestUrl)) return;
+    if (await handleQuickTransferApi(req, res, requestUrl)) return;
     if (await handleNotebookApi(req, res, requestUrl)) return;
     if (await handlePlanningApi(req, res, requestUrl)) return;
     if (await handleChatVideoApi(req, res, requestUrl)) return;
@@ -408,7 +416,7 @@ const server = http.createServer(async (req, res) => {
     await serveStatic(req, res);
   } catch (error) {
     const status = error.statusCode || (error instanceof ProtocolError ? 400 : 500);
-    if (status >= 500) console.error(error);
+    if (status >= 500 && error.code !== 'STATIC_PUBLICATION_PENDING') console.error(error);
     if (!res.headersSent) {
       const exposed = status < 500 || error.expose === true;
       sendJson(

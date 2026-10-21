@@ -2,6 +2,7 @@
 
 import { restorePendingCut } from './clipboard.js';
 import { DOCUMENT_VERSION } from './constants.js';
+import { checkAppVersion } from './app-version.js';
 import { els } from './elements.js';
 import { interfaceEffects } from './interface.js';
 import { setOrbActive, showToast } from './interface-model.js';
@@ -22,6 +23,8 @@ let isGuestMode,
   scheduleCurrentCanvasPreviewRefresh,
   updateSaveText,
   updateSavedLabel,
+  updateUndoButton,
+  updateRedoButton,
   armSheetCommandTimeout,
   clearSheetLocks,
   loadSnapshot,
@@ -43,6 +46,8 @@ function configureConnection(callbacks) {
     scheduleCurrentCanvasPreviewRefresh,
     updateSaveText,
     updateSavedLabel,
+    updateUndoButton,
+    updateRedoButton,
     armSheetCommandTimeout,
     clearSheetLocks,
     loadSnapshot,
@@ -101,6 +106,7 @@ function connect(joinReady = null) {
     state.joined = false;
     state.reconnectAttempt = 0;
     setConnection('online');
+    void checkAppVersion();
     socket.send(
       JSON.stringify({type: 'join',
 boardId,
@@ -162,6 +168,7 @@ protocolVersion: DOCUMENT_VERSION, workspaceProtocolVersion: 1})
 }
 
 function setConnection(status) {
+  window.dispatchEvent(new CustomEvent('muse:connection-state',{detail:{online:status==='online'}}));
   els.connectionDot.classList.toggle('online', status === 'online');
   els.connectionDot.classList.toggle('offline', status === 'offline');
   els.connectionDot.classList.toggle('local', status === 'local');
@@ -183,8 +190,19 @@ function setConnection(status) {
 function renderBoardLock() {
   const localBlocked = state.draftStorageFailed || state.draftRestoreFailed || state.draftRestoring;
   const locked = isRemoteBoardLocked() || isLocalEditingBlocked();
+  updateUndoButton();
+  updateRedoButton();
   if (els.viewport) els.viewport.inert = locked;
-  if (els.toolDock) els.toolDock.inert = locked;
+  if (els.toolDock) {
+    // Account tools are independent of the canvas editing lease.
+    els.toolDock.inert = false;
+    for (const child of els.toolDock.children) {
+      if (child.classList.contains('toolbar-insert')) {
+        child.inert = false;
+        for (const tool of child.children) tool.inert = locked && !tool.hasAttribute('data-board-independent');
+      } else child.inert = locked;
+    }
+  }
   if (els.contextPanel) els.contextPanel.inert = locked;
   if (els.floatingFormatBar) els.floatingFormatBar.inert = locked;
   if (els.layerMenu) els.layerMenu.inert = locked;

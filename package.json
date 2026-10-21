@@ -16,7 +16,7 @@
     "start": "node --env-file-if-exists=.env backend/server.js",
     "check": "node scripts/check-project.js",
     "build:frontend": "node scripts/build-frontend.js",
-    "build": "npm run build:vendor && npm run build:frontend"
+    "build": "node scripts/build.js"
   },
   "engines": {
     "node": ">=24"

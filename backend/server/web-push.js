@@ -4,6 +4,7 @@ import { readJsonBody } from './http-body.js';
 import { sendJson } from './http-response.js';
 import { createMemoryRateLimiter } from './rate-limits.js';
 import chatHistory from '../chat-history.js';
+import { drainGomokuPush } from './gomoku-push.js';
 
 const limit=createMemoryRateLimiter(20,60000);
 let settings, timer, pending;
@@ -115,7 +116,9 @@ export async function drainPushQueue(db,account,config,send=webpush.sendNotifica
 
 export function startWebPush() {
   const config=pushSettings();if(!config)return;
-  timer=setInterval(()=>{if(pending)return;pending=drainPushQueue(servicesRuntime.database,servicesRuntime.accountService,config)
+  timer=setInterval(()=>{if(pending)return;pending=Promise.all([
+    drainPushQueue(servicesRuntime.database,servicesRuntime.accountService,config),
+    drainGomokuPush(servicesRuntime.database,servicesRuntime.accountService,config,webpush.sendNotification.bind(webpush))])
     .catch(()=>console.error('Web Push queue processing failed')).finally(()=>{pending=null;});},2000);
   timer.unref();
 }

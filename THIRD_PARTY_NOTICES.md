@@ -11,6 +11,7 @@ Museboard 的 Apache-2.0 授权适用于项目原创代码与文档。第三方�
 | SimpleWebAuthn Browser 13.3.0 | `public/vendor/simplewebauthn-browser.min.js` | [MIT](public/vendor/simplewebauthn-browser.LICENSE.txt) |
 | fflate 0.8.3 | `public/vendor/fflate.min.js` | [MIT](public/vendor/fflate.LICENSE.txt) |
 | saxes 6.0.0 | `public/vendor/saxes.min.js` | [ISC 与上游声明](public/vendor/saxes.LICENSE.txt) |
+| qrcode 1.5.4、dijkstrajs 1.0.3 | `public/vendor/quick-qr.js` | [MIT 与上游声明](public/vendor/quick-qr.LICENSE.txt)；仅快传生成二维码时加载 |
 | xmlchars | 包含在 `public/vendor/saxes.min.js` 中 | [MIT](public/vendor/xmlchars.LICENSE.txt) |
 | GSAP 3.15.0 | `public/vendor/gsap.min.js` | [GSAP Standard License](https://gsap.com/community/standard-license/)；保留 bundle 中的版权声明，使用与分发须遵守 GSAP 自身条款 |
 | Libraries 效果适配 | 相关界面效果 | [MIT 与来源声明](public/vendor/libraries-effects.LICENSE.txt) |

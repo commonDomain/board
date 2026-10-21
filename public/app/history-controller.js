@@ -353,16 +353,20 @@ function updateUndoButton() {
   if (!els.undoButton) {
     return;
   }
-  els.undoButton.disabled = state.undoStack.length === 0 && !state.pendingCut;
-  els.undoButton.classList.toggle('disabled', state.undoStack.length === 0 && !state.pendingCut);
+  const disabled = isLocalEditingBlocked() || isRemoteBoardLocked() ||
+    (state.undoStack.length === 0 && !state.pendingCut);
+  els.undoButton.disabled = disabled;
+  els.undoButton.classList.toggle('disabled', disabled);
 }
 
 function updateRedoButton() {
   if (!els.redoButton) {
     return;
   }
-  els.redoButton.disabled = state.redoStack.length === 0 || Boolean(state.pendingCut);
-  els.redoButton.classList.toggle('disabled', state.redoStack.length === 0 || Boolean(state.pendingCut));
+  const disabled = isLocalEditingBlocked() || isRemoteBoardLocked() ||
+    state.redoStack.length === 0 || Boolean(state.pendingCut);
+  els.redoButton.disabled = disabled;
+  els.redoButton.classList.toggle('disabled', disabled);
 }
 export {
   scheduleHistoryCompaction,

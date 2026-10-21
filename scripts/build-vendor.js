@@ -46,7 +46,7 @@ buildVendor({
         Save, Download, ZoomIn, ZoomOut, ChevronDown, MoreHorizontal, Ellipsis, Sparkles,
         Circle, SlidersHorizontal, Eye, EyeOff, Lock, Unlock, Plus, Trash2, Pencil,
         ArrowUp, ArrowDown, ArrowUpRight, ChevronsUp, ChevronsDown, X, Check, Wifi,
-        WifiOff, Users, RotateCcw, RotateCw, Play, Pause, PanelRight, Menu,
+        WifiOff, Users, RotateCcw, RotateCw, Play, Pause, PanelRight, Menu, Gamepad2,
         Paintbrush, Pipette, Minus, Maximize2, FileImage, Palette,
         ListChecks, GitBranch, Star, Heart, CheckCircle2, XCircle, Flag,
         Lightbulb, Zap, Smile, TriangleAlert, CircleHelp, ArrowRight,
@@ -83,7 +83,7 @@ buildVendor({
         Save, Download, ZoomIn, ZoomOut, ChevronDown, MoreHorizontal, Ellipsis, Sparkles,
         Circle, SlidersHorizontal, Eye, EyeOff, Lock, Unlock, Plus, Trash2, Pencil,
         ArrowUp, ArrowDown, ArrowUpRight, ChevronsUp, ChevronsDown, X, Check, Wifi,
-        WifiOff, Users, RotateCcw, RotateCw, Play, Pause, PanelRight, Menu,
+        WifiOff, Users, RotateCcw, RotateCw, Play, Pause, PanelRight, Menu, Gamepad2,
         Paintbrush, Pipette, Minus, Maximize2, FileImage, Palette,
         ListChecks, GitBranch, Star, Heart, CheckCircle2, XCircle, Flag,
         Lightbulb, Zap, Smile, TriangleAlert, CircleHelp, ArrowRight,
@@ -184,6 +184,14 @@ buildVendor({
   format: 'iife',
   globalName: 'Saxes',
   outfile: path.join(OUT_DIR, 'saxes.min.js')
+});
+
+// Loaded only when a quick-transfer link is ready; keys stay in the browser.
+buildVendor({
+  ...shared,
+  stdin: { contents: `export { toDataURL } from 'qrcode';`, resolveDir: ROOT, sourcefile: 'quick-qr-entry.js' },
+  banner: { js: '// qrcode 1.5.4 and dijkstrajs 1.0.3 (MIT); see quick-qr.LICENSE.txt.' },
+  platform: 'browser', format: 'esm', outfile: path.join(OUT_DIR, 'quick-qr.js')
 });
 
 publishBuildOutputs(outputs, { root: ROOT }).catch((error) => {

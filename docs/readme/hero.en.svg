@@ -1,37 +1,118 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="360" viewBox="0 0 1440 360" role="img" aria-labelledby="title desc">
-  <title id="title">Museboard — From ideas to action</title>
-  <desc id="desc">Sticky notes, a mind map, and a notebook connected on a lavender workspace.</desc>
-  <defs>
-    <linearGradient id="bg" x2="1" y2="1"><stop stop-color="#f7f5ff"/><stop offset="1" stop-color="#eef3ff"/></linearGradient>
-    <linearGradient id="accent" x2="1" y2="1"><stop stop-color="#836bff"/><stop offset="1" stop-color="#5744eb"/></linearGradient>
-    <pattern id="dots" width="24" height="24" patternUnits="userSpaceOnUse"><circle cx="1" cy="1" r="1" fill="#aaa1d0" opacity=".22"/></pattern>
-    <filter id="shadow" x="-30%" y="-30%" width="160%" height="180%"><feDropShadow dx="0" dy="10" stdDeviation="13" flood-color="#4e437e" flood-opacity=".10"/></filter>
-  </defs>
-  <rect width="1440" height="360" rx="24" fill="url(#bg)"/>
-  <rect width="1440" height="360" rx="24" fill="url(#dots)"/>
-  <circle cx="1400" cy="-35" r="190" fill="#e4deff" opacity=".5"/>
-  <circle cx="70" cy="370" r="115" fill="#e9e5ff" opacity=".65"/>
-  <g font-family="Inter, 'Microsoft YaHei', 'PingFang SC', sans-serif">
-    <rect x="68" y="68" width="167" height="30" rx="15" fill="#ebe6ff"/>
-    <text x="84" y="88" font-size="12" font-weight="700" letter-spacing="2" fill="#6957d9">YOUR IDEA SPACE</text>
-    <text x="68" y="164" font-size="46" font-weight="750" fill="#26243c">From ideas to action.</text>
-    <text x="70" y="211" font-size="18" fill="#666079">Capture ideas. Connect the dots. Move forward.</text>
-    <g font-size="13" fill="#655c88">
-      <rect x="70" y="255" width="150" height="34" rx="17" fill="#fff"/>
-      <text x="88" y="277">Infinite canvas</text>
-      <rect x="234" y="255" width="150" height="34" rx="17" fill="#fff"/>
-      <text x="250" y="277">Freeform notes</text>
-      <rect x="398" y="255" width="172" height="34" rx="17" fill="#fff"/>
-      <text x="414" y="277">Live collaboration</text>
-    </g>
-    <g filter="url(#shadow)">
-      <rect x="790" y="75" width="158" height="157" rx="18" fill="#fff3b2" transform="rotate(-7 869 154)"/>
-      <g transform="rotate(-7 869 154)" fill="#766327"><text x="812" y="116" font-size="15" font-weight="650">A good idea</text><rect x="812" y="139" width="104" height="6" rx="3" opacity=".18"/><rect x="812" y="159" width="80" height="6" rx="3" opacity=".18"/><path d="M814 188 Q833 175 849 187 T894 182" fill="none" stroke="#c3a337" stroke-width="3" stroke-linecap="round"/></g>
-      <rect x="1077" y="154" width="227" height="158" rx="18" fill="white" transform="rotate(5 1190 233)"/>
-      <g transform="rotate(5 1190 233)"><text x="1099" y="193" font-size="14" font-weight="650" fill="#554876">Make some progress</text><rect x="1099" y="211" width="178" height="5" rx="2.5" fill="#ebe7f3"/><rect x="1099" y="229" width="148" height="5" rx="2.5" fill="#ebe7f3"/><rect x="1099" y="252" width="13" height="13" rx="4" fill="#ddd4ff"/><path d="m1102 258 3 3 5-6" fill="none" stroke="#6957f5" stroke-width="1.7"/><rect x="1123" y="256" width="123" height="5" rx="2.5" fill="#ebe7f3"/></g>
-    </g>
-    <path d="M939 180 H987 Q1004 180 1004 162 V112 Q1004 96 1024 96 H1101 M1004 179 V235 Q1004 250 1026 250 H1060" fill="none" stroke="#b2a5e5" stroke-width="2.5" stroke-linecap="round"/>
-    <g filter="url(#shadow)"><rect x="919" y="151" width="150" height="48" rx="13" fill="url(#accent)"/><text x="939" y="181" font-size="14" font-weight="650" fill="#fff">Grow your ideas</text><rect x="1101" y="74" width="162" height="44" rx="12" fill="white"/><text x="1123" y="102" font-size="14" fill="#635778">Find clarity</text></g>
-    <circle cx="1347" cy="108" r="5" fill="#beafff"/><circle cx="736" cy="247" r="4" fill="#beafff"/><path d="M1285 62v16m-8-8h16" stroke="#bcaef1" stroke-width="2" stroke-linecap="round"/>
-  </g>
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="850" viewBox="0 0 1440 850" role="img" aria-labelledby="title desc">
+<title id="title">Museboard — Good ideas need room.</title>
+<desc id="desc">Product illustration: sticky notes, sketches, mind maps, and notes share a workspace, with live cursors for collaboration.</desc>
+<defs>
+<radialGradient id="glow">
+<stop stop-color="#6550b0" stop-opacity=".55"/>
+<stop offset="1" stop-color="#161925" stop-opacity="0"/>
+</radialGradient>
+<linearGradient id="card" x2="1" y2="1">
+<stop stop-color="#f9f8ff"/>
+<stop offset="1" stop-color="#f0f4f8"/>
+</linearGradient>
+<linearGradient id="violet" x2="1" y2="1">
+<stop stop-color="#9075fb"/>
+<stop offset="1" stop-color="#6957df"/>
+</linearGradient>
+<pattern id="dots" width="22" height="22" patternUnits="userSpaceOnUse">
+<circle cx="1" cy="1" r="1" fill="#d9d8e6"/>
+</pattern>
+<filter id="shadow" x="-25%" y="-25%" width="160%" height="170%">
+<feDropShadow dx="0" dy="10" stdDeviation="16" flood-color="#30264f" flood-opacity=".12"/>
+</filter>
+</defs>
+<g font-family="Inter,Segoe UI,Microsoft YaHei,PingFang SC,sans-serif">
+<rect x="0" y="0" width="1440" height="850" rx="28" fill="#161925" />
+<ellipse cx="1215" cy="125" rx="650" ry="480" fill="url(#glow)"/>
+<rect x="64" y="48" width="28" height="28" rx="8" fill="#ad99ff" />
+<path d="M71 68V57l7 7 7-7v11" fill="none" stroke="#202036" stroke-width="2.5" stroke-linejoin="round"/>
+<text x="104" y="69" font-size="17" fill="#e4dffa" font-weight="700" letter-spacing="3">MUSEBOARD</text>
+<rect x="1170" y="44" width="204" height="35" rx="17" fill="#ffffff0d" stroke="#ffffff24"/>
+<text x="1272" y="67" font-size="10.5" fill="#dbd5ef" font-weight="600" text-anchor="middle" letter-spacing=".7">SELF-HOSTED · OPEN SOURCE</text>
+<text x="64" y="160" font-size="64" fill="#ffffff" font-weight="700" letter-spacing="-1.5">Good ideas need room.</text>
+<text x="67" y="210" font-size="24" fill="#bcb9d0" font-weight="400" >Sketch a thought. Connect the pieces. Build it together.</text>
+<path d="M1160 170c35-55 115-33 89 6-22 30-76 10-63-16 22-44 91-19 124 5m-9-15 12 16-22 3" fill="none" stroke="#b8a3fc" stroke-width="3" stroke-linecap="round"/>
+<rect x="60" y="263" width="1320" height="484" rx="20" fill="url(#card)" />
+<path d="M80 263h1280q20 0 20 20v40H60v-40q0-20 20-20" fill="#ffffff"/>
+<text x="88" y="300" font-size="19" fill="#343047" font-weight="700" >Museboard</text>
+<rect x="264" y="277" width="110" height="32" rx="10" fill="#eee9ff" />
+<text x="319" y="299" font-size="14" fill="#6952cb" font-weight="650" text-anchor="middle">Canvas</text>
+<text x="423" y="299" font-size="14" fill="#807b8c" font-weight="500" text-anchor="middle">Notes</text>
+<text x="528" y="299" font-size="14" fill="#807b8c" font-weight="500" text-anchor="middle">Planning</text>
+<circle cx="1252" cy="293" r="14" fill="#dcd3fd" stroke="white" stroke-width="2"/>
+<circle cx="1274" cy="293" r="14" fill="#c9e5de" stroke="white" stroke-width="2"/>
+<circle cx="1296" cy="293" r="14" fill="#f7d7c6" stroke="white" stroke-width="2"/>
+<text x="1252" y="298" font-size="12" fill="#655293" font-weight="600" text-anchor="middle">L</text>
+<text x="1274" y="298" font-size="12" fill="#537f74" font-weight="600" text-anchor="middle">M</text>
+<text x="1296" y="298" font-size="12" fill="#a26a50" font-weight="600" text-anchor="middle">Y</text>
+<rect x="60" y="323" width="1320" height="404" rx="0" fill="url(#dots)" />
+<text x="144" y="366" font-size="15" fill="#7e778f" font-weight="600" >A new idea starts here</text>
+<rect x="139" y="387" width="455" height="277" rx="16" fill="#ffffff80" stroke="#d8d2e8" stroke-dasharray="6 5"/>
+<text x="160" y="414" font-size="12" fill="#878098" font-weight="600" letter-spacing="1">Collect ideas</text>
+<g transform="rotate(-5 271 520)" filter="url(#shadow)">
+<rect x="170" y="438" width="188" height="163" rx="12" fill="#ffedaa" />
+<text x="190" y="474" font-size="20" fill="#675721" font-weight="650" >What if…</text>
+<text x="190" y="509" font-size="15" fill="#8d7c43" font-weight="500" >Give every idea</text>
+<text x="190" y="534" font-size="15" fill="#8d7c43" font-weight="500" >room to grow.</text>
+<path d="M191 568q20-19 38-4t36-4 45 3" fill="none" stroke="#b99a37" stroke-width="3" stroke-linecap="round"/>
+</g>
+<g transform="rotate(4 470 519)" filter="url(#shadow)">
+<rect x="383" y="445" width="178" height="153" rx="12" fill="#d9eee4" />
+<text x="402" y="479" font-size="18" fill="#366e5b" font-weight="650" >Worth a try</text>
+<text x="402" y="512" font-size="14" fill="#638b7b" font-weight="500" >Sketch, then talk.</text>
+<path d="M405 556q15-34 30-8t26-16 36 21m-7-13 8 13-16 2" fill="none" stroke="#639681" stroke-width="2.5" stroke-linecap="round"/>
+</g>
+<path d="M593 529H650M650 529H689M820 529h23q15 0 15-16v-62q0-16 16-16h37M820 529h23q15 0 15 16v66q0 16 16 16h37" fill="none" stroke="#baabdf" stroke-width="2.5"/>
+<rect x="667" y="504" width="157" height="52" rx="13" fill="url(#violet)" filter="url(#shadow)"/>
+<text x="745" y="537" font-size="18" fill="#ffffff" font-weight="650" text-anchor="middle">Connect ideas</text>
+<rect x="896" y="414" width="140" height="44" rx="12" fill="#ffffff" stroke="#e0d9f0"/>
+<text x="966" y="442" font-size="14" fill="#716084" font-weight="600" text-anchor="middle">Possibilities</text>
+<rect x="896" y="605" width="140" height="44" rx="12" fill="#ffffff" stroke="#e0d9f0"/>
+<text x="966" y="633" font-size="14" fill="#716084" font-weight="600" text-anchor="middle">Next steps</text>
+<g filter="url(#shadow)">
+<rect x="1056" y="363" width="293" height="338" rx="16" fill="#ffffff" stroke="#e3dcf0"/>
+<rect x="1078" y="384" width="77" height="25" rx="8" fill="#eee9ff" />
+<text x="1116" y="401" font-size="11" fill="#7964b5" font-weight="700" text-anchor="middle">NOTES</text>
+<text x="1078" y="445" font-size="23" fill="#373247" font-weight="650" >Keep it moving</text>
+<text x="1078" y="476" font-size="14" fill="#898294" font-weight="500" >From ideas to action.</text>
+<rect x="1078" y="497" width="240" height="5" rx="2.5" fill="#e5e3eb" />
+<rect x="1078" y="513" width="207" height="5" rx="2.5" fill="#e5e3eb" />
+<rect x="1078" y="529" width="226" height="5" rx="2.5" fill="#e5e3eb" />
+<rect x="1078" y="557" width="18" height="18" rx="5" fill="#8c73df" />
+<path d="m1082 566 4 4 6-7" fill="none" stroke="white" stroke-width="2" stroke-linecap="round"/>
+<text x="1107" y="572" font-size="14" fill="#746e80" font-weight="500" >Collect ideas</text>
+<rect x="1078" y="591" width="18" height="18" rx="5" fill="#8c73df" />
+<path d="m1082 600 4 4 6-7" fill="none" stroke="white" stroke-width="2" stroke-linecap="round"/>
+<text x="1107" y="606" font-size="14" fill="#746e80" font-weight="500" >Connect the pieces</text>
+<rect x="1078" y="625" width="18" height="18" rx="5" fill="#ffffff" stroke="#d0c8df"/>
+<text x="1107" y="640" font-size="14" fill="#4d445e" font-weight="600" >Make it happen</text>
+</g>
+<g transform="translate(568 602)">
+<path d="m0 0 5 24 6-8 9-3Z" fill="#6c85de" stroke="white" stroke-width="2"/>
+<rect x="18" y="20" width="60" height="24" rx="7" fill="#6c85de" />
+<text x="48" y="37" font-size="12" fill="white" font-weight="600" text-anchor="middle">Lin</text>
+</g>
+<g transform="translate(836 455)">
+<path d="m0 0 5 24 6-8 9-3Z" fill="#dd8e77" stroke="white" stroke-width="2"/>
+<rect x="18" y="20" width="60" height="24" rx="7" fill="#dd8e77" />
+<text x="48" y="37" font-size="12" fill="white" font-weight="600" text-anchor="middle">Mia</text>
+</g>
+<rect x="82" y="386" width="39" height="275" rx="12" fill="#ffffff" stroke="#e3deeb" filter="url(#shadow)"/>
+<g stroke="#8a809c" stroke-width="1.8" fill="none" stroke-linecap="round">
+<path d="m94 404 3 17 5-6 7-2Z"/>
+<path d="m94 447 15-15m-17 18 4-1-3-3Z"/>
+<rect x="94" y="468" width="15" height="15" rx="3"/>
+<circle cx="101" cy="512" r="8"/>
+<path d="M94 544h15m-7 0v16M94 585h15v15H94Z"/>
+<path d="M94 634h15m-7-7v14"/>
+</g>
+<rect x="114" y="694" width="103" height="29" rx="9" fill="#ffffff" stroke="#e7e1f0"/>
+<text x="165" y="714" font-size="12" fill="#8b829b" font-weight="500" text-anchor="middle">−   100%   +</text>
+<text x="70" y="795" font-size="13" fill="#ad99e7" font-weight="650" >01</text>
+<text x="105" y="796" font-size="19" fill="#eee9fa" font-weight="600" >Think freely</text>
+<text x="510" y="795" font-size="13" fill="#ad99e7" font-weight="650" >02</text>
+<text x="545" y="796" font-size="19" fill="#eee9fa" font-weight="600" >Create together</text>
+<text x="995" y="795" font-size="13" fill="#ad99e7" font-weight="650" >03</text>
+<text x="1030" y="796" font-size="19" fill="#eee9fa" font-weight="600" >Own your workspace</text>
+</g>
 </svg>

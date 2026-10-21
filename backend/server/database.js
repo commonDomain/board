@@ -17,6 +17,7 @@ import { servicesRuntime } from './runtime/services.js';
 import { ensureNotebookSchema } from './notebooks.js';
 import { retireCanvasNotebooks } from './legacy-note-cleanup.js';
 import { ensureChatSchema } from './chat-store.js';
+import { ensureGomokuSchema } from './gomoku-store.js';
 
 function initializeDatabase() {
   servicesRuntime.database = new DatabaseSync(DATABASE_FILE);
@@ -25,6 +26,7 @@ function initializeDatabase() {
   servicesRuntime.database.exec('PRAGMA secure_delete = ON');
   servicesRuntime.database.exec('PRAGMA foreign_keys = ON');
   servicesRuntime.database.exec('PRAGMA busy_timeout = 5000');
+  ensureGomokuSchema(servicesRuntime.database);
   ensureNotebookSchema(servicesRuntime.database);
   servicesRuntime.database.exec(`CREATE TABLE IF NOT EXISTS connector_migration_archives (
     board_id TEXT PRIMARY KEY, revision INTEGER NOT NULL, state_json TEXT NOT NULL, archived_at INTEGER NOT NULL

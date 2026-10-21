@@ -7,6 +7,7 @@ import { ensureChatFeaturesSchema,normalizeChatMentions,chatFilters,decorateChat
 const {chatHistoryStart}=chatHistory;
 const fail = (statusCode, message) => { throw Object.assign(new Error(message), { statusCode, code: 'CHAT_INVALID' }); };
 const searchCounts=new WeakMap();
+const CHAT_REEDIT_WINDOW_MS=2*60*1000;
 function cachedSearchCount(db,boardId,revision,userId,query,firstSequence,filter){
   let cache=searchCounts.get(db);if(!cache){cache=new Map();searchCounts.set(db,cache);}
   const folded=query.toLowerCase(),key=JSON.stringify([boardId,revision,userId,folded,firstSequence,filter]);
@@ -31,6 +32,11 @@ export function ensureChatSchema(db) {
     ) STRICT;
     CREATE INDEX IF NOT EXISTS chat_board_sequence ON chat_messages(board_id, sequence);
     CREATE INDEX IF NOT EXISTS chat_board_changes ON chat_messages(board_id, changed_revision);
+    CREATE TABLE IF NOT EXISTS chat_reedit_drafts (
+      message_id TEXT PRIMARY KEY REFERENCES chat_messages(id) ON DELETE CASCADE,
+      text TEXT NOT NULL, expires_at INTEGER NOT NULL
+    ) STRICT;
+    CREATE INDEX IF NOT EXISTS chat_reedit_expiry ON chat_reedit_drafts(expires_at);
     CREATE TABLE IF NOT EXISTS chat_hidden_messages (
       message_id TEXT NOT NULL REFERENCES chat_messages(id) ON DELETE CASCADE,
       user_id TEXT NOT NULL REFERENCES user_accounts(id) ON DELETE CASCADE,
@@ -76,6 +82,10 @@ export function ensureChatSchema(db) {
   ensureChatVideoSchema(db);
   ensureChatFeaturesSchema(db);
   ensurePushSchema(db);
+  // Correct temporary drafts created by versions that timed from withdrawal.
+  db.prepare(`UPDATE chat_reedit_drafts SET expires_at=min(expires_at,
+    (SELECT sent_at+? FROM chat_messages WHERE id=message_id))`).run(CHAT_REEDIT_WINDOW_MS);
+  db.prepare('DELETE FROM chat_reedit_drafts WHERE expires_at<=?').run(Date.now());
 }
 
 export function createChat(db, boardId) {
@@ -158,7 +168,11 @@ export function changeChatMessage(db, boardId, userId, id, action) {
   transaction(db, () => {
     const revision = nextRevision(db, boardId);
     if (action === 'withdraw') {
-      db.prepare('UPDATE chat_messages SET text=\'\',search_text=\'\',image=NULL,video_id=NULL,video_deleted_at=NULL,reply_id=NULL,element_ref=NULL,withdrawn_at=COALESCE(withdrawn_at,?),changed_revision=? WHERE id=?').run(Date.now(),revision,id);
+      const now=Date.now();
+      db.prepare('DELETE FROM chat_reedit_drafts WHERE expires_at<=?').run(now);
+      const reeditUntil=message.sent_at+CHAT_REEDIT_WINDOW_MS;
+      if(message.text && reeditUntil>now)db.prepare('INSERT INTO chat_reedit_drafts VALUES (?,?,?)').run(id,message.text,reeditUntil);
+      db.prepare('UPDATE chat_messages SET text=\'\',search_text=\'\',image=NULL,video_id=NULL,video_deleted_at=NULL,reply_id=NULL,element_ref=NULL,withdrawn_at=COALESCE(withdrawn_at,?),changed_revision=? WHERE id=?').run(now,revision,id);
       db.prepare("DELETE FROM asset_references WHERE owner_type='chat' AND owner_id=?").run(id);
       for(const table of ['chat_mentions','chat_reactions'])chatStatement(db,`DELETE FROM ${table} WHERE message_id=?`).run(id);
       if(message.image){
@@ -181,6 +195,7 @@ export function changeChatMessage(db, boardId, userId, id, action) {
 }
 
 export function readChatMessages(db, boardId, userId, params) {
+  db.prepare('DELETE FROM chat_reedit_drafts WHERE expires_at<=?').run(Date.now());
   const chat = db.prepare('SELECT revision,reset_revision FROM canvas_chats WHERE board_id=?').get(boardId);
   if (!chat) return { exists:false, messages:[], revision:0, before:null };
   const firstSequence=chatHistoryStart(db,boardId,userId);
@@ -226,6 +241,11 @@ export function readChatMessages(db, boardId, userId, params) {
     reference:row.element_ref ? JSON.parse(row.element_ref) : null,
     reply:chatReply(row) }));
   if (!changes) messages.reverse();
+  const reeditDrafts=new Map(chatStatement(db,`SELECT d.message_id,d.expires_at FROM json_each(?) j
+    JOIN chat_messages m ON m.id=j.value JOIN chat_reedit_drafts d ON d.message_id=m.id
+    WHERE m.sender_id=? AND m.withdrawn_at IS NOT NULL AND d.expires_at>?`)
+    .all(JSON.stringify(messages.filter(message=>!message.deleted).map(message=>message.id)),userId,Date.now()).map(row=>[row.message_id,row.expires_at]));
+  for(const message of messages)if(reeditDrafts.has(message.id))message.reeditUntil=reeditDrafts.get(message.id);
   decorateChatMessages(db,messages);
   if(changes&&(query||filter.active)){
     // Changed rows still include removals, while matching rows can update a filtered view in place.
@@ -238,6 +258,17 @@ export function readChatMessages(db, boardId, userId, params) {
   }
   const totalMatches=query || filter.active ? cachedSearchCount(db,boardId,chat.revision,userId,query,firstSequence,filter) : null;
   return {exists:true,messages,revision,reset,generation:chat.reset_revision,totalMatches,before:!changes && rows.length>80 ? messages[0].sequence : null};
+}
+
+export function readChatReeditDraft(db,boardId,userId,id){
+  const now=Date.now();
+  db.prepare('DELETE FROM chat_reedit_drafts WHERE expires_at<=?').run(now);
+  const draft=db.prepare(`SELECT d.text,d.expires_at FROM chat_reedit_drafts d JOIN chat_messages m ON m.id=d.message_id
+    WHERE m.id=? AND m.board_id=? AND m.sender_id=? AND m.withdrawn_at IS NOT NULL AND m.sequence>=?
+    AND d.expires_at>? AND NOT EXISTS(SELECT 1 FROM chat_hidden_messages h WHERE h.message_id=m.id AND h.user_id=?)`)
+    .get(id,boardId,userId,chatHistoryStart(db,boardId,userId),now,userId);
+  if(!draft)fail(410,'消息已过期或不可重新编辑');
+  return {text:draft.text,reeditUntil:draft.expires_at};
 }
 
 function chatReply(row){

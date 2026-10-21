@@ -2,6 +2,12 @@ const supported=()=>window.isSecureContext&&'serviceWorker' in navigator&&'PushM
 const workerUrl=()=>new URL('push-sw.js',document.baseURI);
 const identity=()=>`${window.MuseAccount?.session?.user?.id||''}:${window.MuseAccount?.csrfToken?.()||''}`;
 const bytes=value=>Uint8Array.from(atob(value.replace(/-/g,'+').replace(/_/g,'/')),char=>char.charCodeAt(0));
+const changeEvent='muse:push-subscription-changed';
+const changeKey='muse:push-subscription-change';
+function announceChange(){
+  window.dispatchEvent(new Event(changeEvent));
+  try{localStorage.setItem(changeKey,crypto.randomUUID());}catch{}
+}
 async function subscribe(manager,options){
   let timer;
   try{return await Promise.race([manager.subscribe(options),new Promise((_,reject)=>{
@@ -25,23 +31,28 @@ function active(registration){
     worker?.addEventListener('statechange',check);if(worker)check();
   });
 }
-export function mountPushControl(container,feedback){
+export async function prepareNotificationWorker(){
+  return active(await navigator.serviceWorker.register(workerUrl(),{updateViaCache:'none'}));
+}
+export function mountPushControl(container,feedback,{onStateChange=()=>{}}={}){
   const button=document.createElement('button');button.type='button';button.className='chat-feature-button chat-filter-action chat-push-toggle';
   button.textContent='开启桌面通知';container.append(button);
   let enabled=false,busy=false,revision=0;
+  onStateChange(false);
   async function refresh(){
     if(busy)return;
     const version=++revision,owner=identity();
     const current=()=>!busy&&version===revision&&owner===identity();
-    if(!supported()){button.disabled=true;button.textContent='当前环境不支持桌面通知';return;}
+    if(!supported()){enabled=false;onStateChange(false);button.disabled=true;button.textContent='当前环境不支持桌面通知';return;}
     try{
       const config=await request(),registration=await navigator.serviceWorker.getRegistration(workerUrl());
       const subscription=await registration?.pushManager.getSubscription();
       if(!current())return;
       enabled=Notification.permission==='granted'&&Boolean(subscription&&config.endpoints.includes(subscription.endpoint));
+      onStateChange(enabled);
       button.disabled=!config.enabled&&!enabled;button.textContent=enabled?'关闭此浏览器桌面通知':!config.enabled?'桌面通知尚未配置':'开启桌面通知';
       if(enabled)void registration.update().catch(()=>{});
-    }catch{if(current()){button.disabled=false;button.textContent='开启桌面通知';enabled=false;}}
+    }catch{if(current()){button.disabled=false;button.textContent='开启桌面通知';enabled=false;onStateChange(false);}}
   }
   button.addEventListener('click',async()=>{
     if(busy)return;busy=true;revision++;button.disabled=true;const owner=identity(),disabling=enabled;
@@ -63,8 +74,11 @@ export function mountPushControl(container,feedback){
         await request('PUT',subscription.toJSON());feedback('桌面通知已开启，关闭画布网页后仍可接收');
       }
     }catch(error){feedback(error.message||'无法开启桌面通知，请检查浏览器权限和网络');}
-    finally{busy=false;button.disabled=false;void refresh();}
+    finally{busy=false;button.disabled=false;announceChange();}
   });
+  for(const event of [changeEvent,'focus','muse:login','muse:logout','muse:auth-expired','muse:account-changing'])window.addEventListener(event,()=>void refresh());
+  window.addEventListener('storage',event=>{if(event.key===changeKey)void refresh();});
   container.closest('details')?.addEventListener('toggle',()=>{if(container.closest('details').open)void refresh();});
   void refresh();
+  return {button,refresh};
 }

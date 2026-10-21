@@ -210,23 +210,32 @@ async function restorePendingOps() {
   }
 }
 
-async function persistCurrentCanvasForSwitch() {
-  if (state.draftRestoreFailed || state.draftRestoring) {
-    showToast('正在恢复本地草稿，请稍后再切换画布');
+async function persistCurrentCanvasForSwitch({ signal, purpose = 'switch' } = {}) {
+  const unavailable = (switchMessage, reloadMessage) => {
+    if (purpose === 'reload') throw Object.assign(new Error(reloadMessage), { userFacing: true });
+    showToast(switchMessage);
     return false;
+  };
+  const boardId = state.boardId, epoch = state.canvasEpoch;
+  const assertCurrent = () => {
+    signal?.throwIfAborted();
+    if (signal && (state.boardId !== boardId || state.canvasEpoch !== epoch)) throw new Error('画布已切换，请确认当前内容后重试刷新。');
+  };
+  assertCurrent();
+  if (state.draftRestoreFailed || state.draftRestoring) {
+    return unavailable('正在恢复本地草稿，请稍后再切换画布', state.draftRestoring ? '正在恢复本地草稿，请恢复完成后重试刷新。' : '本地草稿尚未恢复，请先处理草稿恢复问题再刷新。');
   }
   if (!state.boardId) return true;
   if (state.pendingCut) restorePendingCut();
   if (sheetStoreRuntime.sheetEditor?.isOpen?.() && sheetStoreRuntime.sheetEditor.commitPending?.() === false) {
-    showToast('请先修正工作表中尚未保存的公式');
-    return false;
+    return unavailable('请先修正工作表中尚未保存的公式', '工作表公式尚未通过校验，请修正公式后重试刷新。');
   }
   if (state.boardId) flushAllSheetSaves();
   const sheetDrafts = Array.from(sheetDraftWrites.values()).filter((draft) => draft.boardId === state.boardId);
   await Promise.all(sheetDrafts.map((draft) => draft.promise).filter(Boolean));
+  assertCurrent();
   if (sheetDrafts.some((draft) => draft.status === 'blocked' || draft.inputFailed)) {
-    showToast('工作表本地恢复副本保存失败，暂时无法切换画布');
-    return false;
+    return unavailable('工作表本地恢复副本保存失败，暂时无法切换画布', '工作表草稿未能保存在本机，请检查浏览器存储空间后重试刷新。');
   }
   eventsRuntime.editableInputHandler?.flush?.();
   finishEditing();
@@ -236,7 +245,9 @@ async function persistCurrentCanvasForSwitch() {
   cancelConnectorDraft();
   const pendingSerial = state.draftStorageSerial;
   if (isGuestMode()) {
-    return (await cacheBoardSnapshot({ requireLatest: true })) === true;
+    const saved = await cacheBoardSnapshot({ requireLatest: true });
+    assertCurrent();
+    return saved === true || unavailable('画布本地副本保存失败，暂时无法切换画布', '画布未能保存在本机，请检查浏览器存储空间后重试刷新。');
   }
   const pending = serializePendingOperations();
   if (pending.length) {
@@ -247,22 +258,31 @@ async function persistCurrentCanvasForSwitch() {
     } catch (error) {
       console.warn('Could not persist canvas outbox before switching', error);
     }
+    assertCurrent();
     if (!outboxSaved) {
-      showToast('离线修改未能保存，暂时无法切换画布');
-      return false;
+      return unavailable('离线修改未能保存，暂时无法切换画布', '待同步修改未能保存在本机，请检查浏览器存储空间后重试刷新。');
     }
   }
   // A revision-matched cache is already durable. Avoid cloning and writing the
   // entire document again on every switch; pending changes still force a
   // fresh snapshot through scheduleBoardCache().
   if (state.cachePending || state.cachedSnapshotRevision !== state.revision) {
-    if ((await cacheBoardSnapshot({ requireLatest: true })) !== true) {
-      showToast('本地画布副本保存失败，暂时无法切换画布');
-      return false;
+    const saved = await cacheBoardSnapshot({ requireLatest: true });
+    assertCurrent();
+    if (saved !== true) {
+      return unavailable('本地画布副本保存失败，暂时无法切换画布', '画布本地副本保存失败，请检查浏览器存储空间后重试刷新。');
     }
   }
-  if (pendingSerial !== state.draftStorageSerial) return persistCurrentCanvasForSwitch();
+  assertCurrent();
+  if (pendingSerial !== state.draftStorageSerial) return persistCurrentCanvasForSwitch({ signal, purpose });
   return true;
+}
+
+async function prepareCanvasReload(options) {
+  if (await persistCurrentCanvasForSwitch({ ...options, purpose: 'reload' }) !== true) return false;
+  const boardId = state.boardId, epoch = state.canvasEpoch, serial = state.draftStorageSerial, generation = state.cacheGeneration;
+  return () => state.boardId === boardId && state.canvasEpoch === epoch && state.draftStorageSerial === serial &&
+    state.cacheGeneration === generation && !state.cachePending && !state.draftStorageFailed;
 }
 
 async function restoreLocalBoardStateAndConnect() {
@@ -515,6 +535,7 @@ export {
   commitMindMapEditForPageHide,
   restorePendingOps,
   persistCurrentCanvasForSwitch,
+  prepareCanvasReload,
   restoreLocalBoardStateAndConnect,
   resetCanvasRuntime,
   switchCanvas

@@ -120,6 +120,8 @@ function configureSyncInteractions() {
     scheduleCurrentCanvasPreviewRefresh,
     updateSaveText,
     updateSavedLabel,
+    updateUndoButton,
+    updateRedoButton,
     armSheetCommandTimeout,
     clearSheetLocks,
     loadSnapshot,

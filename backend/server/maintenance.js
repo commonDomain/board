@@ -33,6 +33,7 @@ function startMaintenance() {
   maintenanceStateRuntime.accountCleanupTimer = setInterval(() => {
     try {
       servicesRuntime.accountService.cleanup();
+      servicesRuntime.database.prepare('DELETE FROM chat_reedit_drafts WHERE expires_at<=?').run(Date.now());
       servicesRuntime.database.prepare('DELETE FROM chat_send_receipts WHERE created_at<? AND NOT EXISTS(SELECT 1 FROM chat_messages m WHERE m.id=chat_send_receipts.id)').run(Date.now()-30*24*60*60*1000);
       prunePlanningSnapshots(servicesRuntime.database);
       void collectChatVideos().catch(error=>console.error('Chat video cleanup failed:',error));

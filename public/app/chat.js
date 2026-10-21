@@ -92,6 +92,7 @@ export function initializeChat() {
   let fileVideo=null,posterController=null;
   let quotedSource=null;
   let mediaRequestVersion=0;
+  let reeditTimer,reeditBusy=false;
   let attentionMentions=0,notificationMode='all';
   const rendered=new Map(),drafts=new Map(),outbox=new Map();
   let stickToBottom=true;
@@ -133,6 +134,7 @@ export function initializeChat() {
   function releaseFile() {posterController?.abort();posterController=null;if(preview)URL.revokeObjectURL(preview);preview=null;file=null;fileVideo=null;$('.chat-attachment').hidden=true;$('.chat-attachment').replaceChildren();$('.chat-file').value='';}
   function removeOutgoing(id){const entry=outbox.get(id);if(!entry)return;if(imageViewer?.messageId===id)closeImageViewer();if(entry.localPreview)URL.revokeObjectURL(entry.localPreview);outbox.delete(id);}
   function close(restoreFocus=true,keepDraft=true) {
+    clearTimeout(reeditTimer);
     setLocateBusy(false);
     videoUI.close();
     closeReadPopover();
@@ -238,7 +240,10 @@ export function initializeChat() {
   }
   function renderNewMessages() {const host=$('.chat-new-message');host.hidden=!newCount;host.replaceChildren();host.append(node('span','',`${newCount} 条新消息`),iconButton('查看新消息','arrow-down',()=>{windowEnd=null;renderKey='';render();timeline.scrollTop=timeline.scrollHeight;newCount=0;renderNewMessages();}));refreshIcons(host);}
   function render(animateMessages=false) {
-    const all=[...messages.values()].sort((a,b)=>a.sequence-b.sequence),end=Math.min(windowEnd ?? all.length,all.length),start=Math.max(0,end-240),entries=all.slice(start,end).map(message=>features.viewMessage(message));
+    clearTimeout(reeditTimer);
+    const all=[...messages.values()].sort((a,b)=>a.sequence-b.sequence),end=Math.min(windowEnd ?? all.length,all.length),start=Math.max(0,end-240),entries=all.slice(start,end).map(message=>({...features.viewMessage(message),canReedit:canReedit(message)}));
+    const nextExpiry=Math.min(...entries.filter(message=>message.canReedit).map(message=>message.reeditUntil));
+    if(Number.isFinite(nextExpiry))reeditTimer=setTimeout(()=>{if(current())render();},Math.max(1,nextExpiry-Date.now()));
     if(windowEnd===null && !filtered())entries.push(...[...outbox.values()].filter(entry=>!messages.has(entry.id)));
     const key=JSON.stringify([entries,all.length,end,members,[...authors.values()].map(({id,username,avatarUrl,online})=>[id,username,avatarUrl,online]),positions,before,composer.hidden,query,features.mode()]);if(key===renderKey)return;renderKey=key;
     const scrollTop=timeline.scrollTop,focused=document.activeElement?.closest('[data-chat-id]'),focusLabel=document.activeElement?.getAttribute('aria-label'),desired=[];
@@ -267,7 +272,11 @@ export function initializeChat() {
           if(event.animationName==='chat-message-in')row.classList.remove('is-entering');
           if(event.animationName==='chat-message-locate')row.classList.remove('is-located');
         });
-        if(message.withdrawnAt) {row.classList.add('is-withdrawn');row.append(node('span','',`${own?'你':label(user)}撤回了一条消息`));if(cached)imageLayoutObserver.unobserve(cached.node);rendered.set(message.id,{node:row,key:contentKey});desired.push(row);continue;}
+        if(message.withdrawnAt) {
+          row.classList.add('is-withdrawn');row.append(node('span','',`${own?'你':label(user)}撤回了一条消息`));
+          if(message.canReedit){const edit=node('button','chat-reedit','重新编辑');edit.type='button';edit.addEventListener('click',()=>void reedit(message));row.append(edit);}
+          if(cached)imageLayoutObserver.unobserve(cached.node);rendered.set(message.id,{node:row,key:contentKey});desired.push(row);continue;
+        }
         const body=node('div','chat-message-body'),meta=node('div','chat-message-meta');
         const contentHost=node('div','chat-message-content');
         if(message.video)contentHost.append(videoUI.thumbnail(message.video,message.id));
@@ -527,6 +536,22 @@ export function initializeChat() {
     try {const data=await api('/read',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({sequence})});applyReadStatus(data);render();}
     catch(error){if(error.name!=='AbortError')feedback('已读状态暂未同步，将自动重试');}
     finally{if(context===controller)readBusy=false;}
+  }
+  function canReedit(message){return Boolean(message.withdrawnAt && !message.deleted && message.senderId===userId() && message.reeditUntil>Date.now());}
+  async function reedit(message){
+    if(!current() || reeditBusy)return;
+    if(!canReedit(messages.get(message.id)||{})){render();return feedback('消息已过期或不可重新编辑');}
+    const hasDraft=()=>Boolean(input.value || file || reply || reference || sending);
+    if(hasDraft())return feedback('请先发送或清空当前草稿，再重新编辑');
+    const context=controller;reeditBusy=true;
+    try{
+      const draft=await api(`/messages/${message.id}/reedit`);
+      if(context!==controller || !current())return;
+      if(!canReedit(messages.get(message.id)||{}) || draft.reeditUntil<=Date.now()){render();return feedback('消息已过期或不可重新编辑');}
+      if(hasDraft())return feedback('请先发送或清空当前草稿，再重新编辑');
+      input.value=draft.text;features.clearMentions();input.dispatchEvent(new Event('input'));input.focus();input.setSelectionRange(input.value.length,input.value.length);
+    }catch(error){if(context===controller && error.name!=='AbortError'){if(error.status===410){const latest=messages.get(message.id);if(latest)latest.reeditUntil=null;render();}feedback(error.message);}}
+    finally{reeditBusy=false;}
   }
   async function mutate(message,action) {try{await api(`/messages/${message.id}${action==='withdraw'?'/withdraw':''}`,{method:action==='withdraw'?'POST':'DELETE'});if(action==='hide')messages.delete(message.id);await load();render();}catch(error){if(error.name!=='AbortError')feedback(error.message);}}
   function setBusy(busy) {sending=busy;input.disabled=false;cancelSend.hidden=!busy;sendButton.disabled=busy;uploadButton.disabled=busy;emojiButton.disabled=false;sendButton.setAttribute('aria-busy',String(busy));for(const button of panel.querySelectorAll('.chat-attachment button,.chat-reply-draft button,.chat-element-draft button'))button.disabled=busy;}

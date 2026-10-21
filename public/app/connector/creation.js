@@ -19,22 +19,28 @@ import { stateRuntime } from './runtime/state.js';
 import { C, button } from './state.js';
 
 function showCreate(item) {
+  const boardId = state.boardId, epoch = state.canvasEpoch;
   const panel = document.createElement('div');
   panel.className = 'connection-create connection-toolbar';
   panel.style.bottom = '110px';
   panel.style.top = 'auto';
   document.body.append(panel);
   const remove = () => panel.remove();
-  button('＋ 便签', () => createAt(item, 'note', remove), panel);
-  button('＋ 形状', () => createAt(item, 'shape', remove), panel);
+  const create = type => {
+    if (state.boardId !== boardId || state.canvasEpoch !== epoch) { remove(); return; }
+    createAt(item, type, remove);
+  };
+  button('＋ 便签', () => create('note'), panel);
+  button('＋ 形状', () => create('shape'), panel);
   const source = state.items.get(item.source.binding?.id);
-  if (source?.type === 'text') button('＋ 同类文本', () => createAt(item, 'text', remove), panel);
+  if (source?.type === 'text') button('＋ 同类文本', () => create('text'), panel);
   button('关闭', remove, panel);
   setTimeout(remove, 8e3);
 }
 
 function createAt(connector, type, done) {
-  if (!canMutateItem(connector)) return;
+  connector = state.items.get(connector.id);
+  if (connector?.type !== 'connector' || !canMutateItem(connector)) { done(); return; }
   const p = connector.target.fallback,
     before = snapshotItems();
   const item = {

@@ -130,7 +130,9 @@ function onKeyDown(event) {
   // Dialogs and focused controls own their keys, even while a canvas object
   // remains selected behind them. Escape still closes canvas popovers.
   if (event.target.closest?.('dialog,[role="dialog"],[role="alertdialog"]')) return;
-  if (event.key !== 'Escape' && event.target.closest?.('button,a,summary,[role="button"],[role="menu"],[role="menuitem"],[role="menuitemradio"],[role="menuitemcheckbox"]')) return;
+  const historyButtonShortcut = (event.ctrlKey || event.metaKey) && !event.altKey &&
+    ['z', 'y'].includes(event.key.toLowerCase()) && event.target.closest?.('#undoButton,#redoButton');
+  if (event.key !== 'Escape' && !historyButtonShortcut && event.target.closest?.('button,a,summary,[role="button"],[role="menu"],[role="menuitem"],[role="menuitemradio"],[role="menuitemcheckbox"]')) return;
   if (isRemoteBoardLocked() || isLocalEditingBlocked()) {
     if (els.viewport.contains(event.target) || event.target.closest?.('#navigatorTree'))
       event.preventDefault();

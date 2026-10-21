@@ -3,6 +3,7 @@
 const fs = require('node:fs/promises');
 const path = require('node:path');
 const { setTimeout: delay } = require('node:timers/promises');
+const { withStaticPublication } = require('../backend/static-publication');
 
 const RETRYABLE = new Set(['EACCES', 'EPERM', 'EBUSY', 'ETXTBSY']);
 
@@ -89,4 +90,5 @@ async function publishBuildOutputs(outputs, {
   }
 }
 
-module.exports = { publishBuildOutputs };
+module.exports = { publishBuildOutputs: (outputs, options = {}) =>
+  withStaticPublication(options.root || path.resolve(__dirname, '..'), () => publishBuildOutputs(outputs, options)) };

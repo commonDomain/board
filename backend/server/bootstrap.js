@@ -1,5 +1,7 @@
 import fsp from 'node:fs/promises';
 import { startWebPush } from './web-push.js';
+import { startQuickTransferMaintenance } from './quick-transfer.js';
+import { startGomokuMaintenance } from './gomoku.js';
 import { ASSETS_DIR, BACKUPS_DIR, DATA_DIR, HOST, PORT } from './config.js';
 import { initializeDatabase } from './database.js';
 import { startHeartbeat } from './heartbeat.js';
@@ -29,6 +31,8 @@ async function main() {
   await fsp.mkdir(BACKUPS_DIR, { recursive: true });
   await initializeStaticAssets();
   initializeDatabase();
+  startQuickTransferMaintenance();
+  startGomokuMaintenance();
   startWebPush();
   pruneOperationHistory();
   startHeartbeat();

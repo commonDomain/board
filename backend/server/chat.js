@@ -12,20 +12,24 @@ import { videoStorageStatus } from './chat-video-model.js';
 import { collectChatVideos } from './chat-videos.js';
 import { chatFeatureSummary,chatSenders,mutateChatFeature,visibleChatMessage,chatReactionState } from './chat-features.js';
 import { chatStatement } from './chat-statements.js';
+import { readChatReeditDraft } from './chat-store.js';
 
 const readLimit=createMemoryRateLimiter(180,60000);
 const searchLimit=createMemoryRateLimiter(60,60000);
 const mutationLimit=createMemoryRateLimiter(120,60000);
 
 export async function handleChatApi(req,res,url) {
-  const match = url.pathname.match(/^\/api\/canvases\/([^/]+)\/chat(?:\/(read|announcement|preferences)|\/messages(?:\/([^/]+)(?:\/(withdraw|reaction|material))?)?)?$/);
+  const match = url.pathname.match(/^\/api\/canvases\/([^/]+)\/chat(?:\/(read|announcement|preferences)|\/messages(?:\/([^/]+)(?:\/(withdraw|reaction|material|reedit))?)?)?$/);
   if (!match) return false;
   const account = servicesRuntime.accountService, db = servicesRuntime.database;
   const session = account.requireSession(req,{requireCsrf:req.method !== 'GET'});
   if (!session?.userId) throw Object.assign(new Error('登录后才能与画布成员聊天'),{statusCode:401,code:'AUTH_REQUIRED'});
   const boardId = requireCatalogBoardId(match[1],session.userId);
   const revalidate=()=>{account.requireSession(req,{requireCsrf:true});requireCatalogBoardId(boardId,session.userId);};
-  if(req.method==='GET' && match[4]==='material'){
+  if(req.method==='GET' && match[4]==='reedit'){
+    if(!readLimit(session.userId))throw Object.assign(new Error('查询过于频繁，请稍后重试'),{statusCode:429});
+    sendJson(res,200,readChatReeditDraft(db,boardId,session.userId,match[3]));
+  }else if(req.method==='GET' && match[4]==='material'){
     if(!readLimit(session.userId))throw Object.assign(new Error('查询过于频繁，请稍后重试'),{statusCode:429});
     const message=visibleChatMessage(db,boardId,session.userId,match[3]);
     // A copy receives its own asset dependency via the existing destination save.

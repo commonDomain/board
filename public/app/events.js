@@ -91,6 +91,17 @@ function wireBoard() {
     event.stopImmediatePropagation();
   }, { capture: true, passive: false });
   els.viewport.addEventListener('pointerdown', onBoardPointerDown);
+  // Drawing and item gestures prevent the browser's default focus change.
+  // Release a previously focused toolbar button when the canvas is clicked,
+  // including nested item handlers that stop propagation.
+  els.viewport.addEventListener('pointerdown', event => {
+    if (event.button !== 0 || isPhoneViewer()) return;
+    if (event.target !== els.viewport && !event.target.closest?.('#board')) return;
+    if (event.target.closest?.('button,a,input,textarea,select,[contenteditable="true"],[role="button"]')) return;
+    if (!document.activeElement?.closest?.('button,a,summary,[role="button"]')) return;
+    els.viewport.tabIndex = -1;
+    els.viewport.focus({ preventScroll: true });
+  }, true);
   els.viewport.addEventListener(
     'pointerdown',
     (event) => {

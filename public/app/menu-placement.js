@@ -68,7 +68,7 @@ export function placeAnchoredMenu(menu, anchor) {
     document.addEventListener('scroll', schedule, { capture: true, passive: true });
   }
   managed.set(menu, anchor);
-  if (!preferredWidths.has(menu)) preferredWidths.set(menu, menu.id === 'petMenu' ? menu.offsetWidth || 156 : Math.max(280, menu.offsetWidth || 320));
+  if (!preferredWidths.has(menu)) preferredWidths.set(menu, menu.id === 'sideGamesMenu' ? 160 : menu.id === 'petMenu' ? menu.offsetWidth || 156 : Math.max(280, menu.offsetWidth || 320));
   position(menu, anchor);
   observer.observe(menu);
 }

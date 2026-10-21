@@ -49,6 +49,21 @@ export class PlanningStore {
     if (this.channel) this.channel.onmessage = () => this.refresh().catch(() => {});
   }
   active() { return !this.disposed && this.scope === scopeNow(); }
+  async preparePageReload({ signal }) {
+    signal.throwIfAborted();
+    // Operations queued for the same plan must reach their durable local draft.
+    await Promise.allSettled([...this.tails.values()]);
+    signal.throwIfAborted();
+    if (!this.active()) throw new Error('规划账号已改变，请重试刷新。');
+    const signature = () => JSON.stringify([this.mutationEpoch, [...this.inputs], [...this.drafts]]);
+    const saved = signature();
+    await local(this.scope, (records, prefix) => {
+      for (const [key, input] of this.inputs) records.put({ key: `${prefix}input:${key}`, input, inputId: key });
+      for (const [id, draft] of this.drafts) records.put({ key: `${prefix}draft:${id}`, draft });
+    });
+    signal.throwIfAborted();
+    return () => this.active() && !this.tails.size && signature() === saved;
+  }
   dispose() { this.disposed = true; this.controller.abort(); this.channel?.close(); this.plans.clear(); this.drafts.clear();this.inputs.clear(); }
   async saveInput(key,input) { if(!this.active())return;this.inputs.set(key,input);try{await local(this.scope,(records,prefix)=>records.put({key:`${prefix}input:${key}`,input,inputId:key}));}catch(error){this.cacheError=error.name==='QuotaExceededError'?'此设备存储空间不足，输入暂存于当前窗口':error.message;this.notify();} }
   async clearInput(key) { this.inputs.delete(key);try{await local(this.scope,(records,prefix)=>records.delete(`${prefix}input:${key}`));}catch(error){this.cacheError=`修改已提交，此设备输入记录尚未清理：${error.message}`;this.notify();} }

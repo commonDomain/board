@@ -1262,6 +1262,14 @@ export async function openReference(reference) {
 export async function prepareAccountExit() {
   if (!instance?.store) return; instance.finishEdit(); await instance.store.persist();
 }
+export async function preparePageReload({ signal }) {
+  signal.throwIfAborted();
+  if (!instance?.store) return;
+  const editor = instance, store = editor.store;
+  editor.finishEdit();
+  const validate = await store.preparePageReload({ signal });
+  return () => instance === editor && editor.store === store && validate();
+}
 export async function clearAccount(scope) {
   const store = instance?.scope === scope ? instance.store : null;
   if (store) { instance.resetAccount(); await Promise.allSettled([...store.writes.values()]); }

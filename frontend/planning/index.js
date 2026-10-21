@@ -880,6 +880,13 @@ async function locateTaskFromNode(ref) {
   },'planning-quiet'));
 }
 window.MusePlanning = {
+  preparePageReload: async options => {
+    if (!enabled || !store) return;
+    const current = store;
+    for (const root of document.querySelectorAll('.planning-dialog[open]')) root.persistInput?.();
+    const validate = await current.preparePageReload(options);
+    return () => store === current && validate();
+  },
   initialize, attachButton, registerNotebook: value => { adapters.notebook = value; changed(); }, contextActions, mount, showPanel, createPlanning, insertPlanning, joinSources,createTaskFromChat,
   renderLinked, updateLinked, statusLabel: status => STATUSES[status] || '', canvasSources: target => adapters.canvas?.sources(target) || [],
   get enabled() { return enabled; }, get store() { return enabled ? ensureStore() : null; }, getTask: ref => enabled ? ensureStore().task(ref) : null,

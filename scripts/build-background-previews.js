@@ -13,6 +13,7 @@
 const fs = require('node:fs/promises');
 const path = require('node:path');
 const sharp = require('sharp');
+const { publishBuildOutputs } = require('./build-output');
 
 const BACKGROUND_DIR = path.join(__dirname, '..', 'public', 'backgrounds');
 const PREVIEW_WIDTH = 360;
@@ -40,16 +41,19 @@ function previewName(name) {
 
 async function build() {
   let total = 0;
+  const outputs = [];
   for (const name of BACKGROUNDS) {
     const source = path.join(BACKGROUND_DIR, `${name}.webp`);
     const target = path.join(BACKGROUND_DIR, previewName(name));
-    const info = await sharp(source)
+    const { data, info } = await sharp(source)
       .resize({ width: PREVIEW_WIDTH, withoutEnlargement: true })
       .webp({ quality: PREVIEW_QUALITY, effort: 5 })
-      .toFile(target);
+      .toBuffer({ resolveWithObject: true });
+    outputs.push({ path: target, contents: data });
     total += info.size;
     console.log(`${previewName(name)}  ${info.width}x${info.height}  ${(info.size / 1024).toFixed(1)} KiB`);
   }
+  await publishBuildOutputs(outputs);
   console.log(`total ${(total / 1024).toFixed(1)} KiB`);
 }
 

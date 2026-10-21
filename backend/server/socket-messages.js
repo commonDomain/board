@@ -12,12 +12,14 @@ import { servicesRuntime } from './runtime/services.js';
 import { assertClientAccess } from './client-access.js';
 import { handleSheetLockMessage, releaseClientSheetLocks } from './sheet-locks.js';
 import { clampNumber } from './validation.js';
+import { reconcileGomokuUser } from './gomoku-presence.js';
 
 function detachClient(client) {
   clearTimeout(client.joinTimer);
   const board = client.board;
   client.board = null;
   clients.delete(client);
+  reconcileGomokuUser(client.userId);
   if (!board) return;
   releaseBoardEditLease(board, client);
   releaseClientSheetLocks(board, client);
@@ -80,6 +82,7 @@ async function handleClientMessage(client, message) {
         expiresAt: editLease.expiresAt
       });
     broadcastPresence(board);
+    reconcileGomokuUser(client.userId);
     return;
   }
 

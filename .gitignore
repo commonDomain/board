@@ -65,6 +65,8 @@ credentials.json
 *.bundle
 
 # Coverage and build output
+.static-publication.lock/
+.static-publication.json
 coverage/
 dist/
 build/

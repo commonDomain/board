@@ -8,89 +8,26 @@ import {COMPRESSIBLE_EXT,IMMUTABLE_CACHE_CONTROL,MIME_TYPES,STATIC_BUILD_ID_LENG
 import {JS_MINIFY_ENABLED,PUBLIC_BASE_URL,PUBLIC_DIR,WALLPAPER_DRIFT_ENABLED,WALLPAPER_DRIFT_PARALLAX} from './config.js';
 import { appendVary, ifNoneMatchMatches } from './http-cache.js';
 import { HSTS_HEADER, securityHeaders } from './http-security.js';
+import { createStaticAssetRegistry, collectStaticAssets as collectAssets } from './static-asset-registry.js';
 
+const registry = createStaticAssetRegistry({ directory: PUBLIC_DIR, minifyJs: JS_MINIFY_ENABLED,
+  idLength: STATIC_BUILD_ID_LENGTH, fingerprintConfig: { WALLPAPER_DRIFT_ENABLED, WALLPAPER_DRIFT_PARALLAX } });
 let staticBuildId = null;
-
 let staticAssets = new Map();
+let staticDocuments = new Map();
 
-let staticAssetsRefresh = null;
-
-async function collectStaticAssets(directory, prefix = '', assets = staticAssets) {
-  const entries = await fsp.readdir(directory, { withFileTypes: true });
-  entries.sort((left, right) => left.name.localeCompare(right.name));
-  for (const entry of entries) {
-    const relative = prefix ? `${prefix}/${entry.name}` : entry.name;
-    const absolute = path.join(directory, entry.name);
-    if (entry.isDirectory()) {
-      await collectStaticAssets(absolute, relative, assets);
-      continue;
-    }
-    if (!entry.isFile() || path.extname(entry.name).toLowerCase() === '.html') continue;
-    const [sourceBody, stat] = await Promise.all([fsp.readFile(absolute), fsp.stat(absolute)]);
-    let body = sourceBody;
-    if (JS_MINIFY_ENABLED && path.extname(entry.name).toLowerCase() === '.js' && !relative.startsWith('vendor/')) {
-      const { transform } = await import('esbuild');
-      const transformed = await transform(sourceBody.toString('utf8'), {
-        loader: 'js',
-        minify: true,
-        drop: ['debugger'],
-        target: 'es2022',
-        legalComments: 'none'
-      });
-      body = Buffer.from(transformed.code, 'utf8');
-    }
-    assets.set(relative, {
-      filePath: absolute,
-      hash: crypto.createHash('sha256').update(body).digest('hex'),
-      size: stat.size,
-      mtimeMs: stat.mtimeMs,
-      body: body === sourceBody ? null : body
-    });
-  }
+function adoptSnapshot(snapshot) {
+  staticBuildId = snapshot.buildId;
+  staticAssets = snapshot.assets;
+  staticDocuments = snapshot.documents;
 }
-
-async function initializeStaticAssets() {
-  const nextAssets = new Map();
-  await collectStaticAssets(PUBLIC_DIR, '', nextAssets);
-  const buildHash = crypto.createHash('sha256');
-  for (const [relative, asset] of Array.from(nextAssets.entries()).sort(([left], [right]) =>
-    left.localeCompare(right)
-  )) {
-    buildHash.update(relative).update('\0').update(asset.hash).update('\0');
-  }
-  staticAssets = nextAssets;
-  staticBuildId = buildHash.digest('hex').slice(0, STATIC_BUILD_ID_LENGTH);
+async function initializeStaticAssets() { adoptSnapshot(await registry.initialize()); }
+async function ensureStaticAssetsCurrent() { adoptSnapshot(await registry.ensureCurrent()); }
+async function getAppVersion() { await ensureStaticAssetsCurrent(); return staticBuildId; }
+function collectStaticAssets(directory, prefix = '', assets = new Map(), documents = new Map()) {
+  return collectAssets(directory, prefix, assets, documents, JS_MINIFY_ENABLED);
 }
-
-async function staticAssetsChanged(directory, prefix = '', seen = new Set()) {
-  const entries = await fsp.readdir(directory, { withFileTypes: true });
-  for (const entry of entries) {
-    const relative = prefix ? `${prefix}/${entry.name}` : entry.name;
-    const absolute = path.join(directory, entry.name);
-    if (entry.isDirectory()) {
-      if (await staticAssetsChanged(absolute, relative, seen)) return true;
-      continue;
-    }
-    if (!entry.isFile() || path.extname(entry.name).toLowerCase() === '.html') continue;
-    const current = staticAssets.get(relative);
-    if (!current) return true;
-    const stat = await fsp.stat(absolute);
-    if (stat.size !== current.size || stat.mtimeMs !== current.mtimeMs) return true;
-    seen.add(relative);
-  }
-  return prefix === '' && seen.size !== staticAssets.size;
-}
-
-async function ensureStaticAssetsCurrent() {
-  if (!staticAssetsRefresh) {
-    staticAssetsRefresh = (async () => {
-      if (await staticAssetsChanged(PUBLIC_DIR)) await initializeStaticAssets();
-    })().finally(() => {
-      staticAssetsRefresh = null;
-    });
-  }
-  return staticAssetsRefresh;
-}
+function staticAssetsChanged(directory, prefix = '', seen = new Set()) { return registry.changed(directory, prefix, seen); }
 
 function fingerprintedAssetUrl(relative) {
   return `static/${staticBuildId}/${relative.split('/').map(encodeURIComponent).join('/')}`;
@@ -125,12 +62,8 @@ async function gzipBuffer(body) {
 
 async function serveHtmlFile(req, res, filePath) {
   await ensureStaticAssetsCurrent();
-  let source;
-  try {
-    source = await fsp.readFile(filePath, 'utf8');
-  } catch {
-    return false;
-  }
+  const source = staticDocuments.get(path.relative(PUBLIC_DIR, filePath).replace(/\\/g, '/'))?.source;
+  if (source === undefined) return false;
   const identity = Buffer.from(rewriteStaticHtml(source), 'utf8');
   const useGzip = /\bgzip\b/.test(String(req.headers['accept-encoding'] || ''));
   const body = useGzip ? await gzipBuffer(identity) : identity;
@@ -213,6 +146,7 @@ async function serveStaticFile(req, res, filePath, cacheControl, options = {}) {
 }
 
 async function serveStatic(req, res) {
+  await registry.checkPublication();
   const requestUrl = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
   let pathname;
   try {
@@ -262,6 +196,7 @@ async function serveStatic(req, res) {
 }
 
 export {
+  getAppVersion,
   collectStaticAssets,
   ensureStaticAssetsCurrent,
   fingerprintedAssetUrl,

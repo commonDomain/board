@@ -1,0 +1,100 @@
+.app-version-notice {
+  position: fixed;
+  right: max(18px, env(safe-area-inset-right));
+  bottom: max(18px, env(safe-area-inset-bottom));
+  z-index: 10000;
+  box-sizing: border-box;
+  width: max-content;
+  max-width: min(280px, calc(100vw - 36px));
+  padding: 14px;
+  border: 1px solid var(--line, #e5e7eb);
+  border-radius: 14px;
+  background: var(--surface-strong, #fff);
+  color: var(--ink, #171922);
+  box-shadow: 0 4px 12px #18203008, 0 12px 32px #18203014;
+  font: 500 13px/1.6 var(--font-ui, system-ui, sans-serif);
+}
+.app-version-notice > p:first-child { margin: 0 0 12px; }
+.app-version-dialog {
+  width: min(420px, calc(100vw - 36px));
+  max-height: calc(100dvh - 36px);
+  overflow: auto;
+  box-sizing: border-box;
+  padding: 24px;
+  border: 1px solid #dbe2eb;
+  border-radius: 20px;
+  background: #fff;
+  color: #243047;
+  box-shadow: 0 20px 80px #172b4d33;
+}
+.app-version-dialog::backdrop { background: #172b4d55; }
+.app-version-dialog h2 { margin: 0 0 12px; font-size: 20px; }
+.app-version-dialog p { font-size: 14px; line-height: 1.7; }
+.app-version-actions { display: flex; justify-content: flex-end; gap: 10px; flex-wrap: wrap; margin-top: 22px; }
+.app-version-dialog button, .app-version-notice button {
+  min-height: 40px;
+  padding: 8px 14px;
+  border: 1px solid #dbe2eb;
+  border-radius: 10px;
+  background: #f5f7fa;
+  color: #243047;
+  cursor: pointer;
+  font: inherit;
+}
+.app-version-actions button:last-child, .app-version-notice [data-version-refresh] { background: #315bce; color: #fff; border-color: #315bce; }
+.app-version-notice [data-version-cancel] { margin-left: 8px; }
+.app-version-dialog button:focus-visible, .app-version-notice button:focus-visible { outline: 3px solid #88a8ff; outline-offset: 3px; }
+.app-version-dialog button:disabled, .app-version-notice button:disabled { opacity: .6; cursor: wait; }
+.app-version-feedback:empty { display: none; }
+.app-version-notice .app-version-feedback { margin: 10px 0 0; font-size: 12px; }
+
+/* Keep the persistent notice quieter than the initial update dialog. */
+.app-version-notice button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 34px;
+  padding: 6px 11px;
+  border-radius: 9px;
+  font: 600 12px/1.5 var(--font-ui, system-ui, sans-serif);
+  transition: background-color 120ms ease, border-color 120ms ease;
+}
+.app-version-notice [data-version-refresh] {
+  background: var(--accent-soft, #eeebff);
+  border-color: transparent;
+  color: var(--accent-strong, #5744eb);
+}
+.app-version-notice [data-version-refresh]::before {
+  content: '';
+  flex: 0 0 14px;
+  width: 14px;
+  height: 14px;
+  background: currentColor;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 7v5h-5M4 17v-5h5M6 7a7 7 0 0 1 12-2l2 3M4 16l2 3a7 7 0 0 0 12-2'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+.app-version-notice [data-version-cancel] {
+  margin-left: 6px;
+  background: transparent;
+  border-color: var(--line, #e5e7eb);
+  color: var(--muted-strong, #4c5260);
+}
+.app-version-notice button:focus-visible { outline-color: var(--accent, #6957f5); }
+.app-version-notice .app-version-feedback:not(:empty) {
+  padding-top: 10px;
+  border-top: 1px solid var(--line, #e5e7eb);
+  color: var(--muted-strong, #4c5260);
+  font-weight: 400;
+  overflow-wrap: anywhere;
+}
+.app-version-notice [hidden] { display: none; }
+@media (hover: hover) {
+  .app-version-notice [data-version-refresh]:hover:not(:disabled) { background: #e5e0ff; }
+  .app-version-notice [data-version-cancel]:hover:not(:disabled) { background: var(--surface-muted, #f3f5f9); }
+}
+@media (pointer: coarse) {
+  .app-version-notice button { min-height: 40px; padding-inline: 12px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .app-version-notice button { transition: none; }
+}

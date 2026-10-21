@@ -8,6 +8,7 @@ function prepareChatTextBackup(db){
   const media=['image','video_id','element_ref'].filter(column=>columns.has(column));
   db.exec('PRAGMA foreign_keys=ON');
   db.exec('BEGIN IMMEDIATE');try{
+    if(tables.has('chat_reedit_drafts'))db.exec('DELETE FROM chat_reedit_drafts;');
     if(media.length){
       db.exec(`DELETE FROM chat_messages WHERE text='' AND withdrawn_at IS NULL AND (${media.map(column=>`${column} IS NOT NULL`).join(' OR ')});`);
       db.exec(`UPDATE chat_messages SET ${media.map(column=>`${column}=NULL`).join(',')}${columns.has('video_deleted_at') ? ',video_deleted_at=NULL' : ''};`);

@@ -169,6 +169,7 @@ export class NotebookStore {
       await transaction('books', (store, fail) => {
         const key = `${this.scope}:${id}`; const get = store.get(key);
         get.onsuccess = () => {
+          try {
           const saved=get.result;
           if(!this.guest&&record.dirty){
             store.put({...record,base:clone(this.baselines.get(id)),draft:true,liveClient:this.liveClient},`${this.scope}:${id}:draft:${this.clientId}`);
@@ -184,6 +185,7 @@ export class NotebookStore {
           if(!record.dirty)for(const draftKey of this.recoveredDrafts.get(id)||[])store.delete(draftKey);
           store.put(record, key);
           sharedSnapshot=record.book;
+          } catch (error) { fail(error); }
         };
       });
       this.versions.set(id, record.version); if(sharedSnapshot)this.localSnapshots.set(id,clone(sharedSnapshot));
@@ -198,6 +200,17 @@ export class NotebookStore {
     this.writes.set(id, work); return work;
   }
   persist() { return Promise.all([...this.dirty].map(id => this.persistBook(id))); }
+  async preparePageReload({ signal }) {
+    const validate = () => this.active() && [...this.dirty].every(id => this.durable.get(id) === (this.generations.get(id) || 0));
+    for (let attempt = 0; attempt < 3; attempt++) {
+      signal.throwIfAborted();
+      if (!this.active()) throw new Error('笔记编辑上下文已改变，请重试刷新。');
+      await this.persist();
+      signal.throwIfAborted();
+      if (validate()) return validate;
+    }
+    throw new Error('笔记内容仍在变化或草稿尚未落盘，请稍后重试刷新。');
+  }
   change(book) {
     if (!this.active() || book.unloaded) return;
     this.rejected.delete(book.id); this.books.set(book.id, book); this.dirty.add(book.id); this.generations.set(book.id, (this.generations.get(book.id) || 0) + 1);

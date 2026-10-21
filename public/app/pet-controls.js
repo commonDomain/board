@@ -30,7 +30,7 @@ export function wirePetControls() {
           : !ready ? '点击显示宠物，让它马上出现'
             : pet.placement ? '在画布点击投掷 · Esc 取消'
               : pet.busy && pet.sequenceKind === 'interaction' ? '正在互动，完成后可以继续'
-              : '点击画布投喂或扔球，完成后回到工具栏';
+              : '';
   };
   pet = isPhoneViewer() ? null : window.ToolbarPet?.init({
     dock: els.toolDock, viewport: els.viewport, onStateChange: update,

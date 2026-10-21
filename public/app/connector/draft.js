@@ -1,5 +1,6 @@
 import { cancelWheelZoomAnimation, getBoardPoint } from '../camera.js';
 import { state } from '../state.js';
+import { els } from '../elements.js';
 import {isItemVisible} from '../layer-visibility.js';
 import { isStackIsolatedItem } from '../stack-inspector.js';
 import { getWritableLayer, explainUnwritableLayer, canMutateItem } from '../layers-model.js';
@@ -143,6 +144,10 @@ function start(event, terminal = null, drag = false) {
     return;
   }
   if (state.editingId) finishEditing();
+  // Pointer capture/preventDefault leaves the tool button focused. Give the
+  // canvas keyboard ownership as soon as it accepts the drawing gesture.
+  els.viewport.tabIndex = -1;
+  els.viewport.focus({ preventScroll: true });
   event.preventDefault();
   cancelWheelZoomAnimation();
   cancel();

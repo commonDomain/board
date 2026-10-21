@@ -1,6 +1,7 @@
 // Notification-only worker: no fetch handler or application/offline cache.
 const appUrl=new URL('./',self.location.href);
 function chatTarget(data){
+  if(data?.feature==='gomoku')return {feature:'gomoku',...(/^[\w-]{1,64}$/.test(data.boardId||'')&&/^[0-9a-f-]{36}$/.test(data.gameId||'')?{boardId:data.boardId,gameId:data.gameId}:{})};
   const boardId=data?.boardId,sequence=data?.sequence;
   return /^[\w-]{1,128}$/.test(boardId||'')&&Number.isSafeInteger(sequence)&&sequence>0?{boardId,sequence}:null;
 }
