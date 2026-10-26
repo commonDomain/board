@@ -1,0 +1,224 @@
+/*
+ * Radial tool wheel, rendered by Kando's menu engine (frontend/kando-menu).
+ * Part 1 is Kando's base renderer CSS (MIT, src/menu-renderer/index.scss) converted to
+ * plain CSS and scoped to the wheel layer. Part 2 is a Museboard theme derived from
+ * Kando's "Default" menu theme (CC0-1.0) and driven by the active interface theme.
+ */
+
+/* ---------- Layer ---------- */
+.tool-wheel-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 2147482000;
+  pointer-events: none;
+  user-select: none;
+  touch-action: none;
+}
+.tool-wheel-layer.is-open { pointer-events: auto; }
+
+/* ---------- Part 1: Kando base renderer CSS ---------- */
+.tool-wheel-layer #kando-menu {
+  position: absolute;
+  inset: 0;
+  transition: opacity var(--fade-in-duration, 120ms) ease;
+}
+.tool-wheel-layer #kando-menu.hidden {
+  transition: opacity var(--fade-out-duration, 140ms) ease;
+  opacity: 0;
+  pointer-events: none;
+}
+.tool-wheel-layer #kando-menu.no-transitions * { transition: none !important; animation: none !important; }
+.tool-wheel-layer #kando-menu div { box-sizing: border-box; }
+.tool-wheel-layer .menu-node { position: absolute; pointer-events: none; }
+.tool-wheel-layer .menu-node .icon-container {
+  container-type: size;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.tool-wheel-layer .menu-node .icon-container svg { width: 46%; height: 46%; stroke-width: 1.8; }
+.tool-wheel-layer .menu-node.grandchild > .menu-node { display: none; }
+.tool-wheel-layer .connector {
+  position: absolute;
+  width: 0;
+  left: 0;
+  transform-origin: 0% 50%;
+  z-index: -1;
+  display: none;
+}
+.tool-wheel-layer .menu-node.parent > .connector,
+.tool-wheel-layer .menu-node.active > .connector,
+.tool-wheel-layer .menu-node.active:has(> .menu-node.dragged) > .connector,
+.tool-wheel-layer .menu-node.active:has(> .menu-node.clicked) > .connector { display: block; }
+.tool-wheel-layer .center-text { position: absolute; overflow: hidden; }
+.tool-wheel-layer .center-text .half-circle-wrap-left {
+  height: 100%;
+  width: 50%;
+  float: left;
+  shape-outside: radial-gradient(farthest-side at 95%, transparent 95%, #000);
+}
+.tool-wheel-layer .center-text .half-circle-wrap-right {
+  height: 100%;
+  width: 50%;
+  float: right;
+  shape-outside: radial-gradient(farthest-side at 5%, transparent 95%, #000);
+}
+.tool-wheel-layer .center-text .text { width: 100%; height: 100%; text-align: center; }
+.tool-wheel-layer .center-text p { margin: 0; line-height: 1.2em; }
+
+/* ---------- Part 2: Museboard theme (from Kando "Default", CC0-1.0) ---------- */
+.tool-wheel-layer {
+  --wheel-surface: #ffffff;
+  --wheel-ink: #1c1d21;
+  --wheel-muted: #6b7079;
+  --wheel-line: rgba(20, 24, 32, 0.14);
+  --wheel-active: #1c1d21;
+  --wheel-active-ink: #ffffff;
+  --wheel-shadow: 0 1px 2px rgba(0, 0, 0, 0.1), 0 8px 22px rgba(15, 20, 30, 0.16);
+  font-family: var(--t-font-ui, system-ui, sans-serif);
+}
+:root[data-ui=studio] .tool-wheel-layer {
+  --wheel-surface: var(--t-raised);
+  --wheel-ink: var(--t-ink);
+  --wheel-muted: var(--t-ink-3);
+  --wheel-line: var(--t-line-strong);
+  --wheel-active: var(--t-ink);
+  --wheel-active-ink: var(--t-raised);
+}
+:root[data-theme=paper] .tool-wheel-layer { --wheel-active: var(--t-highlight); --wheel-active-ink: var(--t-ink); }
+:root[data-theme=workbench] .tool-wheel-layer { --wheel-active: var(--t-accent); --wheel-active-ink: #ffffff; }
+:root[data-theme=night] .tool-wheel-layer { --wheel-active: var(--t-accent); --wheel-active-ink: var(--t-accent-ink); --wheel-shadow: 0 0 0 1px rgba(0, 0, 0, 0.4), 0 12px 28px rgba(0, 0, 0, 0.5); }
+
+.tool-wheel-layer .menu-node {
+  --child-distance: 96px;
+  --grandchild-distance: 22px;
+  --center-size: 64px;
+  --child-size: 48px;
+  --grandchild-size: 8px;
+  --connector-width: 2px;
+  --menu-transition: transform 220ms cubic-bezier(0.23, 1, 0.32, 1), top 220ms cubic-bezier(0.23, 1, 0.32, 1), left 220ms cubic-bezier(0.23, 1, 0.32, 1), width 220ms cubic-bezier(0.23, 1, 0.32, 1), height 220ms cubic-bezier(0.23, 1, 0.32, 1), background-color 120ms ease, color 120ms ease;
+  --opacity-transition: opacity 160ms ease;
+  transition: var(--menu-transition);
+}
+
+/* Positioning: children sit on a ring around the active node, grandchildren hint further out. */
+.tool-wheel-layer .menu-node.child {
+  transform: translate(
+    calc(max(var(--child-distance), 9px * var(--sibling-count)) * var(--dir-x)),
+    calc(max(var(--child-distance), 9px * var(--sibling-count)) * var(--dir-y))
+  );
+}
+.tool-wheel-layer .menu-node.grandchild {
+  transform: translate(calc(var(--grandchild-distance) * var(--dir-x)), calc(var(--grandchild-distance) * var(--dir-y)));
+}
+.tool-wheel-layer .menu-node.active:has(.hovered) > .child.hovered {
+  transform: scale(1.08) translate(
+    calc(max(var(--child-distance), 9px * var(--sibling-count)) * var(--dir-x)),
+    calc(max(var(--child-distance), 9px * var(--sibling-count)) * var(--dir-y))
+  );
+}
+
+/* Icon layer. */
+.tool-wheel-layer .menu-node .icon-container {
+  opacity: 0;
+  color: var(--wheel-ink);
+  transition: var(--opacity-transition);
+  border-radius: 50%;
+}
+.tool-wheel-layer .menu-node .icon-layer {
+  position: absolute;
+  border-radius: 50%;
+  border: 1px solid var(--wheel-line);
+  transition: var(--menu-transition);
+  z-index: 1;
+}
+.tool-wheel-layer .menu-node.active > .icon-layer {
+  top: calc(-1 * var(--center-size) / 2);
+  left: calc(-1 * var(--center-size) / 2);
+  width: var(--center-size);
+  height: var(--center-size);
+  background-color: var(--wheel-surface);
+  box-shadow: var(--wheel-shadow);
+}
+.tool-wheel-layer .menu-node.active:has(> .hovered) > .icon-layer > .icon-container { opacity: 0; }
+.tool-wheel-layer .menu-node.parent > .icon-layer > .icon-container,
+.tool-wheel-layer .menu-node.child > .icon-layer > .icon-container,
+.tool-wheel-layer .menu-node.active > .icon-layer > .icon-container { opacity: 1; }
+.tool-wheel-layer .menu-node.parent > .icon-layer,
+.tool-wheel-layer .menu-node.child > .icon-layer {
+  top: calc(-1 * var(--child-size) / 2);
+  left: calc(-1 * var(--child-size) / 2);
+  width: var(--child-size);
+  height: var(--child-size);
+  background-color: var(--wheel-surface);
+  box-shadow: var(--wheel-shadow);
+}
+.tool-wheel-layer .menu-node:is(.parent, .child, .active).hovered > .icon-layer {
+  border-color: var(--wheel-active);
+  background-color: var(--wheel-active);
+}
+.tool-wheel-layer .menu-node:is(.parent, .child, .active).hovered > .icon-layer > .icon-container { color: var(--wheel-active-ink); }
+.tool-wheel-layer .menu-node:is(.parent, .child, .active).hovered.clicked > .icon-layer { transform: scale(0.92); }
+.tool-wheel-layer .menu-node.grandchild > .icon-layer {
+  top: calc(-1 * var(--grandchild-size) / 2);
+  left: calc(-1 * var(--grandchild-size) / 2);
+  width: var(--grandchild-size);
+  height: var(--grandchild-size);
+  border: 0;
+  background-color: var(--wheel-muted);
+}
+.tool-wheel-layer .menu-node.dragged { transition: none; }
+
+/* Labels: every child shows its name, so the wheel can be read without memorising icons. */
+.tool-wheel-layer .menu-node .label-layer {
+  position: absolute;
+  left: 0;
+  top: calc(var(--child-size) / 2 + 4px);
+  transform: translateX(-50%);
+  padding: 2px 7px;
+  border-radius: var(--t-r1, 4px);
+  background: var(--wheel-surface);
+  color: var(--wheel-ink);
+  font-size: 12px;
+  font-weight: 550;
+  line-height: 1.5;
+  white-space: nowrap;
+  opacity: 0;
+  box-shadow: 0 0 0 1px var(--wheel-line);
+  transition: var(--opacity-transition);
+  z-index: 2;
+}
+.tool-wheel-layer .menu-node.child > .label-layer { opacity: 1; }
+.tool-wheel-layer .menu-node.child.hovered > .label-layer { background: var(--wheel-active); color: var(--wheel-active-ink); box-shadow: none; }
+
+/* Connectors trace the path back to where the menu was opened. */
+.tool-wheel-layer .connector {
+  transition: var(--menu-transition);
+  height: var(--connector-width);
+  background-color: var(--wheel-line);
+  top: calc(-1 * var(--connector-width) / 2);
+}
+.tool-wheel-layer .menu-node:has(.dragged) > .connector { transition: none; }
+.tool-wheel-layer .menu-node.active > .connector { background-color: var(--wheel-active); }
+
+/* Centre text: the hovered item's name. */
+.tool-wheel-layer .center-text {
+  color: var(--wheel-ink);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 16px;
+  transition: var(--opacity-transition);
+}
+
+@media (pointer: coarse) {
+  .tool-wheel-layer .menu-node { --child-distance: 108px; --child-size: 54px; --center-size: 68px; }
+  .tool-wheel-layer .menu-node .label-layer { font-size: 13px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tool-wheel-layer .menu-node,
+  .tool-wheel-layer .menu-node .icon-layer,
+  .tool-wheel-layer .connector { transition: opacity 120ms ease; }
+}

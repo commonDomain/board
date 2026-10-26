@@ -1,0 +1,49 @@
+/* ---------- Touch devices: icons first, labels on request (scheme B) ---------- */
+:root[data-ui=studio][data-device=mobile] .dock-labels-toggle {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 100%;
+  min-height: 44px;
+  margin-top: 4px;
+  border: 1px solid transparent;
+  border-radius: var(--t-r2);
+  background: transparent;
+  color: var(--t-ink-3);
+  cursor: pointer;
+}
+:root[data-ui=studio][data-device=mobile] .dock-labels-toggle svg { width: 18px; height: 18px; }
+:root[data-ui=studio][data-device=mobile] .dock-labels-toggle[aria-pressed=true] { color: var(--t-ink); background: var(--t-hover); }
+:root[data-ui=studio][data-device=mobile] .dock-labels-toggle:active { background: var(--t-press); }
+:root[data-ui=studio][data-form-factor=phone] .dock-labels-toggle { display: none; }
+
+:root[data-ui=studio][data-form-factor=tablet] .tool-dock { box-shadow: var(--t-shadow-1); }
+:root[data-ui=studio][data-form-factor=tablet] .tool-button { transition: background-color 90ms ease, color 90ms ease; }
+
+/* Vertical dock (wide tablets). */
+@media (min-width: 1101px) and (min-height: 501px), (min-width: 1101px) and (orientation: portrait) {
+  :root:is([data-theme=paper],[data-theme=night])[data-device=mobile][data-dock-labels=compact] .tool-dock { width: 64px; padding: 6px; }
+  :root:is([data-theme=paper],[data-theme=night])[data-device=mobile][data-dock-labels=compact] .dock-group { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+  :root:is([data-theme=paper],[data-theme=night])[data-device=mobile][data-dock-labels=compact] .dock-section-label { height: 0; padding: 0; overflow: hidden; }
+  :root:is([data-theme=paper],[data-theme=night])[data-device=mobile][data-dock-labels=compact] .dock-divider { margin: 6px 6px; }
+  :root:is([data-theme=paper],[data-theme=night])[data-device=mobile][data-dock-labels=compact] .tool-button { min-height: 48px; padding: 0; }
+  :root:is([data-theme=paper],[data-theme=night])[data-device=mobile][data-dock-labels=compact] .tool-button .tool-label { display: none; }
+  :root:is([data-theme=paper],[data-theme=night])[data-device=mobile][data-dock-labels=compact] .tool-button > svg:not(.tool-chevron) { width: 21px; height: 21px; }
+  :root:is([data-theme=paper],[data-theme=night])[data-device=mobile][data-dock-labels=compact] .dock-collapse-button { min-height: 40px; }
+  :root:is([data-theme=paper],[data-theme=night])[data-device=mobile][data-dock-labels=compact] .tool-popover { left: calc(max(16px, var(--safe-left)) + 74px) !important; max-width: calc(100vw - 110px); }
+  :root:is([data-theme=paper],[data-theme=night])[data-device=mobile][data-dock-labels=expanded] .tool-dock { width: 124px; }
+  :root:is([data-theme=paper],[data-theme=night])[data-device=mobile][data-dock-labels=compact] .touch-actions { left: calc(max(16px, var(--safe-left)) + 76px); }
+  :root:is([data-theme=paper],[data-theme=night])[data-device=mobile][data-dock-labels=expanded] .touch-actions { left: calc(max(16px, var(--safe-left)) + 136px); }
+  :root:is([data-theme=paper],[data-theme=night])[data-device=mobile] .dock-expand-button { left: calc(max(16px, var(--safe-left)) + 10px); width: 44px; height: 44px; }
+}
+
+/* Bottom dock (portrait tablets and narrow windows). */
+@media (max-width: 1100px), (max-height: 500px) and (orientation: landscape) {
+  :root:is([data-theme=paper],[data-theme=night]) .tool-dock { width: auto; border-radius: var(--t-r3); }
+  :root:is([data-theme=paper],[data-theme=night])[data-device=mobile] .dock-labels-toggle { width: 44px; min-width: 44px; height: 44px; margin: 0 0 0 2px; }
+  :root:is([data-theme=paper],[data-theme=night])[data-device=mobile][data-dock-labels=compact] .tool-dock { height: 60px; padding: 6px; gap: 4px; }
+  :root:is([data-theme=paper],[data-theme=night])[data-device=mobile][data-dock-labels=compact] .tool-button { width: 46px; min-width: 46px; min-height: 46px; flex-basis: 46px; padding: 0; }
+  :root:is([data-theme=paper],[data-theme=night])[data-device=mobile][data-dock-labels=compact] .tool-button .tool-label { display: none; }
+  :root:is([data-theme=paper],[data-theme=night])[data-device=mobile][data-dock-labels=compact] .tool-button > svg:not(.tool-chevron) { width: 21px; height: 21px; }
+  :root:is([data-theme=paper],[data-theme=night])[data-device=mobile][data-dock-labels=compact] .dock-divider { height: 28px; }
+}

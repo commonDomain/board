@@ -1,0 +1,177 @@
+/* ---------- Popovers, menus, panels, dialogs ---------- */
+:root[data-ui=studio] :is(.tool-popover, .context-menu, .canvas-menu, .account-menu, .brush-preset-menu, .floating-select-menu, .floating-menu-subpanel, .floating-color-palette, .floating-custom-color-picker, .floating-advanced-panel) {
+  border: 1px solid var(--t-line);
+  border-radius: var(--t-r3);
+  background: var(--t-surface);
+  box-shadow: var(--t-shadow-2);
+  color: var(--t-ink);
+}
+:root[data-ui=studio] :is(.context-panel, .navigator-panel, .canvas-preview-card, .arrange-bar, .floating-format-bar, .touch-actions) {
+  border: 1px solid var(--t-line);
+  border-radius: var(--t-r3);
+  background: var(--t-surface);
+  box-shadow: var(--t-shadow-2);
+  color: var(--t-ink);
+}
+:root[data-ui=studio] :is(.canvas-dialog-card, .search-command, .export-preview-card, .account-card, .sync-dialog, .adaptive-dialog-card) {
+  border: 1px solid var(--t-line);
+  border-radius: var(--t-r3);
+  background: var(--t-surface);
+  box-shadow: var(--t-shadow-3);
+  color: var(--t-ink);
+}
+
+/* Headings inside popovers: quiet labels instead of tinted pills. */
+:root[data-ui=studio] :is(.popover-eyebrow, .navigator-eyebrow, .mindmap-section-title > span) {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--t-ink-3);
+  font-family: var(--t-font-display);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: var(--t-label-tracking);
+}
+:root[data-ui=studio] .mindmap-section-title {
+  min-height: 24px;
+  margin: 2px 4px 4px;
+  padding: 2px 2px;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  color: var(--t-ink);
+}
+:root[data-ui=studio] .mindmap-section-title > strong { font-size: 12.5px; font-weight: 600; }
+:root[data-ui=studio] :is(.popover-heading strong, .navigator-heading strong) { color: var(--t-ink); font-weight: 650; letter-spacing: 0; }
+
+/* Shared choice tiles and plain buttons. */
+:root[data-ui=studio] :is(.context-btn, .mindmap-choice, .navigation-choice, .mindmap-connect-button, .mindmap-disconnect-button, .table-tool-choice, .background-choice, .shape-sticker-tab) {
+  border-color: var(--t-line);
+  border-radius: var(--t-r2);
+  background: var(--t-surface);
+  box-shadow: none;
+  color: var(--t-ink);
+}
+:root[data-ui=studio] :is(.context-btn, .mindmap-choice, .navigation-choice, .mindmap-connect-button, .table-tool-choice, .background-choice, .shape-sticker-tab):hover {
+  border-color: var(--t-line-strong);
+  background: var(--t-hover);
+  box-shadow: none;
+  transform: none;
+}
+:root[data-ui=studio] :is(.context-btn, .mindmap-choice, .navigation-choice, .table-tool-choice, .background-choice, .shape-sticker-tab):is(.active, [aria-pressed=true], [aria-selected=true]) {
+  border-color: var(--t-ink);
+  background: var(--t-raised);
+  color: var(--t-ink);
+  box-shadow: inset 0 0 0 1px var(--t-ink);
+}
+:root[data-ui=studio] .context-btn { font-size: 12px; font-weight: 500; }
+:root[data-ui=studio] .navigation-choice-icon { border-radius: var(--t-r2); background: var(--t-sunken); color: var(--t-ink); box-shadow: none; }
+:root[data-ui=studio] :is(.navigation-choice small, .mindmap-connect-button small) { color: var(--t-ink-3); }
+
+/* Right-click menus: icon · label · shortcut. */
+:root[data-ui=studio] .context-menu { padding: 4px; }
+:root[data-ui=studio] .context-menu button {
+  min-height: 32px;
+  padding: 6px 8px;
+  border-radius: var(--t-r1);
+  font-size: 13px;
+  font-weight: 450;
+}
+:root[data-ui=studio] .context-menu button:hover,
+:root[data-ui=studio] .context-menu button:focus-visible { background: var(--t-hover); outline: none; }
+:root[data-ui=studio] .context-menu button kbd { color: var(--t-ink-3); font-family: var(--t-font-num); font-size: 11px; }
+:root[data-ui=studio] .context-menu button.danger { color: var(--t-danger); }
+:root[data-ui=studio] .context-menu button.danger:hover { background: color-mix(in srgb, var(--t-danger) 10%, transparent); color: var(--t-danger); }
+:root[data-ui=studio] .context-menu .menu-separator { margin: 4px 6px; background: var(--t-line); }
+:root[data-ui=studio] .context-menu-column + .context-menu-column { border-color: var(--t-line); }
+:root[data-ui=studio] .context-menu-column-title {
+  border-radius: var(--t-r1);
+  background: var(--t-sunken);
+  color: var(--t-ink);
+  font-family: var(--t-font-display);
+}
+
+/* Canvas list. */
+:root[data-ui=studio] .canvas-menu-heading strong { color: var(--t-ink); font-weight: 650; }
+:root[data-ui=studio] #canvasCount { color: var(--t-ink-3); font-family: var(--t-font-num); font-size: 11px; }
+:root[data-ui=studio] .canvas-preview-frame { border-radius: var(--t-r2); box-shadow: inset 0 0 0 1px var(--t-line); }
+
+/* Form controls. */
+:root[data-ui=studio] :is(.canvas-dialog-card input, .adaptive-dialog-card input, .search-command input, .account-card input, .navigator-search input, #newCanvasVisibility, .studio-select, .format-select, .layer-blend) {
+  border: 1px solid var(--t-line-strong);
+  border-radius: var(--t-r2);
+  background-color: var(--t-raised);
+  color: var(--t-ink);
+  box-shadow: none;
+}
+:root[data-ui=studio] :is(.canvas-dialog-card input, .adaptive-dialog-card input, .search-command input, .account-card input, .navigator-search input):focus {
+  border-color: var(--t-focus);
+  outline: none;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--t-focus) 18%, transparent);
+}
+:root[data-ui=studio] ::placeholder { color: var(--t-ink-3); opacity: 1; }
+:root[data-ui=studio] .switch-control .switch-track { box-shadow: none; }
+:root[data-ui=studio] .switch-control[aria-checked=true] .switch-track { background: var(--t-accent); }
+
+/* Dialog actions: primary is solid, secondary is outlined, danger is explicit. */
+:root[data-ui=studio] .canvas-dialog-icon { border-radius: var(--t-r2); background: var(--t-sunken); color: var(--t-ink); box-shadow: none; }
+:root[data-ui=studio] .canvas-dialog-icon.danger { background: color-mix(in srgb, var(--t-danger) 10%, transparent); color: var(--t-danger); }
+:root[data-ui=studio] .canvas-dialog-heading h2 { color: var(--t-ink); font-weight: 650; letter-spacing: -0.005em; }
+:root[data-ui=studio] :is(.canvas-dialog-actions button, .sync-dialog button) {
+  min-height: 36px;
+  border: 1px solid var(--t-line-strong);
+  border-radius: var(--t-r2);
+  background: transparent;
+  color: var(--t-ink);
+  font-weight: 550;
+  box-shadow: none;
+}
+:root[data-ui=studio] :is(.canvas-dialog-actions button, .sync-dialog button):hover:not(:disabled) { background: var(--t-hover); }
+:root[data-ui=studio] :is(.canvas-dialog-actions button.primary, .sync-dialog .sync-primary) {
+  border-color: transparent;
+  background: var(--t-accent);
+  color: var(--t-accent-ink);
+}
+:root[data-ui=studio] :is(.canvas-dialog-actions button.primary, .sync-dialog .sync-primary):hover:not(:disabled) { background: var(--t-accent-strong); }
+:root[data-ui=studio] .canvas-dialog-actions button.danger { border-color: transparent; background: var(--t-danger); color: #fff; }
+:root[data-ui=studio] .sync-dialog .sync-close { min-height: 28px; border: 0; color: var(--t-ink-3); }
+:root[data-ui=studio] .sync-dialog .sync-discard:hover:not(:disabled) { background: color-mix(in srgb, var(--t-danger) 6%, var(--t-surface)); color: var(--t-danger); }
+@media (pointer: coarse) { :root[data-ui=studio] .sync-dialog button { min-height: 44px; } }
+:root[data-ui=studio] .sync-confirm-overlay .canvas-dialog-card { border-radius: var(--t-r3); }
+
+/* Navigator tree: drag reorder reads as an insertion line, not a glow. */
+:root[data-ui=studio] :is(.navigator-row, .navigator-item, .layer-row, .canvas-list-item):hover { background: var(--t-hover); }
+:root[data-ui=studio] :is(.navigator-row, .navigator-item, .layer-row, .canvas-list-item):is(.active, .selected, [aria-selected=true], [aria-current=true]) {
+  background: var(--t-accent-soft);
+  box-shadow: inset 2px 0 0 var(--t-accent);
+}
+:root[data-ui=studio] :is(.canvas-drag-ghost, .navigator-drag-ghost) {
+  border: 1px solid var(--t-line-strong);
+  border-radius: var(--t-r2);
+  background: var(--t-raised);
+  box-shadow: var(--t-shadow-3);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+:root[data-ui=studio] :is(.canvas-drag-ghost, .navigator-drag-ghost).is-settling { box-shadow: var(--t-shadow-1); }
+/* Insertion marker: a 2px rule that starts with a dot, like a pen landing. */
+:root[data-ui=studio] .navigator-row.is-drop-before::before,
+:root[data-ui=studio] .navigator-row.is-drop-after::after {
+  height: 7px;
+  border-radius: 0;
+  background:
+    radial-gradient(circle at 3.5px 50%, var(--t-accent) 3px, transparent 3.6px),
+    linear-gradient(var(--t-accent), var(--t-accent)) 6px 50% / calc(100% - 6px) 2px no-repeat;
+}
+:root[data-ui=studio] .navigator-row.is-drop-before::before { top: -4px; }
+:root[data-ui=studio] .navigator-row.is-drop-after::after { bottom: -4px; }
+:root[data-ui=studio] :is(.navigator-row.is-dragging, .canvas-list-item.dragging) {
+  opacity: 1;
+  background: transparent;
+  outline: 1px dashed var(--t-line-strong);
+  outline-offset: -2px;
+}
+:root[data-ui=studio] :is(.navigator-row.is-dragging, .canvas-list-item.dragging) > * { opacity: 0.35; }
+
+/* Scrollbars inside panels: thin and neutral. */
+:root[data-ui=studio] :is(.tool-popover, .context-panel, .navigator-panel, .canvas-menu, .context-menu) { scrollbar-color: var(--t-line-strong) transparent; scrollbar-width: thin; }

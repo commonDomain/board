@@ -1,0 +1,532 @@
+.canvas-start-copy {
+  display: grid;
+  gap: 7px;
+}
+.canvas-start-eyebrow {
+  color: var(--accent-strong);
+  font-size: 11px;
+  font-weight: 750;
+  letter-spacing: 0.08em;
+}
+.canvas-start-copy h2 {
+  margin: 0;
+  color: #202331;
+  font-size: clamp(20px, 2vw, 24px);
+  line-height: 1.25;
+}
+.canvas-start-copy p {
+  max-width: 380px;
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.65;
+}
+
+.canvas-start-actions {
+  display: grid;
+  width: 100%;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.canvas-start-action {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: rgba(247, 248, 251, 0.92);
+  color: var(--muted-strong);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 700;
+  transition:
+    background 160ms ease,
+    border-color 160ms ease,
+    color 160ms ease,
+    transform 160ms ease;
+}
+
+.canvas-start-action svg {
+  width: 16px;
+  height: 16px;
+}
+.canvas-start-action:hover {
+  border-color: rgba(105, 87, 245, 0.24);
+  background: #fff;
+  color: var(--accent-strong);
+}
+.canvas-start-action:active {
+  transform: translateY(1px);
+}
+.canvas-start-action.primary {
+  border-color: transparent;
+  background: var(--accent);
+  color: #fff;
+}
+.canvas-start-action.primary:hover {
+  background: var(--accent-strong);
+  color: #fff;
+}
+.canvas-start-action:focus-visible {
+  outline: 3px solid rgba(105, 87, 245, 0.3);
+  outline-offset: 2px;
+}
+
+.canvas-start-shortcuts {
+  margin: -2px 0 0;
+  color: #8a91a0;
+  font-size: 10px;
+}
+.canvas-start-shortcuts kbd {
+  padding: 2px 5px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: #f7f8fa;
+  color: #626a79;
+  font: inherit;
+  font-weight: 700;
+}
+
+.grid-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-color: #fff;
+  background-image: radial-gradient(circle, var(--grid) 1px, transparent 1.25px);
+  background-size: 18px 18px;
+}
+
+.viewport[data-bg='blank'] .grid-layer {
+  background-color: #fff;
+  background-image: none;
+}
+
+.viewport[data-bg='dots'] .grid-layer {
+  background-color: #fff;
+  background-image: radial-gradient(circle, var(--grid) 1px, transparent 1.25px);
+  background-size: 18px 18px;
+}
+
+.viewport[data-bg='grid'] .grid-layer {
+  background-color: #fff;
+  background-image:
+    linear-gradient(var(--grid) 1px, transparent 1px), linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size: 18px 18px;
+}
+
+.viewport[data-bg='lines'] .grid-layer {
+  background-color: #fff;
+  background-image: repeating-linear-gradient(0deg, var(--grid) 0 1px, transparent 1px 36px);
+  background-size: 100% 36px;
+}
+
+.viewport[data-bg='dark'],
+.viewport[data-bg='dark'] .grid-layer {
+  background-color: #1e232e;
+}
+
+.viewport[data-bg='dark'] .grid-layer {
+  background-image: radial-gradient(circle, rgba(255, 255, 255, 0.14) 1px, transparent 1.25px);
+  background-size: 18px 18px;
+}
+
+.viewport[data-bg='warm'],
+.viewport[data-bg='warm'] .grid-layer {
+  background-color: #faf2e5;
+}
+
+.viewport[data-bg='warm'] .grid-layer {
+  background-image: radial-gradient(circle, rgba(132, 101, 65, 0.2) 1px, transparent 1.25px);
+  background-size: 20px 20px;
+}
+
+.viewport[data-bg='blueprint'],
+.viewport[data-bg='blueprint'] .grid-layer {
+  background-color: #183d65;
+}
+
+.viewport[data-bg='blueprint'] .grid-layer {
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.11) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.11) 1px, transparent 1px);
+  background-size: 18px 18px;
+}
+
+.viewport[data-bg='isometric'] .grid-layer {
+  background-color: #fbfcfe;
+  background-image:
+    linear-gradient(30deg, rgba(100, 111, 132, 0.16) 1px, transparent 1px),
+    linear-gradient(150deg, rgba(100, 111, 132, 0.16) 1px, transparent 1px);
+  background-size: 31px 18px;
+}
+
+.viewport[data-bg='paper'] .grid-layer {
+  background-color: #f8f6f0;
+  background-image:
+    radial-gradient(circle at 22% 26%, rgba(79, 62, 40, 0.045) 0 1px, transparent 1.2px),
+    radial-gradient(circle at 72% 66%, rgba(79, 62, 40, 0.035) 0 1px, transparent 1.25px);
+  background-size:
+    17px 23px,
+    29px 31px;
+}
+
+.viewport[data-bg='cross'] .grid-layer {
+  background-color: #fbfcfe;
+  background-image:
+    radial-gradient(ellipse 4px 0.7px at center, rgba(93, 105, 128, 0.22) 98%, transparent),
+    radial-gradient(ellipse 0.7px 4px at center, rgba(93, 105, 128, 0.22) 98%, transparent);
+}
+
+.viewport[data-bg='graph'] .grid-layer {
+  background-color: #f8fbff;
+  background-image:
+    linear-gradient(rgba(96, 145, 184, 0.12) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(96, 145, 184, 0.12) 1px, transparent 1px),
+    linear-gradient(rgba(65, 118, 161, 0.22) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(65, 118, 161, 0.22) 1px, transparent 1px);
+}
+
+.viewport[data-bg='rice'] .grid-layer {
+  background-color: #fffdf8;
+  background-image:
+    linear-gradient(rgba(190, 102, 94, 0.22) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(190, 102, 94, 0.22) 1px, transparent 1px),
+    linear-gradient(45deg, transparent calc(50% - 0.5px), rgba(190, 102, 94, 0.13) 50%, transparent calc(50% + 0.5px)),
+    linear-gradient(-45deg, transparent calc(50% - 0.5px), rgba(190, 102, 94, 0.13) 50%, transparent calc(50% + 0.5px));
+}
+
+.viewport[data-bg='mist'],
+.viewport[data-bg='mist'] .grid-layer {
+  background-color: #edf4f8;
+}
+
+.viewport[data-bg='mist'] .grid-layer {
+  background-image: radial-gradient(circle, rgba(65, 103, 126, 0.2) 1px, transparent 1.3px);
+}
+
+.viewport[data-bg='sage'],
+.viewport[data-bg='sage'] .grid-layer {
+  background-color: #edf2ea;
+}
+
+.viewport[data-bg='sage'] .grid-layer {
+  background-image: radial-gradient(circle, rgba(77, 102, 74, 0.2) 1px, transparent 1.3px);
+}
+
+.viewport[data-bg='dawn'],
+.viewport[data-bg='dawn'] .grid-layer {
+  background-color: #fff6f2;
+}
+
+.viewport[data-bg='dawn'] .grid-layer {
+  background-image:
+    radial-gradient(circle at 20% 25%, rgba(245, 181, 151, 0.32), transparent 38%),
+    radial-gradient(circle at 80% 72%, rgba(178, 190, 239, 0.28), transparent 40%);
+}
+
+.viewport[data-bg='alpine-lake'],
+.viewport[data-bg='alpine-lake'] .grid-layer {
+  background-color: #dbe9ef;
+}
+.viewport[data-bg='alpine-lake'] .grid-layer {
+  background-image:
+    linear-gradient(rgba(245, 249, 251, 0.12), rgba(245, 249, 251, 0.12)), url('backgrounds/alpine-lake.webp');
+}
+.viewport[data-bg='coastline'],
+.viewport[data-bg='coastline'] .grid-layer {
+  background-color: #e9e9db;
+}
+.viewport[data-bg='coastline'] .grid-layer {
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.12)), url('backgrounds/coastline.webp');
+}
+.viewport[data-bg='sage-watercolor'],
+.viewport[data-bg='sage-watercolor'] .grid-layer {
+  background-color: #eef2e9;
+}
+.viewport[data-bg='sage-watercolor'] .grid-layer {
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.08)), url('backgrounds/sage-watercolor.webp');
+}
+.viewport[data-bg='twilight-sky'],
+.viewport[data-bg='twilight-sky'] .grid-layer {
+  background-color: #645d86;
+}
+.viewport[data-bg='twilight-sky'] .grid-layer {
+  background-image:
+    linear-gradient(rgba(255, 244, 251, 0.08), rgba(255, 244, 251, 0.08)), url('backgrounds/twilight-sky.webp');
+}
+.viewport[data-bg='botanical-paper'],
+.viewport[data-bg='botanical-paper'] .grid-layer {
+  background-color: #f3eee3;
+}
+.viewport[data-bg='botanical-paper'] .grid-layer {
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.04)), url('backgrounds/botanical-paper.webp');
+}
+.viewport[data-bg='desert-dunes'],
+.viewport[data-bg='desert-dunes'] .grid-layer {
+  background-color: #e8b18f;
+}
+.viewport[data-bg='desert-dunes'] .grid-layer {
+  background-image:
+    linear-gradient(rgba(255, 246, 236, 0.1), rgba(255, 246, 236, 0.1)), url('backgrounds/desert-dunes.webp');
+}
+.viewport[data-bg='navy-night'],
+.viewport[data-bg='navy-night'] .grid-layer {
+  background-color: #09132b;
+}
+.viewport[data-bg='navy-night'] .grid-layer {
+  background-image: linear-gradient(rgba(3, 7, 20, 0.06), rgba(3, 7, 20, 0.06)), url('backgrounds/navy-night.webp');
+}
+
+.viewport[data-bg='thousand-li'],
+.viewport[data-bg='thousand-li'] .grid-layer {
+  background-color: #9a8155;
+}
+.viewport[data-bg='thousand-li'] .grid-layer {
+  background-image:
+    linear-gradient(rgba(255, 249, 235, 0.12), rgba(255, 249, 235, 0.12)), url('backgrounds/thousand-li.webp');
+}
+
+.viewport[data-bg='calligraphy'],
+.viewport[data-bg='calligraphy'] .grid-layer {
+  background-color: #c7ad84;
+}
+.viewport[data-bg='calligraphy'] .grid-layer {
+  background-image:
+    linear-gradient(rgba(255, 250, 239, 0.16), rgba(255, 250, 239, 0.16)), url('backgrounds/lantingxu.webp');
+}
+
+.viewport[data-bg='starfield'],
+.viewport[data-bg='starfield'] .grid-layer {
+  background-color: #050507;
+}
+.viewport[data-bg='starfield'] .grid-layer {
+  background-image: linear-gradient(rgba(3, 4, 8, 0.08), rgba(3, 4, 8, 0.08)), url('backgrounds/webb-deep-field.webp');
+}
+
+.viewport[data-bg='great-wave'],
+.viewport[data-bg='great-wave'] .grid-layer {
+  background-color: #c9d4d4;
+}
+.viewport[data-bg='great-wave'] .grid-layer {
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.1)), url('backgrounds/great-wave.webp');
+}
+
+.viewport[data-bg='water-lilies'],
+.viewport[data-bg='water-lilies'] .grid-layer {
+  background-color: #708d96;
+}
+.viewport[data-bg='water-lilies'] .grid-layer {
+  background-image:
+    linear-gradient(rgba(245, 249, 250, 0.14), rgba(245, 249, 250, 0.14)), url('backgrounds/water-lilies.webp');
+}
+
+.viewport[data-bg='alpine-lake'] .grid-layer,
+.viewport[data-bg='coastline'] .grid-layer,
+.viewport[data-bg='sage-watercolor'] .grid-layer,
+.viewport[data-bg='twilight-sky'] .grid-layer,
+.viewport[data-bg='botanical-paper'] .grid-layer,
+.viewport[data-bg='desert-dunes'] .grid-layer,
+.viewport[data-bg='navy-night'] .grid-layer,
+.viewport[data-bg='thousand-li'] .grid-layer,
+.viewport[data-bg='calligraphy'] .grid-layer,
+.viewport[data-bg='starfield'] .grid-layer,
+.viewport[data-bg='great-wave'] .grid-layer,
+.viewport[data-bg='water-lilies'] .grid-layer {
+  /* HD photos are cover-fitted to the viewport, so they always fill the screen
+     without distortion and their scale never follows the board zoom. The framing
+     is anchored to the bottom edge, which keeps the crop in the sky/top instead of
+     eating the foreground, and app.js slides it with `background-position`
+     percentages: 0%-100% is exactly the photo's own surplus, so the drift can
+     never expose an unpainted edge and never costs extra cropping to set up. */
+  background-position: 50% 100%;
+  background-repeat: no-repeat;
+  background-size: cover;
+}
+
+.cursors-layer,
+.guides-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 70;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.cursor-chip {
+  position: absolute;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 7px 4px 4px;
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  border-radius: 999px;
+  background: rgba(23, 26, 34, 0.82);
+  box-shadow: 0 5px 16px rgba(18, 24, 39, 0.2);
+  color: #fff;
+  font-size: 10px;
+  line-height: 1;
+  white-space: nowrap;
+  transform: translate(-2px, -2px);
+  backdrop-filter: blur(10px);
+}
+
+.cursor-dot {
+  width: 9px;
+  height: 9px;
+  border: 2px solid rgba(255, 255, 255, 0.9);
+  border-radius: 999px;
+  box-sizing: content-box;
+}
+
+.section-hover-label {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 72;
+  max-width: min(220px, calc(100% - 16px));
+  overflow: hidden;
+  padding: 4px 7px;
+  border: 1px solid rgba(255, 255, 255, 0.72);
+  border-radius: 7px;
+  background: rgba(30, 34, 45, 0.82);
+  box-shadow: 0 4px 12px rgba(20, 24, 34, 0.16);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 650;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  pointer-events: none;
+  will-change: transform;
+  contain: layout paint;
+}
+
+.guide-line-v,
+.guide-line-h {
+  position: absolute;
+  background: #ef4e75;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.72);
+  pointer-events: none;
+}
+
+.guide-line-v {
+  width: 1px;
+}
+
+.guide-line-h {
+  height: 1px;
+}
+
+.board {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 1;
+  width: 0;
+  height: 0;
+  transform-origin: 0 0;
+  touch-action: pan-x pan-y;
+  /* Permanent transform promotion can leave zoomed images on a stale,
+     low-resolution compositor texture. Let the browser rerasterize them. */
+  will-change: auto;
+}
+
+.viewport[data-tool='pen'],
+.viewport[data-tool='shape'],
+.viewport[data-tool='eraser'],
+.viewport[data-tool='select'],
+.viewport[data-tool='smudge'],
+.viewport[data-tool='pan'],
+.viewport[data-tool='connector'],
+.viewport[data-tool='amap-map'],
+.viewport[data-tool='amap-search'],
+.viewport[data-tool='amap-route'] {
+  touch-action: none;
+}
+.viewport[data-tool='amap-map'],
+.viewport[data-tool='amap-search'],
+.viewport[data-tool='amap-route'] {
+  cursor: crosshair;
+}
+
+.viewport[data-tool='pen'],
+.viewport[data-tool='shape'],
+.viewport[data-tool='eraser'],
+.viewport[data-tool='connector'] {
+  cursor: crosshair;
+}
+
+.viewport[data-tool='pan'] {
+  cursor: grab;
+}
+
+.viewport[data-tool='select'] {
+  cursor: crosshair;
+}
+
+.viewport.space-pan {
+  cursor: grab;
+}
+
+.viewport[data-tool='smudge'] {
+  cursor: cell;
+}
+
+.viewport.panning {
+  cursor: grabbing;
+}
+
+.viewport[data-tool='pan'] .board-item:not(.editing):not([data-locked='true']),
+.viewport[data-tool='select'] .board-item:not(.editing):not([data-locked='true']) {
+  cursor: move;
+}
+
+.viewport.panning,
+.viewport.panning * {
+  cursor: grabbing !important;
+}
+
+.viewport.moving-items,
+.viewport.moving-items *,
+.viewport.moving-section,
+.viewport.moving-section * {
+  cursor: move !important;
+}
+
+.viewport.selecting {
+  cursor: crosshair;
+}
+
+.viewport[data-cursor-state='grab'],
+.viewport[data-cursor-state='grab'] * {
+  cursor: grab !important;
+}
+
+.viewport[data-cursor-state='grabbing'],
+.viewport[data-cursor-state='grabbing'] * {
+  cursor: grabbing !important;
+}
+
+.viewport[data-cursor-state='move'],
+.viewport[data-cursor-state='move'] * {
+  cursor: move !important;
+}
+
+.viewport[data-cursor-state='crosshair'],
+.viewport[data-cursor-state='crosshair'] * {
+  cursor: crosshair !important;
+}
+
+.viewport[data-cursor-state='col-resize'],
+.viewport[data-cursor-state='col-resize'] * {
+  cursor: col-resize !important;
+}

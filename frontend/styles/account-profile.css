@@ -1,0 +1,277 @@
+.profile-email-value {
+  margin: 0;
+  padding: 11px 12px;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  background: var(--surface-muted);
+  overflow-wrap: anywhere;
+  font-weight: 750;
+}
+
+.email-bind-form {
+  display: grid;
+  gap: 8px;
+}
+
+.email-bind-form > div {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+}
+
+.email-bind-form button {
+  min-width: 148px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 0 12px;
+}
+
+.email-bind-form button svg {
+  width: 17px;
+}
+
+.profile-heading,
+.section-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.icon-button {
+  width: 42px;
+  flex: 0 0 42px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+}
+
+.profile-form {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 7px 10px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--line);
+}
+
+.profile-form > label:not(.profile-avatar-picker),
+.profile-form > input,
+.profile-form > .copy-field,
+.profile-form > .field-hint,
+.profile-form > .account-error {
+  grid-column: 1 / -1;
+}
+
+.profile-avatar-picker {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 4px 0 10px;
+  cursor: pointer;
+}
+
+.profile-username-heading {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.profile-avatar-picker > span:last-child {
+  display: grid;
+  gap: 3px;
+}
+
+.profile-avatar-picker small,
+.field-hint {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.field-hint {
+  margin: -2px 0 7px;
+}
+
+.profile-form .profile-save {
+  min-width: 118px;
+  min-height: 38px;
+  padding: 0 14px;
+  white-space: nowrap;
+}
+
+.copy-field {
+  display: flex;
+  gap: 7px;
+}
+
+.copy-field button {
+  width: 44px;
+  flex: 0 0 44px;
+  padding: 0;
+}
+
+.profile-section {
+  display: grid;
+  gap: 12px;
+  padding: 3px 0;
+}
+
+.profile-section h3 {
+  margin: 0 0 3px;
+  font-size: 15px;
+}
+
+.section-heading button,
+.share-actions button {
+  padding: 0 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.session-heading-actions {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.session-heading-actions button svg {
+  width: 15px;
+  height: 15px;
+}
+
+.passkey-list {
+  display: grid;
+  gap: 7px;
+}
+
+.passkey-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+  padding: 7px 9px;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+}
+
+.passkey-row > svg {
+  width: 18px;
+  color: var(--accent-strong);
+}
+
+.passkey-row div {
+  min-width: 0;
+  flex: 1;
+  display: grid;
+  gap: 2px;
+}
+
+.passkey-row small {
+  color: var(--muted);
+}
+
+.passkey-row button {
+  width: 38px;
+  min-height: 36px;
+  padding: 0;
+}
+
+.session-device-icon {
+  width: 30px;
+  height: 30px;
+  flex: 0 0 30px;
+  display: grid;
+  place-items: center;
+  border-radius: 9px;
+  color: var(--accent-strong);
+  background: var(--surface-muted);
+}
+
+.session-device-icon svg {
+  width: 17px;
+  height: 17px;
+}
+
+.session-row strong {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.current-session-badge {
+  padding: 1px 6px;
+  border-radius: 999px;
+  color: var(--accent-strong);
+  background: var(--surface-muted);
+  font-size: 10px;
+  line-height: 1.5;
+  font-weight: 750;
+}
+
+.secondary-wide {
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+}
+
+.share-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.share-code-panel {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  background: var(--surface-muted);
+}
+
+.share-code-panel code {
+  flex: 1;
+  text-align: center;
+  font-size: 16px;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+}
+
+.share-code-panel button {
+  width: 40px;
+  min-height: 38px;
+}
+
+.join-share-form {
+  display: grid;
+  gap: 6px;
+}
+
+.join-share-form > div {
+  display: flex;
+  gap: 8px;
+}
+
+.join-share-form button {
+  min-width: 84px;
+}
+
+.sharing-status {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid rgba(105, 87, 245, 0.18);
+  border-radius: 13px;
+  background: rgba(105, 87, 245, 0.065);
+}

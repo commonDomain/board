@@ -1,0 +1,96 @@
+.side-tool-dialog{box-sizing:border-box;width:min(520px,calc(100vw - 24px));max-height:calc(100dvh - 32px);padding:0;border:1px solid #e2dfec;border-radius:20px;background:#fcfbff;color:#292637;box-shadow:0 20px 70px #20163730;font:14px/1.6 system-ui,sans-serif;overflow:auto;overscroll-behavior:contain}
+.side-tool-dialog::backdrop{background:#1a15334d}
+.quick-receiver-page{min-height:100%;background:#f4f0fb;color:#292637;font:14px/1.6 system-ui,sans-serif}
+.quick-receiver-page body{margin:0}
+.quick-receiver-welcome{box-sizing:border-box;max-width:480px;margin:15vh auto;padding:24px;text-align:center}
+.quick-receiver-welcome h1{font-size:24px}.quick-receiver-welcome p{color:#675c80}
+.quick-receiver-welcome button{border:0;border-radius:10px;padding:12px 24px;background:#7051c6;color:#fff;font:inherit;cursor:pointer}
+#quickTransferDialog{width:min(560px,calc(100vw - 24px));background:linear-gradient(145deg,#fcfbff,#f4f0fb)}
+#quickTransferDialog[open]{display:flex;flex-direction:column;overflow:hidden}
+#quickTransferDialog .side-tool-header,#quickTransferDialog .side-tool-status{flex-shrink:0}
+#quickTransferDialog .side-tool-body{overflow:auto;min-height:0;overscroll-behavior:contain}
+#quickTransferDialog .quick-transfer-actions{flex-shrink:0;padding:8px 20px;border-top:1px solid #e4ddef}
+#quickTransferDialog .quick-transfer-security{padding:10px 12px;border-radius:10px;color:#37644e;background:#e8f4ed;font-weight:600;font-size:13px}
+#quickTransferDialog .quick-transfer-intro{display:grid;gap:10px;font-size:13px;line-height:1.8;color:#675c80}
+#quickTransferDialog .quick-transfer-guidelines{display:grid;gap:6px;margin:0;padding-left:18px}
+#quickTransferDialog .quick-transfer-guidelines li{padding-left:2px}
+#quickTransferDialog .quick-transfer-guidelines li::marker{color:#a293be}
+#quickTransferDialog .quick-transfer-intro strong{color:#4e4267;font-weight:600}
+#quickTransferDialog .quick-transfer-section,#quickTransferDialog .quick-transfer-output{display:grid;gap:10px;min-width:0;padding:14px;background:#ffffffb3;border:1px solid #e4ddef;border-radius:14px}
+#quickTransferDialog h3{font-size:14px;margin:0;color:#4e4267}
+#quickTransferDialog input[type=file]{box-sizing:border-box;width:100%;font-size:13px;padding:8px;border:1px dashed #cfc3e5;border-radius:10px;background:#f9f6ff}
+#quickTransferDialog input::file-selector-button{border:0;border-radius:7px;padding:7px 10px;margin-right:8px;color:#583991;background:#ece4fa;cursor:pointer;font:inherit}
+#quickTransferDialog .quick-transfer-output{justify-items:stretch;text-align:center}
+#quickTransferDialog .quick-transfer-qr{max-width:100%;height:auto;aspect-ratio:1}
+#quickTransferDialog .quick-transfer-metrics{font-size:12px;font-variant-numeric:tabular-nums;overflow-wrap:anywhere;color:#5d4e78}
+#quickTransferDialog .quick-transfer-workspace{display:grid;gap:12px;min-width:0}
+#quickTransferDialog .quick-transfer-connection{font-size:13px;color:#675c80;font-weight:600}
+#quickTransferDialog [data-quick-connection=connected]{color:#37644e}
+#quickTransferDialog progress{height:10px;border-radius:6px;overflow:hidden}
+@media(max-width:360px){#quickTransferDialog .side-tool-body{padding:10px}#quickTransferDialog .quick-transfer-section,#quickTransferDialog .quick-transfer-output{padding:10px}}
+@media(forced-colors:active){#quickTransferDialog .quick-transfer-security{background:Canvas;color:CanvasText;border:1px solid CanvasText}}
+@media(min-width:601px){#gomokuDialog .gomoku-board{width:100%;max-width:max(270px,calc(100dvh - 620px));margin-inline:auto}}
+#gomokuDialog [data-game-info]{padding:8px 12px;border-radius:10px;background:#f0edf5;color:#625a70;font-weight:600;font-variant-numeric:tabular-nums}
+#gomokuDialog [data-game-info][data-turn=mine]{background:#eee7ff;color:#5738a8}
+.side-tool-dialog .gomoku-cell:focus-visible{z-index:1;outline:2px solid #5738a8;outline-offset:-2px;border-radius:4px}
+.side-tool-dialog .gomoku-cell[aria-disabled=true]{cursor:default}
+.side-tool-dialog .gomoku-cell[aria-disabled=true]:hover{background-color:transparent}
+.side-tool-dialog .gomoku-grid[aria-busy=true]{cursor:progress}
+@media(forced-colors:active){.gomoku-cell[data-stone]::before{background:CanvasText;border:2px solid CanvasText}.gomoku-cell[data-stone="2"]::before{background:Canvas;border:2px solid CanvasText}.gomoku-cell[data-last=true]::after{background:Highlight}}
+.side-tool-dialog .gomoku-cell:disabled{opacity:1}
+.gomoku-board{position:relative;isolation:isolate}.gomoku-pause-overlay{position:absolute;inset:0;z-index:1;display:flex;flex-direction:column;gap:12px;align-items:center;justify-content:center;padding:24px;text-align:center;background:#fff9;backdrop-filter:blur(7px);-webkit-backdrop-filter:blur(7px);border:1px solid #d7c9aa;border-radius:10px;color:#393345}.gomoku-pause-overlay strong{font-size:25px}.gomoku-pause-overlay p{font-size:13px;max-width:260px}
+.side-games-menu{width:160px;min-width:160px;padding:10px}.side-games-menu[hidden]{display:none}.side-games-menu .context-btn{width:100%;text-align:left}
+.gomoku-switcher{display:grid;gap:6px}.gomoku-switcher .studio-select{width:100%;min-width:0}.side-tool-row .studio-select{flex:1;min-width:130px;max-width:100%}
+.side-member-avatar{position:relative;display:inline-flex;align-items:center;justify-content:center;flex:0 0 28px;width:28px;height:28px;overflow:hidden;border-radius:50%;background:var(--accent-soft,#ece5f9);color:var(--accent-strong,#6745b2);font-size:12px;font-weight:600;line-height:1}.side-member-avatar img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}.side-member-person{display:inline-flex;align-items:center;gap:6px;min-width:0}.side-member-people{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.side-member-picker{min-width:0;position:relative;flex:1}.side-tool-dialog .side-picker-trigger{display:flex;align-items:center;gap:8px;width:100%;text-align:left;background:var(--surface,#fff)}.side-picker-text{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.side-picker-chevron{display:flex;align-items:center;justify-content:center;flex:0 0 16px;width:16px;height:16px;color:var(--muted,#797181)}.side-picker-chevron::before{content:"";width:6px;height:6px;border-right:1.5px solid currentColor;border-bottom:1.5px solid currentColor;transform:translateY(-2px) rotate(45deg)}.side-picker-trigger[aria-expanded=true] .side-picker-chevron::before{transform:translateY(2px) rotate(225deg)}.side-tool-dialog .side-picker-menu{position:fixed;z-index:5;box-sizing:border-box;overflow-y:auto;overscroll-behavior:contain;max-height:260px;padding:6px;border:1px solid var(--line,#e1dbe9);border-radius:12px;background:#fcfbff;box-shadow:0 12px 30px #20163725}.side-tool-dialog .side-picker-option{display:flex;align-items:center;gap:8px;width:100%;border:0;border-radius:8px;padding:7px 10px;background:transparent;text-align:left}.side-tool-dialog .side-picker-option[aria-selected=true],.side-tool-dialog .side-picker-option:hover{background:var(--accent-soft,#f0ebfa)}
+html[data-form-factor=phone] .gomoku-pause-overlay{backdrop-filter:blur(7px)!important;-webkit-backdrop-filter:blur(7px)!important}
+.side-tool-header{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid #e9e5ef;position:sticky;top:0;background:#fcfbff;z-index:1}
+.side-tool-header h2{margin:0;font-size:18px}.side-tool-body{padding:16px 20px;display:grid;gap:14px}.side-tool-dialog p{margin:0}.side-tool-dialog button,.side-tool-dialog select,.side-tool-dialog input{font:inherit}
+.side-tool-dialog button{cursor:pointer;border:1px solid #ddd7eb;border-radius:10px;background:white;color:inherit;padding:8px 12px;min-height:40px}.side-tool-dialog button:hover{background:#f0ebfa}.side-tool-dialog button:disabled{opacity:.5;cursor:default}.side-tool-dialog button:focus-visible,.side-tool-dialog input:focus-visible{outline:2px solid #7355cc;outline-offset:2px}.side-tool-dialog button.primary{background:#7051c6;color:#fff;border-color:#7051c6}.side-tool-dialog .side-tool-close{border:0;background:transparent;padding:4px 10px}.side-tool-status{padding:0 20px 16px;color:#675c80;min-height:24px;overflow-wrap:anywhere}
+.side-tool-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.side-tool-muted{font-size:12px;color:#797181}.side-tool-dialog input[type=text]{width:100%;box-sizing:border-box;border:1px solid #d8d2e3;border-radius:10px;padding:10px;background:white;color:inherit;user-select:text}.side-tool-dialog input[type=file]{max-width:100%}.side-tool-dialog progress{width:100%;accent-color:#7051c6}.side-tool-dialog [hidden]{display:none!important}
+.gomoku-invitation,.gomoku-record{padding:12px;border:1px solid #e1dbe9;border-radius:12px;display:grid;gap:8px}.gomoku-list{display:grid;gap:10px}.gomoku-grid{--gomoku-padding:12px;position:relative;display:grid;grid-template-columns:repeat(15,minmax(0,1fr));grid-template-rows:repeat(15,minmax(0,1fr));gap:0;padding:var(--gomoku-padding);background:#edcf94;border:1px solid #cda96a;border-radius:10px;touch-action:manipulation;aspect-ratio:1;box-sizing:border-box;width:100%}
+.side-tool-dialog .gomoku-cell{position:relative;z-index:1;min-width:0;min-height:0;width:100%;height:100%;box-sizing:border-box;padding:0;border:0;border-radius:0;background:transparent;aspect-ratio:auto;opacity:1}.side-tool-dialog .gomoku-cell:hover{background-color:#ffffff30}.gomoku-cell[data-stone]::before{content:'';position:absolute;inset:8%;border-radius:50%;background:radial-gradient(circle at 35% 30%,#666,#171717 65%);box-shadow:0 1px 2px #49330a66}.gomoku-cell[data-stone="2"]::before{background:radial-gradient(circle at 35% 30%,#fff,#e9e9ed 75%);border:1px solid #b0a78e}.gomoku-cell[data-last=true]::after{content:'';position:absolute;inset:40%;background:#ef655a;border-radius:50%}.gomoku-notifications{border-top:1px solid #e9e5ef;padding-top:12px}.gomoku-badge{position:absolute;right:5px;top:5px;width:8px;height:8px;border-radius:50%;background:#e94e60;box-shadow:0 0 0 2px #fff}#gomokuButton{position:relative}.quick-transfer-qr{width:180px;height:180px;justify-self:center;background:white;border-radius:8px}.quick-transfer-name{overflow-wrap:anywhere;font-weight:600}
+@media(max-width:600px){.side-tool-dialog{max-height:calc(100dvh - 16px);border-radius:16px}.side-tool-body{padding:14px}.gomoku-grid{--gomoku-padding:8px}.side-tool-dialog .gomoku-cell{min-width:0}html[data-form-factor=phone] #toolDock :is(#quickTransferButton,#gomokuButton){display:flex!important}}
+html[data-form-factor=phone] #toolDock{height:auto;max-height:calc(100dvh - 190px)}
+html[data-form-factor=phone] #toolDock .toolbar-insert{flex-direction:column;gap:4px}
+html[data-form-factor=phone] #toolDock .toolbar-insert>:is(#quickTransferButton,#gomokuButton){display:flex!important;align-items:center;justify-content:center;width:42px;min-width:42px;height:42px;padding:0;color:var(--accent-strong);background:#f5f1fb;border-radius:11px}
+html[data-form-factor=phone] :is(#quickTransferButton,#gomokuButton) .tool-label{display:none}
+
+/* Gomoku glass surfaces share one blurred panel; cells avoid 225 blur layers. */
+#gomokuDialog{background:linear-gradient(145deg,#ffffffc9,#eee8f6b8);border-color:#ffffffb3;box-shadow:0 24px 70px #30234726,inset 0 1px 0 #fff;backdrop-filter:blur(24px) saturate(145%);-webkit-backdrop-filter:blur(24px) saturate(145%)}
+#gomokuDialog::backdrop{background:#29213938;backdrop-filter:blur(5px);-webkit-backdrop-filter:blur(5px)}
+#sideGamesMenu{background:linear-gradient(145deg,#ffffffe0,#eee8f6bf);border:1px solid #ffffffc9;box-shadow:inset 0 1px 0 #fff,0 12px 30px #30234726;backdrop-filter:blur(22px) saturate(145%);-webkit-backdrop-filter:blur(22px) saturate(145%)}
+#sideGamesMenu .context-btn{background:#ffffff42;border:1px solid #ffffff73;border-radius:10px}
+#sideGamesMenu .context-btn:hover{background:#e4d8fa94}
+#gomokuDialog .side-tool-header{background:#ffffff59;border-bottom-color:#ffffff9c;backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);z-index:3}
+#gomokuDialog button:not(.gomoku-cell){background:linear-gradient(145deg,#ffffffb8,#f7f3ff70);border:1px solid #ffffffd1;box-shadow:inset 0 1px 0 #fff9,0 2px 8px #4932670a;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);transition:background-color .15s,border-color .15s,box-shadow .15s}
+#gomokuDialog button:not(.gomoku-cell):hover:not(:disabled){background-color:#ffffff9c;border-color:#c8b8e9;box-shadow:inset 0 1px 0 #fff,0 3px 12px #49326714}
+#gomokuDialog button.primary{background:linear-gradient(145deg,#7956d5cf,#6340b8c9);color:#fff;border-color:#ffffff6e;box-shadow:inset 0 1px 0 #ffffff4d,0 3px 12px #6741ae26}
+#gomokuDialog button.primary:hover:not(:disabled){background-color:#6741aed9;border-color:#ffffffb3}
+#gomokuDialog button:disabled{opacity:.58}
+#gomokuDialog .side-tool-close{border-radius:10px;min-width:56px}
+#gomokuDialog .side-picker-menu{background:linear-gradient(145deg,#ffffffeb,#eee8f6d9);border-color:#ffffffd9;box-shadow:inset 0 1px 0 #fff,0 12px 30px #30234726;backdrop-filter:blur(22px) saturate(145%);-webkit-backdrop-filter:blur(22px) saturate(145%)}
+#gomokuDialog .side-picker-option{border-color:transparent;box-shadow:none;background:#ffffff26;backdrop-filter:none;-webkit-backdrop-filter:none}
+#gomokuDialog .side-picker-option[aria-selected=true]{background:#d8c9f587;border-color:#ffffff8c}
+#gomokuDialog :is(.gomoku-invitation,.gomoku-record,[data-game-info],.gomoku-notifications){background:linear-gradient(135deg,#ffffff7d,#f7f1ff52);border:1px solid #ffffffad;box-shadow:inset 0 1px 0 #ffffffb3;border-radius:12px}
+#gomokuDialog [data-game-info][data-turn=mine]{background:linear-gradient(135deg,#e4d5ffb3,#f0e7ff80);color:#51318f}
+#gomokuDialog .gomoku-notifications{padding:10px;display:grid;gap:4px;justify-items:start}
+#gomokuDialog .gomoku-grid{background:linear-gradient(135deg,#f3dbabc9,#e8c98cd9);border-color:#b8955566;box-shadow:inset 0 1px 0 #ffffffb3,0 4px 16px #5e43100a}
+#gomokuDialog .gomoku-pause-overlay{background:linear-gradient(135deg,#fff9e6b3,#f8f2e4a3);border-color:#ffffffb3;box-shadow:inset 0 1px 0 #fff9}
+html[data-form-factor=phone] #gomokuDialog{backdrop-filter:blur(16px) saturate(130%)!important;-webkit-backdrop-filter:blur(16px) saturate(130%)!important}
+html[data-form-factor=phone] #gomokuDialog::backdrop{backdrop-filter:blur(4px)!important;-webkit-backdrop-filter:blur(4px)!important}
+html[data-form-factor=phone] :is(#gomokuDialog .side-picker-menu,#sideGamesMenu){backdrop-filter:blur(14px) saturate(130%)!important;-webkit-backdrop-filter:blur(14px) saturate(130%)!important}
+html[data-form-factor=phone] #gomokuDialog :is(.side-tool-header,button:not(.gomoku-cell):not(.side-picker-option)){backdrop-filter:blur(8px)!important;-webkit-backdrop-filter:blur(8px)!important}
+@media(prefers-reduced-motion:reduce){#gomokuDialog button{transition:none}}
+@media(forced-colors:active){#gomokuDialog,#gomokuDialog .side-picker-menu,#gomokuDialog .gomoku-pause-overlay{background:Canvas;color:CanvasText;backdrop-filter:none!important;-webkit-backdrop-filter:none!important;border-color:CanvasText}#gomokuDialog button:not(.gomoku-cell){background:ButtonFace;color:ButtonText;border:1px solid ButtonText}#gomokuDialog [data-game-info]{background:Canvas;color:CanvasText}}
+.gomoku-banner{position:absolute;left:50%;top:40%;z-index:4;transform:translateX(-50%);width:max-content;max-width:calc(100% - 20px);box-sizing:border-box;padding:12px 24px;text-align:center;pointer-events:none;border-radius:14px;border:1px solid #ffffffc2;background:linear-gradient(120deg,#ffffffa8,#ede2ffb8);color:#51318f;font-size:clamp(16px,3vw,22px);font-weight:700;letter-spacing:.08em;box-shadow:0 8px 30px #49326724,inset 0 1px 0 #fff9;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
+.gomoku-banner[data-kind=turn]{padding:6px 12px;border:0;background:transparent;color:#51318f66;font-size:clamp(18px,3.5vw,24px);font-weight:500;box-shadow:none;backdrop-filter:none;-webkit-backdrop-filter:none}
+.side-tool-dialog .gomoku-cell:hover{background-color:transparent}
+:is(.gomoku-rematch,.gomoku-undo){position:absolute;inset:0;z-index:3;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:20px;border:1px solid #fff9;border-radius:10px;background:linear-gradient(135deg,#fffaf0dd,#f4edffe0);backdrop-filter:blur(9px);-webkit-backdrop-filter:blur(9px);text-align:center;color:#49375f}:is(.gomoku-rematch,.gomoku-undo) strong{font-size:clamp(16px,3vw,22px)}:is(.gomoku-rematch,.gomoku-undo) p{font-size:13px;line-height:1.6;max-width:260px}:is(.gomoku-rematch,.gomoku-undo) .side-tool-row{justify-content:center;flex-wrap:wrap}
+.gomoku-cell[data-preview]::before{content:'';position:absolute;inset:8%;border-radius:50%;background:radial-gradient(circle at 35% 30%,#666,#171717 65%);box-shadow:0 1px 2px #49330a66;opacity:.48;pointer-events:none}.gomoku-cell[data-preview="2"]::before{background:radial-gradient(circle at 35% 30%,#fff,#e9e9ed 75%);border:1px solid #b0a78e}
+.gomoku-move-number{position:absolute;inset:0;z-index:1;display:flex;align-items:center;justify-content:center;font-size:clamp(8px,1.8vw,12px);font-weight:700;line-height:1;color:#fff;font-variant-numeric:tabular-nums;pointer-events:none}.gomoku-cell[data-stone="2"] .gomoku-move-number{color:#30283d}.gomoku-cell[data-numbered=true][data-last=true]::after{inset:8%;background:transparent;border:2px solid #e15c53}
+@media(forced-colors:active){.gomoku-banner,.gomoku-rematch,.gomoku-undo{background:Canvas;color:CanvasText;border-color:CanvasText;backdrop-filter:none}.gomoku-move-number{color:Canvas}.gomoku-cell[data-stone="2"] .gomoku-move-number{color:CanvasText}}
+.gomoku-invite-dialog{width:min(360px,calc(100vw - 48px));margin:auto;padding:24px;text-align:center;background:linear-gradient(135deg,#fffc,#f1e9fff0);border-color:#ffffffd9;backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px)}.gomoku-invite-dialog::backdrop{background:#30234738;backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px)}.gomoku-invite-dialog h3{margin:0 0 12px;font-size:20px;color:#49375f}.gomoku-invite-dialog>p{margin:0 0 20px;line-height:1.7;color:#675779}.gomoku-invite-dialog .side-tool-row{justify-content:center}.gomoku-invite-dialog .side-tool-row button{min-width:90px}.gomoku-invite-dialog .side-tool-status:empty{display:none}.gomoku-invite-dialog .side-tool-status{margin:12px 0 0;padding:0}
+
+
+.gomoku-grid-lines{position:absolute;inset:var(--gomoku-padding);width:calc(100% - 2 * var(--gomoku-padding));height:calc(100% - 2 * var(--gomoku-padding));pointer-events:none;fill:none;stroke:#997637;stroke-width:1;shape-rendering:crispEdges}
+@media(forced-colors:active){.gomoku-grid-lines{stroke:CanvasText}}

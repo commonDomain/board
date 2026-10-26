@@ -1,0 +1,112 @@
+/* ---------- Canvas: content keeps classic colours; only interaction chrome follows the theme ---------- */
+
+/* The canvas background never changes with the theme, so content under the dark
+   shell keeps the light foundation values it was designed for. */
+:root[data-theme=night] :is(#board, .note-region-preview, .nt-app, .nt-owned-dialog, .nt-dialog) {
+  color-scheme: light;
+  --surface: rgba(255, 255, 255, 0.86);
+  --surface-strong: rgba(255, 255, 255, 0.96);
+  --surface-muted: rgba(243, 245, 249, 0.9);
+  --line: rgba(19, 26, 43, 0.1);
+  --line-strong: rgba(19, 26, 43, 0.17);
+  --ink: #171922;
+  --muted: #6d7380;
+  --muted-strong: #4c5260;
+  --control-hover: rgba(31, 38, 56, 0.065);
+  --control-line: #858b98;
+  --glass-light: rgba(255, 255, 255, 0.92);
+  --glass-edge: rgba(19, 26, 43, 0.1);
+  --t-surface: #ffffff;
+  --t-raised: #ffffff;
+  --t-sunken: #f3f4f6;
+  --t-hover: rgba(31, 38, 56, 0.06);
+  --t-line: rgba(19, 26, 43, 0.1);
+  --t-line-strong: rgba(19, 26, 43, 0.2);
+  --t-ink: #1c1d21;
+  --t-ink-2: #4c5260;
+  --t-ink-3: #8a8f99;
+  color: #171922;
+}
+/* The notebook keeps its light paper workspace under the dark shell. */
+:root[data-theme=night] :is(.nt-app, .nt-owned-dialog, .nt-dialog) {
+  --nt-bg: #f5f6f8; --nt-surface: #fff; --nt-subtle: #f0f2f5; --nt-hover: #e9ecf1; --nt-line: #e1e4ea;
+  --nt-control-line: #858b98; --nt-ink: #252833; --nt-muted: #626976; --nt-selected: #f6eedf;
+  --t-accent: #9a6418; --t-accent-strong: #7d500f; --t-accent-ink: #fff; --t-accent-soft: rgba(154, 100, 24, 0.1); --t-accent-line: rgba(154, 100, 24, 0.35);
+  --nt-accent: #9a6418; --nt-accent-hover: #7d500f; --accent: #9a6418; --accent-strong: #7d500f; --accent-soft: rgba(154, 100, 24, 0.1);
+  --t-focus: #9a6418; --t-shadow-2: 0 4px 8px #25283306, 0 12px 32px #25283314; --t-shadow-3: 0 8px 24px #2528330d, 0 24px 64px #25283324;
+}
+
+/* Selection: hairline frame, square handles (Excalidraw/tldraw style). */
+:root[data-ui=studio] .selection-frame {
+  inset: -3px;
+  border: 1px solid var(--t-select);
+  border-radius: var(--t-r1);
+  box-shadow: none;
+}
+:root[data-ui=studio] :is(.marquee, .multi-selection) {
+  border: 1px solid var(--t-select);
+  background: var(--t-select-fill);
+  box-shadow: none;
+}
+:root[data-ui=studio] .marquee-path { fill: var(--t-select-fill); stroke: var(--t-select); stroke-width: 1; stroke-dasharray: 4 3; }
+:root[data-ui=studio] :is(.handle, .rotate-handle) {
+  border: 1.5px solid var(--t-select);
+  border-radius: 2px;
+  background: #ffffff;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.9);
+}
+:root[data-ui=studio] .rotate-handle { border-radius: 50%; }
+/* Pointer devices get compact handles; touch keeps classic sizes and hit areas. */
+:root[data-ui=studio][data-device=desktop] :is(.handle, .rotate-handle) { width: 9px; height: 9px; border-width: 1px; border-radius: 1px; }
+:root[data-ui=studio][data-device=desktop] :is(.handle-nw, .handle-n, .handle-ne) { top: -5px; }
+:root[data-ui=studio][data-device=desktop] :is(.handle-sw, .handle-s, .handle-se) { bottom: -5px; }
+:root[data-ui=studio][data-device=desktop] :is(.handle-nw, .handle-w, .handle-sw) { left: -5px; }
+:root[data-ui=studio][data-device=desktop] :is(.handle-ne, .handle-e, .handle-se) { right: -5px; }
+:root[data-ui=studio][data-device=desktop] .rotate-handle { top: -28px; border-radius: 50%; }
+:root[data-ui=studio] .text-item :is(.handle-n, .handle-s, .handle-e, .handle-w) { border: 0; background: transparent; box-shadow: none; }
+:root[data-ui=studio] .text-item :is(.handle-n, .handle-s, .handle-e, .handle-w)::after {
+  width: 7px; height: 7px;
+  border: 1px solid var(--t-select);
+  border-radius: 1px;
+  background: #ffffff;
+  box-shadow: none;
+}
+:root[data-ui=studio] .guide-line-h,
+:root[data-ui=studio] .guide-line-v { background: var(--t-select); opacity: 0.8; }
+
+/* Frames: label reads like a tab on a folder, not a floating card; it keeps the frosted glass. */
+:root[data-ui=studio] .section-titlebar {
+  border-radius: var(--t-r2);
+  box-shadow: none;
+}
+:root[data-ui=studio] .section-hover-label {
+  border: 0;
+  border-radius: var(--t-r1);
+  background: var(--t-ink);
+  color: var(--t-surface);
+  box-shadow: none;
+  font-family: var(--t-font-display);
+  font-size: 11px;
+}
+
+/* Collaborators: solid name tags with crisp edges. */
+:root[data-ui=studio] .cursor-chip {
+  border-radius: var(--t-r1);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.18);
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+:root[data-ui=studio] .board-item[data-editing-by-other]::before {
+  border-radius: var(--t-r1);
+  background: var(--t-ink);
+  font-family: var(--t-font-ui);
+}
+:root[data-ui=studio] .board-lock-notice {
+  border: 1px solid var(--t-line);
+  border-radius: var(--t-r2);
+  background: var(--t-surface);
+  color: var(--t-ink);
+  box-shadow: var(--t-shadow-2);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}

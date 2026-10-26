@@ -1,0 +1,187 @@
+import { canMutateItem } from './layers-model.js';
+import { intersectsRect } from './rendering-model.js';
+import { state } from './state.js';
+import { getCanvasRenderPolicy } from './render-resources-model.js';
+
+function countMindMapNodes(root) {
+  if (!root || typeof root !== 'object') return 0;
+  const pending = [root];
+  let count = 0;
+  while (pending.length) {
+    const node = pending.pop();
+    count += 1;
+    for (const child of node.children || []) {
+      if (child && typeof child === 'object') pending.push(child);
+    }
+  }
+  return count;
+}
+
+function getItemLoadMetrics(item) {
+  let complexity = 1;
+  const points = getCanvasRenderPolicy().bounded ? item?.pts : item?.points;
+  const inkPoints = item?.type === 'ink' && Array.isArray(points) ? points.length : 0;
+  if (item?.type === 'table') {
+    complexity += (item.rows || []).reduce((sum, row) => sum + (Array.isArray(row) ? row.length : 0), 0) * 2;
+  } else if (item?.type === 'mindmap') {
+    complexity += countMindMapNodes(item.tree) * 4;
+  } else if (item?.type === 'text' || item?.type === 'note') {
+    complexity += Math.ceil(String(item.text || '').length / 80);
+  } else if (item?.type === 'amap-search') {
+    complexity += (item.results || []).length * 4;
+  } else if (item?.type === 'amap-route') {
+    complexity += (item.routes || []).reduce((sum, route) => sum + (route.steps || []).length * 2, 0);
+  } else if (item?.type === 'sheet') {
+    // Spreadsheet previews only paint their visible cells, but parsing,
+    // formula indexes and backing-store pressure still scale with populated
+    // cells. Count sparse entries instead of the declared row/column extent so
+    // a lone far-away cell cannot incorrectly classify the whole canvas.
+    const sheets = Array.isArray(item.workbook?.sheets) ? item.workbook.sheets : [];
+    let populatedCells = 0;
+    let formulaCells = 0;
+    for (const sheet of sheets) {
+      const cells = sheet?.cells && typeof sheet.cells === 'object' ? Object.values(sheet.cells) : [];
+      populatedCells += cells.length;
+      for (const cell of cells) {
+        if (typeof cell?.formula === 'string' && cell.formula) formulaCells += 1;
+      }
+    }
+    complexity += Math.ceil(populatedCells / 18) + Math.ceil(formulaCells / 6) + sheets.length * 3;
+  }
+  return { complexity, inkPoints };
+}
+
+function updateItemLoadMetrics(item) {
+  if (!item?.id) return;
+  const previousComplexity = state.renderComplexityByItem.get(item.id) || 0;
+  const previousInkPoints = state.inkPointCountByItem.get(item.id) || 0;
+  const { complexity, inkPoints } = getItemLoadMetrics(item);
+  state.inkItemCount = (state.inkItemCount || 0) + Number(inkPoints > 0) - Number(previousInkPoints > 0);
+  state.renderComplexityByItem.set(item.id, complexity);
+  state.inkPointCountByItem.set(item.id, inkPoints);
+  state.renderComplexity += complexity - previousComplexity;
+  state.inkPointCount += inkPoints - previousInkPoints;
+}
+
+function removeItemLoadMetrics(id) {
+  state.inkItemCount = Math.max(0, (state.inkItemCount || 0) - Number((state.inkPointCountByItem.get(id) || 0) > 0));
+  state.renderComplexity -= state.renderComplexityByItem.get(id) || 0;
+  state.inkPointCount -= state.inkPointCountByItem.get(id) || 0;
+  state.renderComplexityByItem.delete(id);
+  state.inkPointCountByItem.delete(id);
+}
+
+function rebuildItemLoadMetrics() {
+  state.renderComplexity = 0;
+  state.inkPointCount = 0;
+  state.inkItemCount = 0;
+  state.renderComplexityByItem.clear();
+  state.inkPointCountByItem.clear();
+  for (const item of state.items.values()) updateItemLoadMetrics(item);
+}
+
+const connectorBindings = new Map();
+const bindingPeers = new Map();
+let bindingOwnerIndex = state.connectorIndex;
+
+function resetBindingPeersIfNeeded() {
+  if (bindingOwnerIndex === state.connectorIndex) return;
+  connectorBindings.clear(); bindingPeers.clear(); bindingOwnerIndex = state.connectorIndex;
+}
+
+function removeConnectorFromIndex(connectorId) {
+  resetBindingPeersIfNeeded();
+  for (const key of connectorBindings.get(connectorId) || []) {
+    const entry = bindingPeers.get(key);
+    if (!entry) continue;
+    entry.ids.delete(connectorId); entry.sorted = null;
+    if (!entry.ids.size) bindingPeers.delete(key);
+  }
+  connectorBindings.delete(connectorId);
+  const endpoints = state.connectorEndpoints.get(connectorId) || [];
+  for (const endpointId of endpoints) {
+    const connectors = state.connectorIndex.get(endpointId);
+    connectors?.delete(connectorId);
+    if (!connectors?.size) state.connectorIndex.delete(endpointId);
+  }
+  state.connectorEndpoints.delete(connectorId);
+}
+
+function indexConnector(item) {
+  if (!item?.id) return;
+  resetBindingPeersIfNeeded();
+  const endpoints = [item.source?.binding?.id, item.target?.binding?.id, item.startId, item.endId].filter(Boolean);
+  const bindings = item.type === 'connector' ? [...new Set([item.source?.binding, item.target?.binding].filter(Boolean).map(binding => JSON.stringify(binding)))] : [];
+  const previous = state.connectorEndpoints.get(item.id), previousBindings = connectorBindings.get(item.id);
+  if (item.type === 'connector' && previous && previous.length === endpoints.length && previous.every((id, index) => id === endpoints[index]) &&
+      previousBindings?.length === bindings.length && previousBindings.every((key, index) => key === bindings[index])) return;
+  removeConnectorFromIndex(item.id);
+  if (item.type !== 'connector') return;
+  state.connectorEndpoints.set(item.id, endpoints);
+  connectorBindings.set(item.id, bindings);
+  for (const key of bindings) {
+    let entry = bindingPeers.get(key);
+    if (!entry) { entry = { ids: new Set(), sorted: null }; bindingPeers.set(key, entry); }
+    entry.ids.add(item.id); entry.sorted = null;
+  }
+  for (const endpointId of endpoints) {
+    let connectors = state.connectorIndex.get(endpointId);
+    if (!connectors) {
+      connectors = new Set();
+      state.connectorIndex.set(endpointId, connectors);
+    }
+    connectors.add(item.id);
+  }
+}
+
+function getConnectorBindingPeers(binding) {
+  resetBindingPeersIfNeeded();
+  const entry = bindingPeers.get(JSON.stringify(binding));
+  if (!entry) return [];
+  return entry.sorted || (entry.sorted = [...entry.ids].sort());
+}
+
+function rebuildConnectorIndex() {
+  connectorBindings.clear(); bindingPeers.clear();
+  state.connectorIndex = new Map();
+  state.connectorEndpoints = new Map();
+  bindingOwnerIndex = state.connectorIndex;
+  for (const item of state.items.values()) indexConnector(item);
+}
+
+function geometryWorkerItem(item) {
+  return {
+    id: item.id,
+    type: item.type,
+    x: Number(item.x) || 0,
+    y: Number(item.y) || 0,
+    w: Number(item.w) || 0,
+    h: Number(item.h) || 0,
+    rotation: Number(item.rotation) || 0,
+    selectable: canMutateItem(item)
+  };
+}
+
+function queryItemsInRect(rect) {
+  if (state.spatialIndexEnabled) return state.spatialIndex.search(rect);
+  return Array.from(state.items.values()).filter((item) => intersectsRect(item, rect));
+}
+
+function queryItemsAtPoint(point) {
+  if (state.spatialIndexEnabled) return state.spatialIndex.searchPoint(point);
+  return Array.from(state.items.values());
+}
+export {
+  countMindMapNodes,
+  getItemLoadMetrics,
+  updateItemLoadMetrics,
+  removeItemLoadMetrics,
+  rebuildItemLoadMetrics,
+  removeConnectorFromIndex,
+  indexConnector,
+  rebuildConnectorIndex,
+  getConnectorBindingPeers,
+  geometryWorkerItem,
+  queryItemsInRect,
+  queryItemsAtPoint
+};

@@ -1,0 +1,486 @@
+/* Realistic note paper themes. Every layer is a translucent wash over --note-fill so any fill colour works.
+   A note renders as .note-paper > (.note-lift, .note-card):
+   - .note-paper::before  the paper's contact shadow (or the clip theme's kraft backing / the tab's cover)
+   - .note-paper::after   tape, clips and washi tape drawn as SVG, free to overhang the paper
+   - .note-lift::before/::after  shadows cast by curled corners
+   Opacity is applied to .note-paper, so the whole sheet fades as one. Shadows use near-neutral tones
+   so they darken any canvas colour evenly instead of tinting it. */
+
+.note-paper {
+  position: absolute;
+  inset: 0;
+}
+.note-lift {
+  position: absolute;
+  inset: 0;
+  display: block;
+  pointer-events: none;
+}
+.note-paper::before,
+.note-paper::after,
+.note-lift::before,
+.note-lift::after {
+  position: absolute;
+  content: none;
+  pointer-events: none;
+}
+
+.note-card:is([data-note-style='paper'], [data-note-style='tape'], [data-note-style='notebook'], [data-note-style='clip'], [data-note-style='tab']) {
+  --note-line: 1.48em;
+  --note-grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.82' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .3 0 0 0 0 .3 0 0 0 0 .3 0 0 0 .1 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  --note-light: linear-gradient(160deg, rgba(255, 255, 255, calc(0.34 * var(--note-hi, 1))), rgba(255, 255, 255, calc(0.06 * var(--note-hi, 1))) 38%, rgba(14, 12, 10, 0.03) 78%, rgba(14, 12, 10, 0.06));
+  border-color: transparent;
+  border-radius: 2px;
+  background: var(--note-grain), var(--note-light), var(--note-fill, #fff4b2);
+  box-shadow: none;
+}
+
+/* Tone: light paper takes dark detail; dark paper takes light detail. --note-hi (set from the fill's
+   luminance) scales every white highlight so mid and dark fills don't fog over. */
+.note-paper {
+  --note-rule: rgba(96, 128, 160, 0.24);
+  --note-rim: rgba(14, 12, 10, 0.18);
+}
+.note-paper[data-note-tone='dark'] {
+  --note-rule: rgba(255, 255, 255, 0.16);
+  --note-rim: rgba(255, 255, 255, 0.2);
+}
+
+/* Ruled themes draw each rule under its own text line, so a line enlarged by a bigger font carries its
+   rule down with it. Rules below the text continue from the last line as stacked box-shadows, which
+   paint without adding to the card's measured size. Lines bleed into the side padding (negative margin
+   plus equal padding) so rules run edge to edge without overflowing, which auto-sizing would count. */
+.note-card:is([data-note-style='notebook'], [data-note-style='clip']) {
+  isolation: isolate;
+}
+.note-card:is([data-note-style='notebook'], [data-note-style='clip']) .text-list-line {
+  position: relative;
+  margin-inline: -16px;
+  padding-inline: 16px;
+}
+/* The clip sheet's rules start after its punched margin, so the holes cut cleanly through blank paper. */
+.note-card[data-note-style='clip'] .text-list-line {
+  margin-left: -6px;
+  padding-left: 6px;
+}
+.note-card:is([data-note-style='notebook'], [data-note-style='clip']) .text-list-line::before,
+.note-card:is([data-note-style='notebook'], [data-note-style='clip']) .text-list-line:last-child::after {
+  position: absolute;
+  z-index: -1;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 1px;
+  content: '';
+  pointer-events: none;
+}
+.note-card:is([data-note-style='notebook'], [data-note-style='clip']) .text-list-line::before {
+  background: var(--note-rule, rgba(96, 128, 160, 0.24));
+}
+.note-card:is([data-note-style='notebook'], [data-note-style='clip']) .text-list-line:last-child::after {
+  box-shadow:
+    0 calc(var(--note-line) * 1) 0 var(--note-rule),
+    0 calc(var(--note-line) * 2) 0 var(--note-rule),
+    0 calc(var(--note-line) * 3) 0 var(--note-rule),
+    0 calc(var(--note-line) * 4) 0 var(--note-rule),
+    0 calc(var(--note-line) * 5) 0 var(--note-rule),
+    0 calc(var(--note-line) * 6) 0 var(--note-rule),
+    0 calc(var(--note-line) * 7) 0 var(--note-rule),
+    0 calc(var(--note-line) * 8) 0 var(--note-rule),
+    0 calc(var(--note-line) * 9) 0 var(--note-rule),
+    0 calc(var(--note-line) * 10) 0 var(--note-rule),
+    0 calc(var(--note-line) * 11) 0 var(--note-rule),
+    0 calc(var(--note-line) * 12) 0 var(--note-rule),
+    0 calc(var(--note-line) * 13) 0 var(--note-rule),
+    0 calc(var(--note-line) * 14) 0 var(--note-rule),
+    0 calc(var(--note-line) * 15) 0 var(--note-rule),
+    0 calc(var(--note-line) * 16) 0 var(--note-rule),
+    0 calc(var(--note-line) * 17) 0 var(--note-rule),
+    0 calc(var(--note-line) * 18) 0 var(--note-rule),
+    0 calc(var(--note-line) * 19) 0 var(--note-rule),
+    0 calc(var(--note-line) * 20) 0 var(--note-rule),
+    0 calc(var(--note-line) * 21) 0 var(--note-rule),
+    0 calc(var(--note-line) * 22) 0 var(--note-rule),
+    0 calc(var(--note-line) * 23) 0 var(--note-rule),
+    0 calc(var(--note-line) * 24) 0 var(--note-rule),
+    0 calc(var(--note-line) * 25) 0 var(--note-rule),
+    0 calc(var(--note-line) * 26) 0 var(--note-rule),
+    0 calc(var(--note-line) * 27) 0 var(--note-rule),
+    0 calc(var(--note-line) * 28) 0 var(--note-rule),
+    0 calc(var(--note-line) * 29) 0 var(--note-rule),
+    0 calc(var(--note-line) * 30) 0 var(--note-rule),
+    0 calc(var(--note-line) * 31) 0 var(--note-rule),
+    0 calc(var(--note-line) * 32) 0 var(--note-rule),
+    0 calc(var(--note-line) * 33) 0 var(--note-rule),
+    0 calc(var(--note-line) * 34) 0 var(--note-rule),
+    0 calc(var(--note-line) * 35) 0 var(--note-rule),
+    0 calc(var(--note-line) * 36) 0 var(--note-rule),
+    0 calc(var(--note-line) * 37) 0 var(--note-rule),
+    0 calc(var(--note-line) * 38) 0 var(--note-rule),
+    0 calc(var(--note-line) * 39) 0 var(--note-rule),
+    0 calc(var(--note-line) * 40) 0 var(--note-rule),
+    0 calc(var(--note-line) * 41) 0 var(--note-rule),
+    0 calc(var(--note-line) * 42) 0 var(--note-rule),
+    0 calc(var(--note-line) * 43) 0 var(--note-rule),
+    0 calc(var(--note-line) * 44) 0 var(--note-rule),
+    0 calc(var(--note-line) * 45) 0 var(--note-rule),
+    0 calc(var(--note-line) * 46) 0 var(--note-rule),
+    0 calc(var(--note-line) * 47) 0 var(--note-rule),
+    0 calc(var(--note-line) * 48) 0 var(--note-rule),
+    0 calc(var(--note-line) * 49) 0 var(--note-rule),
+    0 calc(var(--note-line) * 50) 0 var(--note-rule),
+    0 calc(var(--note-line) * 51) 0 var(--note-rule),
+    0 calc(var(--note-line) * 52) 0 var(--note-rule),
+    0 calc(var(--note-line) * 53) 0 var(--note-rule),
+    0 calc(var(--note-line) * 54) 0 var(--note-rule),
+    0 calc(var(--note-line) * 55) 0 var(--note-rule),
+    0 calc(var(--note-line) * 56) 0 var(--note-rule),
+    0 calc(var(--note-line) * 57) 0 var(--note-rule),
+    0 calc(var(--note-line) * 58) 0 var(--note-rule),
+    0 calc(var(--note-line) * 59) 0 var(--note-rule),
+    0 calc(var(--note-line) * 60) 0 var(--note-rule),
+    0 calc(var(--note-line) * 61) 0 var(--note-rule),
+    0 calc(var(--note-line) * 62) 0 var(--note-rule),
+    0 calc(var(--note-line) * 63) 0 var(--note-rule),
+    0 calc(var(--note-line) * 64) 0 var(--note-rule),
+    0 calc(var(--note-line) * 65) 0 var(--note-rule),
+    0 calc(var(--note-line) * 66) 0 var(--note-rule),
+    0 calc(var(--note-line) * 67) 0 var(--note-rule),
+    0 calc(var(--note-line) * 68) 0 var(--note-rule),
+    0 calc(var(--note-line) * 69) 0 var(--note-rule),
+    0 calc(var(--note-line) * 70) 0 var(--note-rule),
+    0 calc(var(--note-line) * 71) 0 var(--note-rule),
+    0 calc(var(--note-line) * 72) 0 var(--note-rule),
+    0 calc(var(--note-line) * 73) 0 var(--note-rule),
+    0 calc(var(--note-line) * 74) 0 var(--note-rule),
+    0 calc(var(--note-line) * 75) 0 var(--note-rule),
+    0 calc(var(--note-line) * 76) 0 var(--note-rule),
+    0 calc(var(--note-line) * 77) 0 var(--note-rule),
+    0 calc(var(--note-line) * 78) 0 var(--note-rule),
+    0 calc(var(--note-line) * 79) 0 var(--note-rule),
+    0 calc(var(--note-line) * 80) 0 var(--note-rule),
+    0 calc(var(--note-line) * 81) 0 var(--note-rule),
+    0 calc(var(--note-line) * 82) 0 var(--note-rule),
+    0 calc(var(--note-line) * 83) 0 var(--note-rule),
+    0 calc(var(--note-line) * 84) 0 var(--note-rule),
+    0 calc(var(--note-line) * 85) 0 var(--note-rule),
+    0 calc(var(--note-line) * 86) 0 var(--note-rule),
+    0 calc(var(--note-line) * 87) 0 var(--note-rule),
+    0 calc(var(--note-line) * 88) 0 var(--note-rule),
+    0 calc(var(--note-line) * 89) 0 var(--note-rule),
+    0 calc(var(--note-line) * 90) 0 var(--note-rule),
+    0 calc(var(--note-line) * 91) 0 var(--note-rule),
+    0 calc(var(--note-line) * 92) 0 var(--note-rule),
+    0 calc(var(--note-line) * 93) 0 var(--note-rule),
+    0 calc(var(--note-line) * 94) 0 var(--note-rule),
+    0 calc(var(--note-line) * 95) 0 var(--note-rule),
+    0 calc(var(--note-line) * 96) 0 var(--note-rule),
+    0 calc(var(--note-line) * 97) 0 var(--note-rule),
+    0 calc(var(--note-line) * 98) 0 var(--note-rule),
+    0 calc(var(--note-line) * 99) 0 var(--note-rule),
+    0 calc(var(--note-line) * 100) 0 var(--note-rule),
+    0 calc(var(--note-line) * 101) 0 var(--note-rule),
+    0 calc(var(--note-line) * 102) 0 var(--note-rule),
+    0 calc(var(--note-line) * 103) 0 var(--note-rule),
+    0 calc(var(--note-line) * 104) 0 var(--note-rule),
+    0 calc(var(--note-line) * 105) 0 var(--note-rule),
+    0 calc(var(--note-line) * 106) 0 var(--note-rule),
+    0 calc(var(--note-line) * 107) 0 var(--note-rule),
+    0 calc(var(--note-line) * 108) 0 var(--note-rule),
+    0 calc(var(--note-line) * 109) 0 var(--note-rule),
+    0 calc(var(--note-line) * 110) 0 var(--note-rule),
+    0 calc(var(--note-line) * 111) 0 var(--note-rule),
+    0 calc(var(--note-line) * 112) 0 var(--note-rule),
+    0 calc(var(--note-line) * 113) 0 var(--note-rule),
+    0 calc(var(--note-line) * 114) 0 var(--note-rule),
+    0 calc(var(--note-line) * 115) 0 var(--note-rule),
+    0 calc(var(--note-line) * 116) 0 var(--note-rule),
+    0 calc(var(--note-line) * 117) 0 var(--note-rule),
+    0 calc(var(--note-line) * 118) 0 var(--note-rule),
+    0 calc(var(--note-line) * 119) 0 var(--note-rule),
+    0 calc(var(--note-line) * 120) 0 var(--note-rule);
+}
+
+/* Contact shadow drawn beside the paper rather than on it, so punched holes stay see-through and
+   curled corners can shape it. */
+.note-paper:is([data-note-style='paper'], [data-note-style='tape'], [data-note-style='notebook'])::before {
+  z-index: -1;
+  inset: 0;
+  border-radius: 2px;
+  box-shadow:
+    0 0.5px 1px rgba(14, 12, 10, 0.14),
+    0 3px 6px -1px rgba(14, 12, 10, 0.09),
+    0 14px 22px -10px rgba(14, 12, 10, 0.28);
+  content: '';
+}
+
+/* Curl shadows: rounded strips tucked inside the paper (clear of the corners the curls cut away) and
+   pivoted at a corner, so their soft shadows start at nothing where the edge leaves the board and widen,
+   soften and darken toward the corner. Nothing darkens on the paper itself, which would read as the
+   corner bending down into the board. */
+.note-paper:is([data-note-style='paper'], [data-note-style='tape']) .note-lift::before,
+.note-paper:is([data-note-style='paper'], [data-note-style='tape']) .note-lift::after {
+  z-index: -1;
+  border-radius: 50%;
+  content: '';
+}
+
+/* Paper (default): both right corners lift toward the viewer, the bottom one more. Wide, shallow
+   elliptical radii bend each edge up; each curl brightens toward its tip and a hairline highlight runs
+   along the raised edge, which is what still reads on dark canvases where shadows vanish. */
+.note-card[data-note-style='paper'],
+.note-paper[data-note-style='paper']::before {
+  border-top-right-radius: clamp(10px, 12%, 26px) clamp(2px, 2.2%, 4.5px);
+  border-bottom-right-radius: clamp(20px, 26%, 58px) clamp(3.5px, 3.8%, 8px);
+}
+.note-card[data-note-style='paper'] {
+  background:
+    linear-gradient(90deg, rgba(255, 255, 255, 0) 50%, rgba(255, 255, 255, calc(0.75 * var(--note-hi, 1)))) right bottom / 100% 1.5px no-repeat,
+    linear-gradient(180deg, rgba(255, 255, 255, 0) 60%, rgba(255, 255, 255, calc(0.6 * var(--note-hi, 1)))) right bottom / 1.5px 100% no-repeat,
+    linear-gradient(90deg, rgba(255, 255, 255, 0) 78%, rgba(255, 255, 255, calc(0.7 * var(--note-hi, 1)))) right top / 100% 1px no-repeat,
+    linear-gradient(0deg, rgba(255, 255, 255, 0) 80%, rgba(255, 255, 255, calc(0.55 * var(--note-hi, 1)))) right top / 1px 100% no-repeat,
+    var(--note-grain),
+    radial-gradient(ellipse 44% 36% at 100% 100%, rgba(255, 255, 255, calc(0.5 * var(--note-hi, 1))), rgba(255, 255, 255, calc(0.24 * var(--note-hi, 1))) 32%, rgba(255, 255, 255, calc(0.07 * var(--note-hi, 1))) 60%, rgba(255, 255, 255, 0) 85%),
+    radial-gradient(ellipse 24% 18% at 100% 0, rgba(255, 255, 255, calc(0.42 * var(--note-hi, 1))), rgba(255, 255, 255, calc(0.14 * var(--note-hi, 1))) 45%, rgba(255, 255, 255, 0) 85%),
+    var(--note-light),
+    var(--note-fill, #fff4b2);
+  /* Anchor the edge hairlines on the outer edge rather than inside the transparent border. */
+  background-origin: border-box;
+}
+.note-paper[data-note-style='paper'] .note-lift::before {
+  top: 7px;
+  right: 8px;
+  width: 12px;
+  height: clamp(22px, 28%, 60px);
+  box-shadow: 12px 3px 10px -3px rgba(14, 12, 10, 0.3);
+  transform: rotate(6deg);
+  transform-origin: top right;
+}
+.note-paper[data-note-style='paper'] .note-lift::after {
+  right: 10px;
+  bottom: 9px;
+  width: 58%;
+  height: 12px;
+  box-shadow: 12px 19px 14px -4px rgba(14, 12, 10, 0.34);
+  transform: rotate(3.4deg);
+  transform-origin: right bottom;
+}
+
+/* Tape: one strip holds the top centre, so both bottom corners relax into a gentle, matching curl. */
+.note-card[data-note-style='tape'],
+.note-paper[data-note-style='tape']::before {
+  border-bottom-left-radius: clamp(12px, 15%, 34px) clamp(2px, 2.2%, 4.5px);
+  border-bottom-right-radius: clamp(12px, 15%, 34px) clamp(2px, 2.2%, 4.5px);
+}
+.note-card[data-note-style='tape'] {
+  background:
+    linear-gradient(90deg, rgba(255, 255, 255, calc(0.6 * var(--note-hi, 1))), rgba(255, 255, 255, 0) 22%, rgba(255, 255, 255, 0) 78%, rgba(255, 255, 255, calc(0.6 * var(--note-hi, 1)))) left bottom / 100% 1.5px no-repeat,
+    var(--note-grain),
+    radial-gradient(ellipse 26% 22% at 100% 100%, rgba(255, 255, 255, calc(0.4 * var(--note-hi, 1))), rgba(255, 255, 255, calc(0.16 * var(--note-hi, 1))) 40%, rgba(255, 255, 255, 0) 85%),
+    radial-gradient(ellipse 26% 22% at 0 100%, rgba(255, 255, 255, calc(0.4 * var(--note-hi, 1))), rgba(255, 255, 255, calc(0.16 * var(--note-hi, 1))) 40%, rgba(255, 255, 255, 0) 85%),
+    var(--note-light),
+    var(--note-fill, #fff4b2);
+  background-origin: border-box;
+}
+.note-paper[data-note-style='tape'] .note-lift::before {
+  left: 10px;
+  bottom: 7px;
+  width: 32%;
+  height: 10px;
+  box-shadow: -9px 15px 12px -4px rgba(14, 12, 10, 0.28);
+  transform: rotate(-3deg);
+  transform-origin: left bottom;
+}
+.note-paper[data-note-style='tape'] .note-lift::after {
+  right: 10px;
+  bottom: 7px;
+  width: 32%;
+  height: 10px;
+  box-shadow: 9px 15px 12px -4px rgba(14, 12, 10, 0.28);
+  transform: rotate(3deg);
+  transform-origin: right bottom;
+}
+/* The strip's length and thickness follow the note's width; its ends lift slightly off the paper. */
+.note-paper[data-note-style='tape']::after {
+  z-index: 1;
+  top: 0;
+  left: 50%;
+  width: clamp(44px, 34%, 240px);
+  min-height: 15px;
+  max-height: 44px;
+  aspect-ratio: 4 / 1;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 110 30' preserveAspectRatio='none'%3E%3Cdefs%3E%3Cfilter id='n' x='0' y='0' width='1' height='1'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.4 .18' numOctaves='3' seed='4'/%3E%3CfeColorMatrix values='0 0 0 0 .5 0 0 0 0 .42 0 0 0 0 .28 0 0 0 .55 -.12'/%3E%3CfeComposite in2='SourceGraphic' operator='in'/%3E%3C/filter%3E%3ClinearGradient id='g' x2='0' y2='1'%3E%3Cstop offset='0' stop-color='%23fff' stop-opacity='.35'/%3E%3Cstop offset='.45' stop-color='%23fff' stop-opacity='0'/%3E%3Cstop offset='1' stop-color='%23705a32' stop-opacity='.12'/%3E%3C/linearGradient%3E%3ClinearGradient id='e'%3E%3Cstop offset='0' stop-color='%23fff' stop-opacity='.42'/%3E%3Cstop offset='.07' stop-color='%23fff' stop-opacity='.08'/%3E%3Cstop offset='.11' stop-color='%23705a32' stop-opacity='.1'/%3E%3Cstop offset='.16' stop-color='%23fff' stop-opacity='0'/%3E%3Cstop offset='.84' stop-color='%23fff' stop-opacity='0'/%3E%3Cstop offset='.89' stop-color='%23705a32' stop-opacity='.1'/%3E%3Cstop offset='.93' stop-color='%23fff' stop-opacity='.08'/%3E%3Cstop offset='1' stop-color='%23fff' stop-opacity='.42'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cpath id='t' d='M3 4l4-2 5 1.5 3-1.5 87 0.5 3-1 3 2.5-1.5 3 2.5 3-2 3.5 2 3-2.5 3.5 1.5 3-3 2.5-5-1-3 1.2-82-0.4-4 1.2-4-2 1.5-3.5-2.5-3 2-3.5-2.4-3 2.2-3.5z' fill='%23dcc79c' fill-opacity='.8'/%3E%3Cuse href='%23t' filter='url(%23n)'/%3E%3Cuse href='%23t' fill='url(%23g)'/%3E%3Cuse href='%23t' fill='url(%23e)'/%3E%3C/svg%3E") center / 100% 100% no-repeat;
+  content: '';
+  filter: drop-shadow(0 1px 0.8px rgba(14, 12, 10, 0.2)) drop-shadow(0 2px 2.5px rgba(14, 12, 10, 0.1));
+  /* At most 14px of the strip lies on the paper (less for thin strips), clear of the 17px text inset. */
+  transform: translate(-50%, min(-46%, calc(14px - 100%))) rotate(-2.5deg);
+}
+
+/* Notebook: a sheet torn from a pad, with real punched holes, ruled lines, a paperclip and washi tape.
+   Holes are spaced to fit the width exactly, so none is ever cut in half at an edge. */
+.note-card[data-note-style='notebook'] {
+  padding-top: 28px;
+  background:
+    radial-gradient(circle at 50% 11px, transparent 3.6px, var(--note-rim) 3.7px 4.6px, transparent 5.4px) 0 0 / 16px 100% space no-repeat,
+    var(--note-grain),
+    var(--note-light),
+    var(--note-fill, #fff4b2);
+  /* Holes in the background and the mask must share one positioning box to line up. */
+  background-origin: border-box;
+  /* A solid sheet minus the holes: spaced tiles leave gaps, so the holes are subtracted rather than
+     tiled as an opaque pattern (which would leave see-through slits between tiles). */
+  -webkit-mask:
+    linear-gradient(#000, #000),
+    radial-gradient(circle at 50% 11px, #000 3.6px, transparent 4.1px) 0 0 / 16px 100% space no-repeat;
+  -webkit-mask-composite: source-out;
+  mask:
+    linear-gradient(#000, #000),
+    radial-gradient(circle at 50% 11px, #000 3.6px, transparent 4.1px) 0 0 / 16px 100% space no-repeat;
+  mask-composite: subtract;
+}
+/* The mask clips the card's own focus ring, so the paper layer draws it while editing. */
+.board-item.editing .note-paper[data-note-style='notebook'] {
+  border-radius: 2px;
+  box-shadow:
+    0 0 0 1px rgba(105, 87, 245, 0.5),
+    0 0 0 4px rgba(105, 87, 245, 0.13);
+}
+.note-paper[data-note-style='notebook']::after {
+  z-index: 1;
+  inset: -18px -18px -14px -14px;
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 56'%3E%3Cdefs%3E%3ClinearGradient id='m' x1='0' x2='1' y1='0' y2='.15'%3E%3Cstop offset='0' stop-color='%236d737c'/%3E%3Cstop offset='.3' stop-color='%23f2f4f7'/%3E%3Cstop offset='.55' stop-color='%23a0a7b0'/%3E%3Cstop offset='.8' stop-color='%23e4e7eb'/%3E%3Cstop offset='1' stop-color='%23596069'/%3E%3C/linearGradient%3E%3Cpath id='c' d='M7 18v26a3.5 3.5 0 0 0 7 0V9a5.5 5.5 0 0 0-11 0v37a7.5 7.5 0 0 0 15 0V15' fill='none' stroke-linecap='round'/%3E%3C/defs%3E%3Cuse href='%23c' stroke='%233c4048' stroke-opacity='.3' stroke-width='2.6' transform='translate(.7 1)'/%3E%3Cuse href='%23c' stroke='url(%23m)' stroke-width='2'/%3E%3Cuse href='%23c' stroke='%23fff' stroke-opacity='.6' stroke-width='.55' transform='translate(-.45 -.2)'/%3E%3C/svg%3E") clamp(14px, 12%, 30px) 0 / clamp(10px, 5.5%, 15px) auto no-repeat,
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 72 72'%3E%3Cdefs%3E%3Cpattern id='s' width='5' height='5' patternUnits='userSpaceOnUse' patternTransform='rotate(45)'%3E%3Crect width='2' height='5' fill='%23fff' fill-opacity='.3'/%3E%3C/pattern%3E%3C/defs%3E%3Cg transform='rotate(38 36 36)'%3E%3Cpath id='t' d='M6 26h60l2 3-2 3 2 3-2 3 2 3-2 3 1 2H5l2-3-2-3 2-3-2-3 2-3-2-3z' fill='%23f0a6c2' fill-opacity='.74'/%3E%3Cuse href='%23t' fill='url(%23s)'/%3E%3Cpath d='M6 26.6h60' stroke='%23fff' stroke-opacity='.45' stroke-width='.8'/%3E%3C/g%3E%3C/svg%3E") right 0 top 0 / clamp(34px, 22%, 64px) auto no-repeat,
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 72 72'%3E%3Cdefs%3E%3Cpattern id='s' width='5' height='5' patternUnits='userSpaceOnUse' patternTransform='rotate(-45)'%3E%3Crect width='2' height='5' fill='%23fff' fill-opacity='.28'/%3E%3C/pattern%3E%3C/defs%3E%3Cg transform='rotate(-8 36 36)'%3E%3Cpath id='t' d='M6 26h60l2 3-2 3 2 3-2 3 2 3-2 3 1 2H5l2-3-2-3 2-3-2-3 2-3-2-3z' fill='%23b8a2ea' fill-opacity='.72'/%3E%3Cuse href='%23t' fill='url(%23s)'/%3E%3C/g%3E%3C/svg%3E") left 0 bottom 0 / clamp(32px, 20%, 60px) auto no-repeat;
+  content: '';
+  filter: drop-shadow(0 1px 0.8px rgba(14, 12, 10, 0.2));
+}
+
+/* Clip: lined sheet over a tilted kraft backing; the left margin's punched holes show the kraft through.
+   Holes are spaced to fit the height exactly. */
+.note-card[data-note-style='clip'] {
+  padding-top: 30px;
+  padding-left: 28px;
+  background:
+    radial-gradient(circle at 11px 50%, #c58c55 0 3.3px, rgba(90, 56, 22, 0.42) 3.4px 4.2px, transparent 4.8px) 0 0 / 22px 18px no-repeat space,
+    var(--note-grain),
+    var(--note-light),
+    var(--note-fill, #fff4b2);
+  background-origin: border-box;
+  box-shadow:
+    0 0.5px 1px rgba(14, 12, 10, 0.14),
+    0 3px 6px -1px rgba(14, 12, 10, 0.09),
+    0 12px 20px -10px rgba(14, 12, 10, 0.28);
+}
+.note-paper[data-note-style='clip']::before {
+  z-index: -1;
+  inset: 0;
+  border-radius: 2px;
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.7' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .3 0 0 0 0 .18 0 0 0 0 .06 0 0 0 .2 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"),
+    linear-gradient(160deg, #d6a46c, #c28a52 55%, #b37b45);
+  box-shadow:
+    0 0.5px 1px rgba(14, 12, 10, 0.18),
+    0 10px 18px -8px rgba(14, 12, 10, 0.32);
+  content: '';
+  transform: translate(-8px, -5px) rotate(-2.4deg);
+}
+.note-paper[data-note-style='clip']::after {
+  z-index: 1;
+  top: 0;
+  left: clamp(14px, 14%, 34px);
+  width: clamp(11px, 7%, 18px);
+  aspect-ratio: 18 / 50;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 56'%3E%3Cdefs%3E%3ClinearGradient id='m' x1='0' x2='1' y1='0' y2='.15'%3E%3Cstop offset='0' stop-color='%236d737c'/%3E%3Cstop offset='.3' stop-color='%23f2f4f7'/%3E%3Cstop offset='.55' stop-color='%23a0a7b0'/%3E%3Cstop offset='.8' stop-color='%23e4e7eb'/%3E%3Cstop offset='1' stop-color='%23596069'/%3E%3C/linearGradient%3E%3Cpath id='c' d='M7 18v26a3.5 3.5 0 0 0 7 0V9a5.5 5.5 0 0 0-11 0v37a7.5 7.5 0 0 0 15 0V15' fill='none' stroke-linecap='round'/%3E%3C/defs%3E%3Cuse href='%23c' stroke='%233c4048' stroke-opacity='.3' stroke-width='2.6' transform='translate(.7 1)'/%3E%3Cuse href='%23c' stroke='url(%23m)' stroke-width='2'/%3E%3Cuse href='%23c' stroke='%23fff' stroke-opacity='.6' stroke-width='.55' transform='translate(-.45 -.2)'/%3E%3C/svg%3E") center / contain no-repeat;
+  content: '';
+  filter: drop-shadow(0 1px 0.8px rgba(14, 12, 10, 0.3));
+  transform: translateY(-32%);
+}
+
+/* Tab: a manila folder. The darker back cover rises above the front sheet and carries a tapered tab
+   sized to the folder; the front sheet casts a thin shadow onto the cover where they meet. */
+.note-card[data-note-style='tab'] {
+  background:
+    var(--note-grain),
+    linear-gradient(180deg, rgba(255, 255, 255, calc(0.32 * var(--note-hi, 1))), rgba(255, 255, 255, calc(0.06 * var(--note-hi, 1))) 30%, rgba(14, 12, 10, 0.05)),
+    var(--note-fill, #fff4b2);
+  box-shadow:
+    0 -1px 0 rgba(255, 255, 255, calc(0.5 * var(--note-hi, 1))) inset,
+    0 -1.5px 3px rgba(14, 12, 10, 0.14);
+}
+.note-paper[data-note-style='tab']::before {
+  z-index: -1;
+  inset: -9px 0 0 0;
+  border-radius: 4px 4px 2px 2px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, calc(0.22 * var(--note-hi, 1))), rgba(255, 255, 255, 0) 22%, rgba(14, 12, 10, 0.06)),
+    color-mix(in oklab, var(--note-fill, #fff4b2) 84%, #000);
+  box-shadow:
+    0 0.5px 1px rgba(14, 12, 10, 0.14),
+    0 3px 6px -1px rgba(14, 12, 10, 0.09),
+    0 14px 22px -10px rgba(14, 12, 10, 0.28);
+  content: '';
+}
+.note-paper[data-note-style='tab']::after {
+  z-index: -1;
+  bottom: calc(100% + 8px);
+  left: clamp(6px, 6%, 20px);
+  width: clamp(36px, 30%, 128px);
+  height: clamp(12px, 11%, 19px);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, calc(0.34 * var(--note-hi, 1))), rgba(255, 255, 255, calc(0.08 * var(--note-hi, 1))) 45%, rgba(14, 12, 10, 0.04)),
+    color-mix(in oklab, var(--note-fill, #fff4b2) 84%, #000);
+  border-radius: 7px 7px 0 0;
+  content: '';
+  /* Tilting back in perspective tapers the sides while keeping the rounded top corners. */
+  transform: perspective(48px) rotateX(16deg);
+  transform-origin: bottom;
+}
+
+/* The shadow toggle drops every depth cue but keeps tape, clips, tabs and backing sheets. */
+.note-paper:is([data-note-style='paper'], [data-note-style='tape'], [data-note-style='notebook'])[data-note-shadow='false']::before,
+.note-paper[data-note-shadow='false'] .note-lift::before,
+.note-paper[data-note-shadow='false'] .note-lift::after {
+  display: none;
+}
+.note-paper:is([data-note-style='clip'], [data-note-style='tab'])[data-note-shadow='false']::before,
+.note-card:is([data-note-style='clip'], [data-note-style='tab'])[data-note-shadow='false'] {
+  box-shadow: none;
+}
+
+/* Dense canvases render hundreds of notes: drop shadows, grain and the decorations' filters there. */
+.viewport:is([data-render-tier='large'], [data-render-tier='extreme']) .note-paper:is([data-note-style='paper'], [data-note-style='tape'], [data-note-style='notebook'])::before,
+.viewport:is([data-render-tier='large'], [data-render-tier='extreme']) .note-lift::before,
+.viewport:is([data-render-tier='large'], [data-render-tier='extreme']) .note-lift::after {
+  display: none;
+}
+.viewport:is([data-render-tier='large'], [data-render-tier='extreme']) .note-paper::before {
+  box-shadow: none;
+}
+.viewport:is([data-render-tier='large'], [data-render-tier='extreme']) .note-paper::after {
+  filter: none;
+}
+.viewport:is([data-render-tier='large'], [data-render-tier='extreme']) .note-card[data-note-style] {
+  --note-grain: linear-gradient(transparent, transparent);
+}
+.viewport:is([data-render-tier='large'], [data-render-tier='extreme']) .note-card[data-note-style] .text-list-line:last-child::after {
+  box-shadow: none;
+}
+
+/* A solid border needs plain corners: the curls' elliptical radii would bend the outline. */
+.note-card:is([data-note-style='paper'], [data-note-style='tape'])[data-note-border='solid'],
+.note-paper:is([data-note-style='paper'], [data-note-style='tape'])[data-note-border='solid']::before {
+  border-radius: 2px;
+}
+.note-paper:is([data-note-style='paper'], [data-note-style='tape'])[data-note-border='solid'] .note-lift::before,
+.note-paper:is([data-note-style='paper'], [data-note-style='tape'])[data-note-border='solid'] .note-lift::after {
+  display: none;
+}
+
+.note-control-dot.style-dot {
+  border-radius: 3px;
+  background:
+    repeating-linear-gradient(180deg, transparent 0 4px, rgba(72, 96, 130, 0.35) 4px 5px),
+    #fff4b2;
+  box-shadow: inset 0 0 0 1px rgba(126, 93, 16, 0.25);
+}

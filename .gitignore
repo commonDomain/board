@@ -1,0 +1,63 @@
+# Dependencies
+node_modules/
+
+# Runtime data: database, assets, backups and logs (DATA_DIR defaults to ./data)
+data/
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+*.db
+*.db-wal
+*.db-shm
+
+# Build staging and static publication state (scripts/build-output.js, backend/static-publication.js)
+.tmp-*/
+.static-publication.lock/
+.static-publication.json
+
+# Logs and temporary files
+*.log
+npm-debug.log*
+*.tmp
+*.bak
+*.temp
+*.tsbuildinfo
+.cache/
+.eslintcache
+.parcel-cache/
+.turbo/
+.vite/
+__pycache__/
+*.py[cod]
+
+# Generated test results and reports
+coverage/
+.nyc_output/
+test-results/
+playwright-report/
+blob-report/
+reports/
+*-report.html
+*-report.json
+junit*.xml
+
+# Environment files and local secrets
+.env
+.env.*
+!.env.example
+.npmrc
+credentials.json
+*.pem
+*.key
+*.p12
+*.pfx
+*.har
+
+# Local agent and editor state
+.idea/
+.vscode/
+*.swp
+
+# OS metadata
+.DS_Store
+Thumbs.db

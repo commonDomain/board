@@ -1,0 +1,119 @@
+.search-location-indicator svg {
+  width: 30px;
+  height: 30px;
+  padding: 4px;
+  border-radius: 999px;
+  background: #6957f5;
+  filter: drop-shadow(0 5px 8px rgba(64, 45, 184, 0.3));
+}
+
+.search-location-indicator.has-text-match svg {
+  background: #d97706;
+}
+
+@keyframes search-location-pulse {
+  0%,
+  100% {
+    border-color: #6957f5;
+    box-shadow:
+      0 0 0 7px rgba(105, 87, 245, 0.12),
+      0 12px 32px rgba(62, 45, 176, 0.18);
+  }
+  50% {
+    border-color: #8b7cff;
+    box-shadow:
+      0 0 0 14px rgba(105, 87, 245, 0.04),
+      0 16px 40px rgba(62, 45, 176, 0.3);
+  }
+}
+
+@keyframes search-text-match-pulse {
+  0%,
+  100% {
+    background: rgba(250, 204, 21, 0.3);
+    box-shadow: 0 0 0 4px rgba(250, 204, 21, 0.1);
+  }
+  50% {
+    background: rgba(250, 204, 21, 0.48);
+    box-shadow: 0 0 0 8px rgba(250, 204, 21, 0.04);
+  }
+}
+
+@keyframes search-location-enter {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes search-location-bob {
+  0%,
+  100% {
+    margin-top: 0;
+  }
+  50% {
+    margin-top: -9px;
+  }
+}
+
+@keyframes search-location-exit {
+  to {
+    opacity: 0;
+  }
+}
+
+@media (max-width: 760px), (max-height: 500px) and (orientation: landscape) {
+  .navigator-panel {
+    top: auto;
+    right: 8px;
+    bottom: 8px;
+    left: 8px;
+    width: auto;
+    height: min(68vh, 560px);
+    border-radius: 22px;
+  }
+  .navigator-row {
+    min-height: 52px;
+    grid-template-columns: 28px 44px minmax(0, 1fr) auto;
+  }
+  .navigator-drag-handle {
+    width: 28px;
+    height: 44px;
+  }
+  .navigator-disclosure,
+  .navigator-action {
+    width: 44px;
+    height: 44px;
+  }
+  .navigator-actions {
+    opacity: 1;
+  }
+  .arrange-bar {
+    right: 8px;
+    bottom: 12px;
+    left: 8px;
+    max-width: none;
+    overflow-x: auto;
+    transform: none;
+  }
+  .arrange-group button {
+    width: 44px;
+    height: 44px;
+  }
+  .arrange-count {
+    display: none;
+  }
+  .search-overlay {
+    padding-top: 68px;
+  }
+  .search-command {
+    width: calc(100vw - 20px);
+    border-radius: 17px;
+  }
+}
+
+.board-layer {
+  transform: translateZ(0);
+}

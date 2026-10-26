@@ -1,0 +1,38 @@
+/* ---------- Per-theme signature details: each borrows from a real material ---------- */
+
+/* 文具: paper grain, a highlighter swipe on the active tool, a pen-stroke under headings. */
+:root[data-theme=paper] {
+  --t-grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .12 0 0 0 0 .16 0 0 0 0 .27 0 0 0 .05 0'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+:root[data-theme=paper] :is(.document-bar, .tool-dock, .tool-popover, .canvas-menu, .context-panel, .navigator-panel, .canvas-dialog-card, .search-command, .account-card) {
+  background-image: var(--t-grain);
+  background-size: 140px 140px;
+}
+:root[data-theme=paper] .tool-button:is(.active, [aria-pressed='true'], [aria-expanded='true']) {
+  background:
+    linear-gradient(102deg, transparent 0 5%, var(--t-highlight) 7% 93%, transparent 95%) center 55% / 100% 78% no-repeat;
+}
+:root[data-theme=paper] .tool-button:is(.active, [aria-pressed='true']) > svg:not(.tool-chevron) { stroke-width: 2; }
+:root[data-theme=paper] .dock-section-label { display: flex; align-items: center; gap: 6px; }
+:root[data-theme=paper] .dock-section-label::after { content: ''; flex: 1; height: 1px; background: var(--t-line); }
+:root[data-theme=paper] :is(.theme-menu-heading strong, .popover-heading strong, .navigator-heading strong, .canvas-dialog-heading h2) {
+  justify-self: start;
+  width: fit-content;
+  background: linear-gradient(var(--t-highlight), var(--t-highlight)) 0 88% / 100% 0.36em no-repeat;
+  padding-inline: 1px;
+}
+:root[data-theme=paper] .action-button.primary { letter-spacing: 0.04em; }
+:root[data-theme=paper] .canvas-start-shortcuts kbd { background: #fffdf6; }
+
+/* 夜灯: warm light catches the edge of the active tool and primary action. */
+:root[data-theme=night] .tool-button:is(.active, [aria-pressed='true'], [aria-expanded='true']) {
+  box-shadow: inset 0 0 0 1px var(--t-tool-line), inset 0 1px 0 rgba(255, 220, 160, 0.18);
+}
+:root[data-theme=night] .document-bar { box-shadow: var(--t-shadow-2); }
+:root[data-theme=night] .action-button.primary { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25); }
+:root[data-theme=night] .tool-popover input[type='range'],
+:root[data-theme=night] #canvasZoomSlider { accent-color: var(--t-accent); }
+
+/* Stroke previews are drawn in ink; give them a sheet of paper under the dark shell. */
+:root[data-theme=night] .brush-choice canvas { border-radius: var(--t-r1); background: #efeae2; }
+:root[data-theme=night] .brush-choice { color: var(--t-ink); }

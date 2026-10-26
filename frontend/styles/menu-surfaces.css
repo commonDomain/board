@@ -1,0 +1,22 @@
+/* Native scrollbar tracks can paint square corners over a rounded menu.
+   A transparent track preserves the surface, border and shadow while scrolling. */
+:is(
+  .floating-select-menu,
+  .floating-menu-subpanel,
+  .sheet-action-menu,
+  .sheet-context-menu,
+  .sheet-formula-suggestions,
+  .sheet-cell-formula-assist,
+  .context-menu,
+  .brush-preset-menu,
+  .account-menu,
+  .canvas-list,
+  .nt-menu,
+  .note-actions-panel,
+  .amap-route-suggestions,
+  .menu-viewport-overflow:not(.tool-popover):not(.context-panel)
+),
+select::picker(select) {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(109, 115, 128, 0.55) transparent;
+}

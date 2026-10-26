@@ -1,0 +1,32 @@
+/* ---------- Motion: short, ease-out, never bouncy ---------- */
+:root[data-ui=studio] :is(.tool-button, .action-button, .context-btn, .canvas-start-action) {
+  transition-duration: var(--t-dur-1);
+  transition-timing-function: var(--t-ease);
+}
+:root[data-ui=studio] .navigator-row.is-drop-before::before,
+:root[data-ui=studio] .navigator-row.is-drop-after::after { animation-duration: var(--t-dur-2); animation-timing-function: var(--t-ease); }
+:root[data-ui=studio] :is(.navigator-row.is-drop-landed, .canvas-list-item.canvas-drop-landed) { animation-duration: 260ms; }
+
+@media (hover: none) {
+  :root[data-ui=studio] :is(.tool-button, .action-button, .context-btn):hover { background: transparent; }
+  :root[data-ui=studio] .tool-button:is(.active, [aria-pressed='true'], [aria-expanded='true']):hover { background: var(--t-tool-bg); }
+  :root[data-theme=paper] .tool-button:is(.active, [aria-pressed='true'], [aria-expanded='true']):hover {
+    background: linear-gradient(102deg, transparent 0 5%, var(--t-highlight) 7% 93%, transparent 95%) center 55% / 100% 78% no-repeat;
+  }
+}
+
+/* Theme switches cross-fade through the View Transitions API when available. */
+::view-transition-old(root),
+::view-transition-new(root) { animation-duration: 220ms; animation-timing-function: cubic-bezier(0.23, 1, 0.32, 1); }
+
+@media (prefers-reduced-motion: reduce) {
+  :root[data-ui=studio] *,
+  :root[data-ui=studio] *::before,
+  :root[data-ui=studio] *::after {
+    transition-property: opacity, color, background-color, border-color !important;
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+  }
+  ::view-transition-old(root),
+  ::view-transition-new(root) { animation: none; }
+}

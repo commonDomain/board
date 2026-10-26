@@ -1,0 +1,372 @@
+/* Shared glass surfaces keep each panel's original light/dark palette. */
+:root {
+  --glass-filter: blur(30px) saturate(170%);
+  --glass-light: linear-gradient(155deg, rgba(255, 255, 255, 0.72), rgba(243, 246, 252, 0.58));
+  --glass-edge: rgba(255, 255, 255, 0.7);
+}
+.document-bar,
+.tool-popover,
+.canvas-menu,
+.canvas-preview-card,
+.context-panel,
+.context-menu,
+.navigator-panel,
+.arrange-bar,
+.search-command,
+.canvas-dialog-card,
+.export-preview-card,
+.account-card,
+.account-menu,
+.brush-preset-menu {
+  background: var(--glass-light);
+  border-color: var(--glass-edge);
+  backdrop-filter: var(--glass-filter);
+  -webkit-backdrop-filter: var(--glass-filter);
+}
+.tool-dock {
+  backdrop-filter: var(--glass-filter);
+  -webkit-backdrop-filter: var(--glass-filter);
+}
+.tool-popover,.context-panel,.context-menu {
+  background:linear-gradient(155deg,rgba(255,255,255,.92),rgba(243,246,252,.88));
+}
+.brush-settings {
+  background: rgba(237, 240, 246, 0.35);
+}
+.search-overlay,
+.canvas-dialog-overlay,
+.export-preview-overlay {
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+.account-overlay {
+  background: rgba(235, 238, 245, 0.42);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+.studio-select,
+.format-select,
+.layer-blend {
+  background-color: rgba(255, 255, 255, 0.48);
+}
+@supports (appearance: base-select) {
+  .studio-select::picker(select),
+  .format-select::picker(select),
+  .layer-blend::picker(select) {
+    background: var(--glass-light);
+    border-color: var(--glass-edge);
+    backdrop-filter: var(--glass-filter);
+    -webkit-backdrop-filter: var(--glass-filter);
+  }
+}
+.brush-menu .color-row {
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.brush-menu .color-palette {
+  flex-basis: 100%;
+}
+.brush-menu .color-palette {
+  grid-template-columns: repeat(10, minmax(0, 1fr));
+  justify-items: center;
+  gap: 8px 5px;
+}
+.custom-color-button {
+  position: relative;
+  gap: 6px;
+  margin-top: 0;
+  padding: 0 10px;
+  width: 82px;
+  height: 34px;
+  min-height: 34px;
+  flex: 0 0 82px;
+}
+.custom-color-sample {
+  width: 17px;
+  height: 17px;
+  flex: 0 0 17px;
+  border-radius: 6px;
+  background: var(--selected-color);
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.7);
+}
+.custom-color-value {
+  display: none;
+}
+.custom-color-button.active,
+.studio-select.active {
+  border-color: rgba(105, 87, 245, 0.48);
+  background: rgba(105, 87, 245, 0.1);
+  color: var(--accent-strong);
+  box-shadow: 0 0 0 2px rgba(105, 87, 245, 0.08);
+}
+.custom-color-button:focus-within {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.brush-status {
+  display: none;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+  font-size: 9px;
+  line-height: 1;
+  color: #ddd7ff;
+  white-space: nowrap;
+}
+.tool-button.active .brush-status,
+.tool-button[aria-pressed='true'] .brush-status {
+  display: inline-flex;
+}
+.brush-status::before {
+  content: '';
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--selected-color);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.85);
+}
+#brushButton .tool-chevron {
+  display: none;
+}
+.account-card button.is-loading svg {
+  animation: account-button-spin 0.8s linear infinite;
+}
+@keyframes account-button-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.studio-global {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 82px));
+  justify-content: space-between;
+  gap: 8px;
+}
+.studio-global > .custom-color-button,
+.studio-global > .studio-select,
+.studio-global > .brush-reset {
+  width: 100%;
+  min-width: 0;
+  height: 34px;
+  min-height: 34px;
+  margin: 0;
+  padding: 0 6px;
+  font-size: 11px;
+}
+.studio-presets {
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 6px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+}
+.studio-presets .studio-select {
+  grid-column: 1;
+  width: 100%;
+  min-width: 0;
+}
+.studio-presets .context-btn,
+.studio-global .context-btn {
+  min-height: 34px;
+  padding: 6px 10px;
+  font-size: 11px;
+  white-space: nowrap;
+}
+.context-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.eraser-menu {
+  width: 270px;
+  padding: 18px;
+}
+.eraser-heading,
+.eraser-size-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.eraser-heading {
+  margin-bottom: 18px;
+}
+.eraser-heading strong {
+  font-size: 14px;
+}
+.eraser-heading span {
+  font-size: 11px;
+  color: var(--muted);
+}
+.eraser-size-label {
+  font-size: 12px;
+  color: var(--muted-strong);
+}
+.eraser-size-label output {
+  color: var(--accent-strong);
+  font-variant-numeric: tabular-nums;
+}
+.eraser-menu input {
+  width: 100%;
+  margin: 10px 0 0;
+}
+@media (max-width: 760px) {
+  .brush-status {
+    position: absolute;
+    right: 4px;
+    bottom: 4px;
+    padding: 3px;
+    border-radius: 5px;
+    background: rgba(20, 23, 31, 0.7);
+    font-size: 8px;
+  }
+  .brush-status::before {
+    width: 7px;
+    height: 7px;
+  }
+  .eraser-menu {
+    width: min(320px, calc(100vw - 24px));
+  }
+}
+@supports not ((backdrop-filter: blur(2px)) or (-webkit-backdrop-filter: blur(2px))) {
+  :root {
+    --glass-light: rgba(248, 250, 253, 0.97);
+  }
+}
+
+.brush-advanced {
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 8px;
+}
+.brush-advanced summary {
+  min-height: 30px;
+  padding: 6px 0;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 650;
+  color: var(--muted-strong);
+}
+.brush-advanced summary span {
+  margin-left: 12px;
+  font-size: 10px;
+  font-weight: 400;
+  color: var(--muted);
+}
+.brush-advanced summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+.brush-advanced .studio-row {
+  margin-top: 8px;
+}
+
+@media (max-width: 760px) {
+  .brush-menu {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .brush-choice {
+    grid-template-columns: minmax(0, 1fr);
+    min-height: 52px;
+    gap: 1px;
+    padding: 5px 9px;
+  }
+  .brush-name {
+    font-size: 11px;
+  }
+  .brush-choice .brush-preview {
+    height: 20px;
+  }
+}
+
+.preset-trigger {
+  position: relative;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.preset-trigger::after {
+  content: none;
+}
+.preset-trigger[aria-expanded='true'] {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-soft);
+}
+.brush-preset-menu {
+  position: fixed;
+  z-index: 180;
+  max-height: 260px;
+  overflow: auto;
+  padding: 5px;
+  border: 1px solid var(--glass-edge);
+  border-radius: 12px;
+  box-shadow: var(--shadow-md);
+  color: var(--ink);
+}
+.brush-preset-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 34px;
+  gap: 4px;
+  align-items: center;
+  border-radius: 8px;
+}
+.brush-preset-row + .brush-preset-row {
+  margin-top: 3px;
+}
+.brush-preset-row button {
+  min-height: 34px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  cursor: pointer;
+}
+.brush-preset-choice {
+  padding: 7px 10px;
+  text-align: left;
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.brush-preset-choice:hover,
+.brush-preset-choice[aria-pressed='true'] {
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+}
+.brush-preset-remove {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  color: var(--muted);
+}
+.brush-preset-remove svg {
+  width: 15px;
+  height: 15px;
+}
+.brush-preset-remove:hover {
+  background: rgba(230, 82, 93, 0.1);
+  color: #bd2f3a;
+}
+.brush-preset-row button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+.brush-preset-empty {
+  margin: 10px 8px;
+  font-size: 12px;
+  color: var(--muted-strong);
+}
+.eraser-ink-preview {
+  pointer-events: none !important;
+}
+
+/* Use the same outlined chevron for native pickers and presets. */
+.canvas-chevron,
+.tool-chevron {
+  transition: transform 180ms ease;
+}
+.canvas-switcher-button[aria-expanded='true'] .canvas-chevron,
+.tool-button[aria-expanded='true'] .tool-chevron {
+  transform: rotate(180deg);
+}

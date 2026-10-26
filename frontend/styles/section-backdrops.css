@@ -1,0 +1,225 @@
+/* Section (画框) backdrops, painted by .section-surface: the frame's first child, covering its inner
+   (content) box, under the title bar and handles and under the items layer.
+   Paper, fabric and stone textures are baked seamless WebP tiles (scripts/build-section-backdrops.js,
+   drawn at half their pixel size), decoded once and mipmapped; the rest is gradients sized in % of
+   the frame.
+   Zoom: every length here is a plain board length, so textures, dots, rims, glows and the frosted
+   blur scale with the canvas like a real material and nothing depends on --canvas-zoom. Zooming in or
+   out therefore never moves, resizes or re-lays a pattern once it settles; mipmapping averages the
+   tiles into an even tone when zoomed far out instead of letting them shimmer.
+   The tiles are variables on the layer so the export can swap in data URLs (export-source-model.js). */
+.section-layer {
+  --backdrop-tex-grain: url('section-backdrops/grain.webp');
+  --backdrop-tex-xuan: url('section-backdrops/xuan.webp');
+  --backdrop-tex-linen: url('section-backdrops/linen.webp');
+  --backdrop-tex-marble: url('section-backdrops/marble.webp');
+}
+
+.section-surface {
+  --surface-hair: 1px;
+  --surface-grain: var(--backdrop-tex-grain) 0 0 / 128px 128px;
+  position: absolute;
+  inset: 0;
+  border-radius: 16.5px;
+  pointer-events: none;
+  contain: strict;
+}
+
+.section-frame.is-collapsed > .section-surface {
+  border-radius: 12.5px;
+}
+
+/* Inside a moulding the backdrop fills the window cut in the mat. */
+.section-frame[data-frame-style] > .section-surface {
+  inset: var(--frame-mw);
+  border-radius: 0;
+}
+
+/* In a moulding the mat is normally one padding-box fill under the window; for glass it is painted as
+   four strips so the window stays open, and the cut core and hairline become the pane's outer shadow
+   (--surface-cut, prepended to the glass rim below). */
+.section-frame:is([data-frame-backdrop='glass'], [data-frame-backdrop='frosted'])[data-frame-style] {
+  background:
+    linear-gradient(var(--frame-mat-color), var(--frame-mat-color)) top / 100% var(--frame-mw) no-repeat padding-box,
+    linear-gradient(var(--frame-mat-color), var(--frame-mat-color)) bottom / 100% var(--frame-mw) no-repeat padding-box,
+    linear-gradient(var(--frame-mat-color), var(--frame-mat-color)) left / var(--frame-mw) 100% no-repeat padding-box,
+    linear-gradient(var(--frame-mat-color), var(--frame-mat-color)) right / var(--frame-mw) 100% no-repeat padding-box,
+    var(--frame-under-top) top / 100% var(--frame-bw) no-repeat border-box,
+    var(--frame-under-bottom) bottom / 100% var(--frame-bw) no-repeat border-box,
+    var(--frame-under-left) left / var(--frame-bw) 100% no-repeat border-box,
+    var(--frame-under-right) right / var(--frame-bw) 100% no-repeat border-box;
+}
+
+.section-frame[data-frame-style] > .section-surface {
+  --surface-cut:
+    0 0 0 var(--frame-core) #fdfcf9,
+    0 0 0 calc(var(--frame-core) + min(1px, var(--frame-mw))) rgba(60, 48, 32, 0.14),;
+}
+
+/* 宣纸: warm off-white, cloudy pulp with long faint fibres, and a soft deckled vignette. */
+.section-frame[data-frame-backdrop='xuan'] > .section-surface {
+  background:
+    radial-gradient(130% 110% at 50% 42%, transparent 62%, rgba(176, 142, 92, 0.08)),
+    var(--backdrop-tex-xuan) 0 0 / 256px 256px,
+    #fbf7ed;
+}
+
+/* 点阵: cool white with a planning dot grid; dots are sized in % of the tile so they scale with it. */
+.section-frame[data-frame-backdrop='dots'] > .section-surface {
+  background:
+    radial-gradient(circle closest-side, rgba(100, 116, 139, 0.34) 0 9%, rgba(100, 116, 139, 0) 15%)
+      0 0 / 24px 24px,
+    linear-gradient(180deg, #fdfeff, #f6f8fc);
+}
+
+/* 亚麻: woven threads with slubs over a light flax tone. */
+.section-frame[data-frame-backdrop='linen'] > .section-surface {
+  background:
+    var(--backdrop-tex-linen) 0 0 / 192px 192px,
+    linear-gradient(180deg, #f6f1e8, #efe8db);
+}
+
+/* 大理石: polished cool white stone: flowing grey veins, soft clouding and a broad sheen. */
+.section-frame[data-frame-backdrop='marble'] > .section-surface {
+  background:
+    radial-gradient(120% 85% at 18% 0%, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0) 62%),
+    var(--backdrop-tex-marble) 0 0 / 512px 512px,
+    linear-gradient(160deg, #fbfbfa, #f1f2f1);
+}
+
+/* 晨雾: pastel washes placed in % of the frame, so they keep their shape at any size and zoom;
+   the grain breaks up gradient banding. */
+.section-frame[data-frame-backdrop='mist'] > .section-surface {
+  background:
+    var(--surface-grain),
+    radial-gradient(60% 70% at 10% 6%, rgba(255, 226, 236, 0.9), transparent 70%),
+    radial-gradient(55% 65% at 94% 14%, rgba(214, 231, 255, 0.95), transparent 72%),
+    radial-gradient(75% 80% at 68% 104%, rgba(214, 248, 230, 0.85), transparent 70%),
+    #f8f7fc;
+}
+
+/* Glass panes, after the usual glass-material recipe (system materials and open-source glassmorphism
+   kits): a thin body tint, a specular highlight where the light comes from (top left), one soft
+   reflection band, Fresnel brightening towards the edges (an inner glow) and a rim that catches the
+   light along the top edge. The frosted pane adds a saturating blur of what lies behind it and fine
+   grain; the clear pane has no live effect at all. */
+.section-frame:is([data-frame-backdrop='glass'], [data-frame-backdrop='frosted']) > .section-surface {
+  --glass-specular: radial-gradient(90% 70% at 0% 0%, rgba(255, 255, 255, 0.42), rgba(255, 255, 255, 0) 62%);
+  --glass-shade: radial-gradient(85% 65% at 100% 100%, rgba(100, 116, 139, 0.1), rgba(100, 116, 139, 0) 70%);
+  --glass-rim:
+    var(--surface-cut,)
+    inset 0 var(--surface-hair) 0 rgba(255, 255, 255, 0.9),
+    inset 0 0 0 var(--surface-hair) rgba(255, 255, 255, 0.38),
+    inset 0 calc(-1 * var(--surface-hair)) 0 rgba(255, 255, 255, 0.22);
+}
+
+/* Glass frames drop the solid fill and grey stroke of the plain frame for a light rim and a soft,
+   deeper shadow, like a pane standing off the canvas. */
+.section-frame:is([data-frame-backdrop='glass'], [data-frame-backdrop='frosted']):not([data-frame-style]) {
+  border-color: rgba(255, 255, 255, 0.62);
+  background: transparent;
+  box-shadow:
+    0 0 0 0.5px rgba(15, 23, 42, 0.12),
+    0 18px 44px -16px rgba(15, 23, 42, 0.24),
+    0 2px 6px rgba(15, 23, 42, 0.06);
+}
+
+/* 玻璃: clear pane; the canvas shows through almost unchanged. */
+.section-frame[data-frame-backdrop='glass'] > .section-surface {
+  background:
+    var(--glass-specular),
+    linear-gradient(115deg, transparent 0 30%, rgba(255, 255, 255, 0.2) 38%, rgba(255, 255, 255, 0.05) 47%, transparent 56%),
+    var(--glass-shade),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.36), rgba(236, 243, 250, 0.26));
+  box-shadow:
+    var(--glass-rim),
+    inset 0 0 30px rgba(255, 255, 255, 0.32);
+}
+
+/* 毛玻璃: blurs and saturates the canvas background behind the frame; content on the frame sits in
+   the items layer and stays sharp. --frost-tint is the body tint: light over the live blur, dense
+   wherever the blur is off. */
+.section-frame[data-frame-backdrop='frosted'] > .section-surface {
+  --frost-tint: rgba(255, 255, 255, 0.9), rgba(247, 249, 252, 0.84);
+  background:
+    var(--surface-grain),
+    var(--glass-specular),
+    var(--glass-shade),
+    linear-gradient(180deg, var(--frost-tint));
+  box-shadow:
+    var(--glass-rim),
+    inset 0 0 26px rgba(255, 255, 255, 0.2);
+}
+
+/* On a flat light canvas (blank, grid, paper… — background.js sets data-canvas-surface) a white
+   pane disappears: there is nothing behind it to tint, reflect or blur. The panes then carry their
+   own structure: the faint blue-green tint of real glass, a reflection band bright enough to read
+   against it, shading towards the lower edge for thickness, and a firmer outline. Frosted becomes a
+   matte, cool sheet with denser grain, which looks the same with or without the live blur. */
+:is(.viewport, .board)[data-canvas-surface='light'] .section-frame:is([data-frame-backdrop='glass'], [data-frame-backdrop='frosted']):not([data-frame-style], [data-impact-depth]) {
+  border-color: rgba(255, 255, 255, 0.9);
+  box-shadow:
+    0 0 0 1px rgba(15, 23, 42, 0.13),
+    0 18px 44px -16px rgba(15, 23, 42, 0.26),
+    0 2px 6px rgba(15, 23, 42, 0.07);
+}
+
+:is(.viewport, .board)[data-canvas-surface='light'] .section-frame[data-frame-backdrop='glass'] > .section-surface {
+  background:
+    var(--glass-specular),
+    linear-gradient(115deg, transparent 0 26%, rgba(255, 255, 255, 0.78) 34%, rgba(255, 255, 255, 0.22) 44%, transparent 54%),
+    linear-gradient(115deg, transparent 0 58%, rgba(255, 255, 255, 0.4) 61%, transparent 65%),
+    radial-gradient(85% 65% at 100% 100%, rgba(100, 116, 139, 0.16), rgba(100, 116, 139, 0) 70%),
+    linear-gradient(170deg, rgba(231, 240, 247, 0.6), rgba(212, 226, 236, 0.46));
+  box-shadow:
+    var(--glass-rim),
+    inset 0 0 30px rgba(255, 255, 255, 0.5),
+    inset 0 -14px 24px -14px rgba(71, 85, 105, 0.16);
+}
+
+:is(.viewport, .board)[data-canvas-surface='light'] .section-frame[data-frame-backdrop='frosted'] > .section-surface {
+  background:
+    var(--surface-grain),
+    var(--glass-specular),
+    radial-gradient(85% 65% at 100% 100%, rgba(100, 116, 139, 0.14), rgba(100, 116, 139, 0) 70%),
+    linear-gradient(170deg, var(--frost-tint));
+  box-shadow:
+    var(--glass-rim),
+    inset 0 0 26px rgba(255, 255, 255, 0.55),
+    inset 0 -14px 24px -14px rgba(71, 85, 105, 0.12);
+}
+
+@supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .section-frame[data-frame-backdrop='frosted'] > .section-surface {
+    --frost-tint: rgba(255, 255, 255, 0.5), rgba(248, 250, 253, 0.38);
+    -webkit-backdrop-filter: blur(22px) saturate(1.7) brightness(1.05);
+    backdrop-filter: blur(22px) saturate(1.7) brightness(1.05);
+  }
+
+  /* The dense tint stands in for the live blur on dense viewports (whose board is composited as one
+     cached layer while moving), during the connector impact highlight (its filter and opacity on the
+     frame cut the pane off from the canvas anyway), in exports (the canvas background is drawn
+     separately, so there is nothing behind the pane to blur) and for reduced transparency. It is
+     never switched per gesture: swapping blur and tint at every pan would flash. */
+  .viewport:is([data-render-tier='large'], [data-render-tier='extreme'], [data-impact-phase='intro'], [data-impact-phase='ready'])
+    .section-frame[data-frame-backdrop='frosted'] > .section-surface,
+  .board[data-export='true'] .section-frame[data-frame-backdrop='frosted'] > .section-surface {
+    --frost-tint: rgba(255, 255, 255, 0.9), rgba(247, 249, 252, 0.84);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+
+  @media (prefers-reduced-transparency: reduce) {
+    .section-frame[data-frame-backdrop='frosted'] > .section-surface {
+      --frost-tint: rgba(255, 255, 255, 0.9), rgba(247, 249, 252, 0.84);
+      -webkit-backdrop-filter: none;
+      backdrop-filter: none;
+    }
+  }
+}
+
+/* Declared last so it holds with or without the live blur: over a flat light canvas the two look the
+   same, so switching between them (dense viewports, export) never flashes. */
+:is(.viewport, .board)[data-canvas-surface='light'] .section-frame[data-frame-backdrop='frosted'] > .section-surface {
+  --frost-tint: rgba(244, 247, 251, 0.8), rgba(229, 236, 244, 0.72);
+}

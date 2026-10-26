@@ -1,0 +1,100 @@
+/* One visual language for status, conflicts and recovery. */
+#syncIssueButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex-shrink: 0;
+  min-height: 26px;
+  padding: 3px 8px;
+  border: 1px solid color-mix(in srgb, var(--warning) 25%, var(--line));
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--warning) 10%, var(--surface-strong));
+  color: var(--muted-strong);
+  font: 550 11px/1.4 var(--font-ui);
+  cursor: pointer;
+}
+#syncIssueButton[hidden] { display: none; }
+#syncIssueButton::before { content: ''; width: 5px; height: 5px; border-radius: 50%; background: var(--warning); }
+#syncIssueButton:hover { border-color: var(--warning); color: var(--ink); }
+
+.sync-dialog {
+  --sync-tone: var(--accent-strong);
+  --sync-tone-soft: var(--accent-soft);
+  width: min(440px, calc(100vw - 32px));
+  max-height: calc(100dvh - 40px);
+  margin: auto;
+  padding: 20px;
+  overflow: auto;
+  overscroll-behavior: contain;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--surface-strong);
+  color: var(--ink);
+  box-shadow: var(--shadow-lg);
+  font: 400 13px/1.6 var(--font-ui);
+}
+.sync-dialog::backdrop { background: rgba(20, 23, 31, .27); backdrop-filter: blur(3px); }
+.sync-dialog[data-tone=warning] { --sync-tone: color-mix(in srgb, var(--warning) 65%, var(--ink)); --sync-tone-soft: color-mix(in srgb, var(--warning) 11%, var(--surface-muted)); }
+.sync-dialog[data-tone=danger] { --sync-tone: var(--danger); --sync-tone-soft: color-mix(in srgb, var(--danger) 9%, var(--surface-muted)); }
+.sync-dialog[data-tone=success] { --sync-tone: color-mix(in srgb, var(--success) 70%, var(--ink)); --sync-tone-soft: color-mix(in srgb, var(--success) 9%, var(--surface-muted)); }
+.sync-dialog-header { display: flex; align-items: center; gap: 10px; }
+.sync-dialog-icon { display: grid; place-items: center; flex: 0 0 36px; width: 36px; height: 36px; border-radius: 10px; background: var(--sync-tone-soft); color: var(--sync-tone); }
+.sync-dialog-icon svg { width: 19px; height: 19px; }
+.sync-dialog-heading { flex: 1; min-width: 0; }
+.sync-dialog-eyebrow { display: block; color: var(--muted); font-size: 10px; line-height: 1.4; margin-bottom: 2px; }
+.sync-dialog h2 { margin: 0; font-size: 15px; font-weight: 650; line-height: 1.4; letter-spacing: -.01em; }
+.sync-dialog form { margin: 0; }
+.sync-dialog p { overflow-wrap: anywhere; }
+.sync-dialog .sync-description { margin: 14px 0 12px; color: var(--muted-strong); font-size: 12px; line-height: 1.7; }
+.sync-dialog .sync-safety { display: flex; align-items: baseline; gap: 7px; margin: 0; padding: 9px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface-muted); color: var(--muted-strong); font-size: 11px; line-height: 1.6; }
+.sync-dialog .sync-safety::before { content: ''; flex: 0 0 5px; width: 5px; height: 5px; border-radius: 50%; background: var(--sync-tone); }
+.sync-dialog button { min-height: 36px; padding: 7px 12px; border: 1px solid var(--line); border-radius: 8px; background: transparent; color: var(--ink); font: 550 12px/1.5 var(--font-ui); cursor: pointer; transition: background-color 120ms, border-color 120ms, color 120ms; }
+.sync-dialog button:hover:not(:disabled) { background: var(--surface-muted); border-color: var(--line-strong); }
+.sync-dialog button:disabled { opacity: .5; cursor: wait; }
+.sync-dialog :is(button, summary, select):focus-visible, #syncIssueButton:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.sync-dialog .sync-close { display: grid; place-items: center; flex: 0 0 28px; width: 28px; height: 28px; min-height: 28px; padding: 0; border: 0; border-radius: 7px; color: var(--muted); font-size: 22px; font-weight: 400; line-height: 1; }
+.sync-dialog-actions { display: flex; align-items: center; justify-content: flex-end; gap: 8px; margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--line); }
+.sync-dialog-actions .sync-primary { flex: 0 0 112px; min-width: 112px; }
+.sync-dialog .sync-primary { background: var(--accent); border-color: transparent; color: var(--t-accent-ink, #fff); }
+.sync-dialog .sync-primary:hover:not(:disabled) { background: var(--accent-strong); border-color: transparent; }
+.sync-dialog .sync-discard { flex: 1; margin-right: auto; color: var(--muted-strong); }
+.sync-dialog .sync-discard:hover:not(:disabled) { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 30%, var(--line)); background: color-mix(in srgb, var(--danger) 5%, var(--surface-strong)); }
+.sync-details { margin-top: 12px; color: var(--muted); font-size: 11px; }
+.sync-details summary { display: flex; align-items: center; gap: 5px; width: fit-content; cursor: pointer; list-style: none; }
+.sync-details summary::-webkit-details-marker { display: none; }
+.sync-details summary::before { content: ''; width: 5px; height: 5px; border-right: 1px solid currentColor; border-bottom: 1px solid currentColor; transform: rotate(-45deg); margin-right: 3px; }
+.sync-details[open] summary::before { transform: rotate(45deg); }
+.sync-details p { max-height: 100px; margin: 8px 0 0; padding: 8px 10px; overflow: auto; border-radius: 7px; background: var(--surface-muted); color: var(--muted-strong); font: 11px/1.65 ui-monospace, SFMono-Regular, Consolas, monospace; }
+.sync-feedback { margin: 10px 0 0; color: var(--muted-strong); font-size: 11px; line-height: 1.6; }
+.sync-feedback:empty { display: none; }
+.sync-dialog[aria-busy=true] .sync-feedback { color: var(--sync-tone); }
+#syncImageRecovery { margin-top: 12px; }
+#syncImageLabel { color: var(--muted); font-size: 11px; }
+#syncFailedImage { display: block; width: 100%; min-height: 36px; margin-top: 5px; padding: 7px 10px; border: 1px solid var(--line-strong); border-radius: 8px; background: var(--surface-muted); color: var(--ink); font: 12px/1.5 var(--font-ui); }
+.board-lock-notice { max-width: min(560px, calc(100% - 32px)); margin: 10px auto; padding: 8px 12px; border: 1px solid var(--line); border-radius: 9px; background: var(--surface-strong); color: var(--muted-strong); box-shadow: var(--shadow-sm); font: 12px/1.5 var(--font-ui); text-align: center; }
+.sync-confirm-overlay { background: rgba(20, 23, 31, .27); backdrop-filter: blur(3px); }
+.sync-confirm-overlay .canvas-dialog-card { width: min(440px, 100%); gap: 16px; padding: 20px; border: 1px solid var(--line); border-radius: 16px; background: var(--surface-strong); color: var(--ink); box-shadow: var(--shadow-lg); }
+.sync-confirm-overlay .canvas-dialog-heading { align-items: flex-start; gap: 10px; }
+.sync-confirm-overlay .canvas-dialog-icon { width: 36px; height: 36px; border-radius: 10px; }
+.sync-confirm-overlay .canvas-dialog-icon svg { width: 19px; height: 19px; }
+.sync-confirm-overlay .canvas-dialog-heading h2 { margin-bottom: 7px; font-size: 15px; font-weight: 650; line-height: 1.4; }
+.sync-confirm-overlay .canvas-dialog-heading p { color: var(--muted-strong); font-size: 12px; line-height: 1.7; }
+.sync-confirm-overlay .canvas-dialog-actions { justify-content: flex-end; gap: 8px; padding-top: 14px; border-top: 1px solid var(--line); }
+.sync-confirm-overlay .canvas-dialog-actions button { flex: 0 0 112px; width: 112px; height: 36px; min-height: 36px; padding: 7px 12px; border: 1px solid var(--line); border-radius: 8px; background: transparent; color: var(--ink); font: 550 12px/1.5 var(--font-ui); }
+.sync-confirm-overlay .canvas-dialog-actions button.danger { border-color: transparent; background: var(--danger); color: #fff; }
+@media (max-width: 460px) {
+  .sync-dialog { padding: 18px; }
+  .sync-dialog-actions { flex-direction: column-reverse; align-items: stretch; gap: 7px; }
+  .sync-dialog-actions button { width: 100%; min-height: 40px; }
+  .sync-dialog-actions :is(.sync-primary, .sync-discard) { flex: none; }
+  .sync-dialog .sync-discard { margin-right: 0; }
+  .sync-confirm-overlay .canvas-dialog-card { padding: 18px; }
+  .sync-confirm-overlay .canvas-dialog-actions { flex-direction: column-reverse; }
+  .sync-confirm-overlay .canvas-dialog-actions button { flex: none; width: 100%; height: 40px; min-height: 40px; }
+}
+@media (pointer: coarse) {
+  .sync-dialog button, #syncFailedImage { min-height: 44px; }
+  .sync-dialog .sync-close { flex-basis: 44px; width: 44px; height: 44px; }
+  .sync-confirm-overlay .canvas-dialog-actions button { min-height: 44px; }
+}
+@media (prefers-reduced-motion: reduce) { .sync-dialog button { transition: none; } }

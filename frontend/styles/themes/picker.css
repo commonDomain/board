@@ -1,0 +1,114 @@
+/* Theme picker. Unscoped so it also renders correctly while Classic is active. */
+.theme-menu {
+  width: 340px;
+  max-width: calc(100vw - 32px);
+  padding: 14px;
+  color: #171922;
+}
+.theme-menu-heading { display: grid; gap: 3px; padding: 2px 4px 12px; }
+.theme-menu-heading strong { font-size: 14px; font-weight: 650; letter-spacing: 0.01em; }
+.theme-menu-scope { color: #6d7380; font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; }
+.theme-menu-list { display: grid; gap: 6px; }
+.theme-option {
+  display: grid;
+  grid-template-columns: 76px minmax(0, 1fr) 18px;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 60px;
+  padding: 6px 10px 6px 6px;
+  border: 1px solid rgba(19, 26, 43, 0.1);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.7);
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 120ms ease, background-color 120ms ease;
+}
+.theme-option:hover { border-color: rgba(19, 26, 43, 0.22); background: #fff; }
+.theme-option[aria-checked='true'] { border-color: currentColor; background: #fff; box-shadow: inset 0 0 0 1px currentColor; }
+.theme-option:focus-visible { outline: 2px solid #5744eb; outline-offset: 2px; }
+.theme-option-copy { display: grid; gap: 2px; min-width: 0; }
+.theme-option-copy strong { font-size: 13px; font-weight: 600; }
+.theme-option-copy small { color: #6d7380; font-size: 11.5px; line-height: 1.4; }
+.theme-option-check { width: 16px; height: 16px; opacity: 0; transition: opacity 120ms ease; }
+.theme-option[aria-checked='true'] .theme-option-check { opacity: 1; }
+.theme-menu-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 12px;
+  padding: 10px 4px 0;
+  border-top: 1px solid rgba(19, 26, 43, 0.1);
+}
+.theme-menu-note { min-width: 0; color: #6d7380; font-size: 11.5px; line-height: 1.45; }
+.theme-default-button {
+  flex: none;
+  min-height: 32px;
+  padding: 0 10px;
+  border: 1px solid rgba(19, 26, 43, 0.16);
+  border-radius: 7px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.theme-default-button:hover:not(:disabled) { background: rgba(31, 38, 56, 0.06); }
+.theme-default-button:disabled { opacity: 0.45; cursor: default; }
+
+/* Miniature of each theme: top bar, tool dock, a card on paper, an accent mark. */
+.theme-preview {
+  position: relative;
+  display: block;
+  width: 76px;
+  height: 48px;
+  overflow: hidden;
+  border-radius: 6px;
+  background: var(--pv-app);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.08);
+}
+.theme-preview > span { position: absolute; display: block; }
+.tp-bar { top: 5px; right: 5px; left: 22px; height: 7px; border-radius: var(--pv-r); background: var(--pv-surface); box-shadow: 0 0 0 1px var(--pv-line); }
+.tp-dock { top: 5px; bottom: 5px; left: 5px; width: 12px; border-radius: var(--pv-r); background: var(--pv-dock); box-shadow: 0 0 0 1px var(--pv-line); }
+.tp-card { top: 18px; left: 25px; width: 28px; height: 20px; border-radius: var(--pv-r); background: var(--pv-surface); box-shadow: 0 0 0 1px var(--pv-line); }
+.tp-mark { top: 8px; left: 7px; width: 8px; height: 6px; border-radius: 2px; background: var(--pv-accent); }
+.tp-card::after { content: ''; position: absolute; left: 4px; right: 8px; bottom: 5px; height: 2px; border-radius: 2px; background: var(--pv-ink); opacity: 0.5; }
+
+[data-preview-theme=classic] { --pv-app: #eef0f5; --pv-surface: rgba(255, 255, 255, 0.92); --pv-dock: #2c2f3f; --pv-line: rgba(255, 255, 255, 0.6); --pv-accent: #7a69ff; --pv-ink: #171922; --pv-r: 4px; }
+[data-preview-theme=paper] { --pv-app: #f3efe5; --pv-surface: #fffefb; --pv-dock: #fffefb; --pv-line: rgba(31, 42, 68, 0.16); --pv-accent: #f5d547; --pv-ink: #1f2a44; --pv-r: 2px; }
+[data-preview-theme=focus] { --pv-app: #f4f4f5; --pv-surface: #fff; --pv-dock: #fff; --pv-line: rgba(24, 24, 27, 0.12); --pv-accent: #18181b; --pv-ink: #18181b; --pv-r: 4px; }
+[data-preview-theme=focus] .tp-bar { left: 5px; right: auto; width: 22px; }
+[data-preview-theme=focus] .tp-dock { top: auto; bottom: 5px; left: 20px; width: 36px; height: 8px; }
+[data-preview-theme=focus] .tp-mark { top: auto; bottom: 7px; left: 23px; width: 6px; height: 4px; }
+[data-preview-theme=focus] .tp-card { top: 16px; left: 24px; height: 18px; }
+[data-preview-theme=workbench] { --pv-app: #ffffff; --pv-surface: #f1f3f6; --pv-dock: #f1f3f6; --pv-line: #cfd4db; --pv-accent: #2563eb; --pv-ink: #1f2329; --pv-r: 0; }
+[data-preview-theme=workbench] .tp-bar { top: 0; left: 0; right: 0; height: 8px; }
+[data-preview-theme=workbench] .tp-dock { top: 8px; bottom: 0; left: 0; width: 13px; }
+[data-preview-theme=workbench] .tp-mark { top: 11px; left: 3px; width: 7px; height: 5px; }
+[data-preview-theme=workbench] .tp-card { top: auto; bottom: 0; left: 13px; right: 0; width: auto; height: 5px; background: var(--pv-surface); }
+[data-preview-theme=workbench] .tp-card::after { display: none; }
+[data-preview-theme=night] { --pv-app: #111214; --pv-surface: #25262a; --pv-dock: #1d1e21; --pv-line: rgba(255, 244, 228, 0.1); --pv-accent: #e3a857; --pv-ink: #ece7df; --pv-r: 3px; }
+
+/* Picker inside studio themes follows the active palette. */
+:root[data-ui=studio] .theme-menu { color: var(--t-ink); }
+:root[data-ui=studio] .theme-menu-scope,
+:root[data-ui=studio] .theme-option-copy small,
+:root[data-ui=studio] .theme-menu-note { color: var(--t-ink-3); }
+:root[data-ui=studio] .theme-option { border-color: var(--t-line); border-radius: var(--t-r2); background: transparent; }
+:root[data-ui=studio] .theme-option:hover { border-color: var(--t-line-strong); background: var(--t-hover); }
+:root[data-ui=studio] .theme-option[aria-checked='true'] { border-color: var(--t-ink); background: var(--t-raised); box-shadow: inset 0 0 0 1px var(--t-ink); }
+:root[data-ui=studio] .theme-option:focus-visible { outline-color: var(--t-focus); }
+:root[data-ui=studio] .theme-preview { border-radius: var(--t-r1); }
+:root[data-ui=studio] .theme-menu-footer { border-top-color: var(--t-line); }
+:root[data-ui=studio] .theme-default-button { border-color: var(--t-line-strong); border-radius: var(--t-r2); }
+:root[data-ui=studio] .theme-default-button:hover:not(:disabled) { background: var(--t-hover); }
+
+@media (pointer: coarse) {
+  .theme-option { min-height: 64px; }
+  .theme-default-button { min-height: 44px; }
+}
+.theme-menu-hint { margin: 10px 4px 0; color: #6d7380; font-size: 11.5px; line-height: 1.5; }
+:root[data-ui=studio] .theme-menu-hint { color: var(--t-ink-3); }

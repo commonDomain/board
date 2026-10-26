@@ -1,0 +1,307 @@
+/* ---------- Shared shell: opaque surfaces, hairlines, one restrained accent ---------- */
+:root[data-ui=studio] body { background: var(--t-app); color: var(--t-ink); }
+
+:root[data-ui=studio] :is(
+  .document-bar, .tool-dock, .tool-popover, .canvas-menu, .canvas-preview-card, .context-panel,
+  .context-menu, .navigator-panel, .arrange-bar, .search-command, .canvas-dialog-card,
+  .export-preview-card, .account-card, .account-menu, .brush-preset-menu, .floating-format-bar,
+  .floating-select-menu, .floating-menu-subpanel, .floating-color-palette, .floating-custom-color-picker,
+  .floating-advanced-panel, .touch-actions, .planning-panel, .canvas-chat, .chat-member-list, .chat-read-popover
+) {
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+:root[data-ui=studio] :is(.search-overlay, .canvas-dialog-overlay, .export-preview-overlay, .account-overlay) {
+  background: var(--t-scrim);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+:root[data-ui=studio] dialog::backdrop { background: var(--t-scrim); backdrop-filter: none; -webkit-backdrop-filter: none; }
+
+:root[data-ui=studio] :is(button, select, input, textarea, summary):focus-visible {
+  outline: 2px solid var(--t-focus);
+  outline-offset: 2px;
+}
+:root[data-ui=studio] :is(output, .zoom-percent-value, #presenceText, #canvasCount) { font-variant-numeric: tabular-nums; }
+
+/* ---------- Top document bar ---------- */
+:root[data-ui=studio] .document-bar {
+  min-height: 52px;
+  gap: 6px;
+  padding: 6px;
+  border: 1px solid var(--t-line);
+  border-radius: var(--t-r3);
+  background: var(--t-surface);
+  box-shadow: var(--t-shadow-1);
+}
+:root[data-ui=studio] .document-bar.is-collapsed { width: 40px; min-height: 40px; padding: 2px; border-radius: var(--t-r3); }
+:root[data-ui=studio] .document-bar-toggle {
+  width: 32px; height: 32px; flex-basis: 32px;
+  border: 1px solid transparent; border-radius: var(--t-r2);
+  background: transparent; box-shadow: none; color: var(--t-ink-2);
+  backdrop-filter: none; -webkit-backdrop-filter: none;
+}
+:root[data-ui=studio] .document-bar-toggle:hover { background: var(--t-hover); color: var(--t-ink); transform: none; border-color: transparent; box-shadow: none; }
+
+:root[data-ui=studio] :is(.canvas-switcher-button, .new-canvas-button) {
+  height: 38px;
+  border: 1px solid transparent;
+  border-radius: var(--t-r2);
+  background: transparent;
+  color: var(--t-ink);
+  font-size: 13px;
+  font-weight: 600;
+  transition: background-color var(--t-dur-1) var(--t-ease), border-color var(--t-dur-1) var(--t-ease);
+}
+:root[data-ui=studio] .canvas-switcher-button { background: var(--t-sunken); border-color: var(--t-line); }
+:root[data-ui=studio] .new-canvas-button { color: var(--t-ink-2); font-weight: 500; }
+:root[data-ui=studio] :is(.canvas-switcher-button, .new-canvas-button):hover { background: var(--t-hover); border-color: var(--t-line); }
+:root[data-ui=studio] .canvas-switcher-button .canvas-chevron { color: var(--t-ink-3); }
+
+:root[data-ui=studio] .workspace-mode-switch {
+  padding: 2px;
+  gap: 2px;
+  border: 1px solid var(--t-line);
+  border-radius: var(--t-r2);
+  background: var(--t-sunken);
+  box-shadow: none;
+}
+:root[data-ui=studio] .workspace-mode-switch button {
+  min-height: 32px;
+  padding: 4px 10px;
+  border: 0;
+  border-radius: calc(var(--t-r2) - 2px);
+  background: transparent;
+  color: var(--t-ink-2);
+  font-size: 13px;
+  font-weight: 500;
+  box-shadow: none;
+}
+:root[data-ui=studio] .workspace-mode-switch button[aria-pressed=true] {
+  background: var(--t-raised);
+  color: var(--t-ink);
+  font-weight: 600;
+  box-shadow: 0 0 0 1px var(--t-line), 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+
+:root[data-ui=studio] .status { gap: 2px; padding: 0 6px; border: 0; background: transparent; box-shadow: none; }
+:root[data-ui=studio] :is(.connection-chip, .presence-chip, .save-state) {
+  height: 28px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: var(--t-r1);
+  background: transparent;
+  box-shadow: none;
+  color: var(--t-ink-2);
+  font-size: 12px;
+  font-weight: 500;
+}
+:root[data-ui=studio] .presence-chip { font-family: var(--t-font-num); font-size: 11.5px; }
+:root[data-ui=studio] .save-state { color: var(--t-ink-3); }
+:root[data-ui=studio] .status-dot { box-shadow: none; }
+:root[data-ui=studio] .status-dot.online { background: var(--t-success); }
+:root[data-ui=studio] .status-dot.offline { background: var(--t-danger); }
+
+:root[data-ui=studio] .action-divider { width: 1px; height: 20px; background: var(--t-line); opacity: 1; }
+:root[data-ui=studio] .action-button {
+  height: 38px;
+  min-width: 38px;
+  gap: 6px;
+  padding: 0 10px;
+  border: 1px solid transparent;
+  border-radius: var(--t-r2);
+  background: transparent;
+  box-shadow: none;
+  color: var(--t-ink-2);
+  font-size: 12.5px;
+  font-weight: 500;
+  transition: background-color var(--t-dur-1) var(--t-ease), color var(--t-dur-1) var(--t-ease), border-color var(--t-dur-1) var(--t-ease);
+}
+:root[data-ui=studio] .action-button:hover { background: var(--t-hover); border-color: transparent; color: var(--t-ink); box-shadow: none; transform: none; }
+:root[data-ui=studio] .action-button:active { background: var(--t-press); }
+:root[data-ui=studio] .action-button:disabled,
+:root[data-ui=studio] .action-button.disabled { color: var(--t-ink-3); opacity: 0.6; background: transparent; }
+:root[data-ui=studio] .action-button.primary {
+  border-color: transparent;
+  background: var(--t-accent);
+  color: var(--t-accent-ink);
+  font-weight: 600;
+  box-shadow: none;
+}
+:root[data-ui=studio] .action-button.primary:hover { background: var(--t-accent-strong); color: var(--t-accent-ink); box-shadow: none; }
+:root[data-ui=studio] .action-button.primary:active { transform: scale(0.97); }
+:root[data-ui=studio] :is(.muse-beam, .muse-beam-line)::before,
+:root[data-ui=studio] :is(.muse-beam, .muse-beam-line)::after { display: none; }
+:root[data-ui=studio] :is(.button-orb, .status-orb, .thinking-orb) { display: none !important; }
+:root[data-ui=studio] .connection-chip.has-thinking-orb .status-dot { display: inline-block; }
+
+:root[data-ui=studio] .account-button {
+  width: 36px; height: 36px; min-width: 36px;
+  border: 1px solid var(--t-line);
+  border-radius: var(--t-r-full);
+  background: var(--t-sunken);
+  box-shadow: none;
+}
+:root[data-ui=studio] .account-button:hover { border-color: var(--t-line-strong); background: var(--t-hover); }
+:root[data-ui=studio] .account-avatar { background: transparent; color: var(--t-ink-2); box-shadow: none; }
+
+/* ---------- Left tool dock (desktop keeps labels) ---------- */
+:root[data-ui=studio] .tool-dock {
+  width: 116px;
+  padding: 8px;
+  border: 1px solid var(--t-line);
+  border-radius: var(--t-r3);
+  background: var(--t-surface);
+  box-shadow: var(--t-shadow-1);
+  color: var(--t-ink);
+}
+:root[data-ui=studio] .liquid-tool-indicator { display: none; }
+:root[data-ui=studio] .dock-section-label {
+  padding: 4px 6px 6px;
+  color: var(--t-ink-3);
+  font-family: var(--t-font-display);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: var(--t-label-tracking);
+}
+:root[data-ui=studio] .dock-group { gap: 2px; }
+:root[data-ui=studio] .dock-divider { margin: 8px 2px; background: var(--t-line); }
+:root[data-ui=studio] .tool-button {
+  min-height: 50px;
+  gap: 5px;
+  border: 1px solid transparent;
+  border-radius: var(--t-r2);
+  background: transparent;
+  box-shadow: none;
+  color: var(--t-ink-2);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  transition: background-color var(--t-dur-1) var(--t-ease), color var(--t-dur-1) var(--t-ease), border-color var(--t-dur-1) var(--t-ease);
+}
+:root[data-ui=studio] .tool-button > svg:not(.tool-chevron) { width: 19px; height: 19px; stroke-width: 1.7; }
+:root[data-ui=studio] .tool-button .tool-chevron { top: 4px; right: 3px; width: 8px; height: 8px; opacity: 0.4; }
+:root[data-ui=studio] .tool-button:hover { background: var(--t-hover); border-color: transparent; color: var(--t-ink); }
+:root[data-ui=studio] .tool-button:active { background: var(--t-press); }
+:root[data-ui=studio] .tool-button:is(.active, [aria-pressed='true'], [aria-expanded='true']) {
+  border-color: var(--t-tool-line);
+  background: var(--t-tool-bg);
+  box-shadow: none;
+  color: var(--t-tool-ink);
+}
+:root[data-ui=studio] .tool-button:is(.active, [aria-pressed='true']) .tool-label { font-weight: 600; }
+:root[data-ui=studio] .tool-button.is-unavailable { opacity: 0.42; }
+:root[data-ui=studio] .brush-status { color: inherit; }
+:root[data-ui=studio] .brush-status::before { box-shadow: 0 0 0 1px var(--t-line-strong); }
+
+:root[data-ui=studio] .dock-collapse-button {
+  width: 100%;
+  height: 32px;
+  border: 1px solid transparent;
+  border-radius: var(--t-r2);
+  background: transparent;
+  color: var(--t-ink-3);
+  box-shadow: none;
+}
+:root[data-ui=studio] .dock-collapse-button:hover { background: var(--t-hover); color: var(--t-ink); border-color: transparent; }
+:root[data-ui=studio] .dock-expand-button {
+  border: 1px solid var(--t-line);
+  border-radius: var(--t-r2);
+  background: var(--t-surface);
+  color: var(--t-ink);
+  box-shadow: var(--t-shadow-2);
+}
+:root[data-ui=studio] .dock-expand-button:hover { background: var(--t-raised); box-shadow: var(--t-shadow-2); }
+
+/* Labels toggle is a tablet-only control; hidden everywhere else. */
+.dock-labels-toggle { display: none; }
+
+/* ---------- Zoom controls ---------- */
+:root[data-ui=studio] .canvas-view-controls {
+  --canvas-control-glass: var(--t-surface);
+  --canvas-control-shadow: var(--t-shadow-1);
+  gap: 6px;
+}
+:root[data-ui=studio] :is(.canvas-zoom-controls, .canvas-fit-view, .canvas-view-button) {
+  border: 1px solid var(--t-line);
+  background: var(--t-surface);
+  box-shadow: var(--t-shadow-1);
+}
+:root[data-ui=studio] .canvas-zoom-controls { height: 36px; grid-template-columns: 36px 116px 36px; border-radius: var(--t-r3); }
+:root[data-ui=studio] :is(.canvas-zoom-controls button, .canvas-fit-view, .canvas-view-button) { color: var(--t-ink-2); }
+:root[data-ui=studio] .canvas-zoom-controls button:hover,
+:root[data-ui=studio] :is(.canvas-fit-view, .canvas-view-button):hover { background: var(--t-hover); color: var(--t-ink); transform: none; box-shadow: var(--t-shadow-1); }
+:root[data-ui=studio] .canvas-fit-view { width: 36px; height: 36px; border-radius: var(--t-r3); }
+:root[data-ui=studio] .zoom-slider-control { border-inline: 1px solid var(--t-line); background: transparent; }
+:root[data-ui=studio] .zoom-percent-value { color: var(--t-ink); font-family: var(--t-font-num); font-size: 11.5px; font-weight: 500; }
+:root[data-ui=studio] .canvas-view-button:is(.active, [aria-pressed='true']) { border-color: var(--t-accent-line); background: var(--t-accent-soft); color: var(--t-accent); box-shadow: none; }
+
+:root[data-ui=studio] input[type='range'] { accent-color: var(--t-accent); }
+:root[data-ui=studio] #canvasZoomSlider { accent-color: var(--t-ink); }
+
+/* ---------- Tooltip and toast ---------- */
+:root[data-ui=studio] .muse-tooltip {
+  border: 0;
+  border-radius: var(--t-r1);
+  background: var(--t-ink);
+  color: var(--t-surface);
+  box-shadow: var(--t-shadow-2);
+  font-size: 12px;
+  font-weight: 500;
+}
+:root[data-ui=studio] .muse-tooltip kbd,
+:root[data-ui=studio] .muse-tooltip-reason { color: color-mix(in srgb, var(--t-surface) 68%, transparent); font-family: var(--t-font-num); font-size: 11px; }
+:root[data-theme=night] .muse-tooltip { background: #f1ece4; color: #1d1e21; }
+:root[data-ui=studio] .toast {
+  border: 0;
+  border-radius: var(--t-r2);
+  background: var(--t-ink);
+  color: var(--t-surface);
+  box-shadow: var(--t-shadow-3);
+  font-size: 12.5px;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  animation: studio-toast-in var(--t-dur-3) var(--t-ease);
+}
+:root[data-theme=night] .toast { background: #f1ece4; color: #1d1e21; }
+@keyframes studio-toast-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+/* ---------- Empty canvas ---------- */
+:root[data-ui=studio] .canvas-start-card {
+  border: 1px solid var(--t-line);
+  border-radius: var(--t-r3);
+  background: var(--t-surface);
+  box-shadow: var(--t-shadow-2);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+:root[data-ui=studio] .canvas-start-icon {
+  border: 1px solid var(--t-line);
+  border-radius: var(--t-r2);
+  background: var(--t-sunken);
+  color: var(--t-ink);
+  box-shadow: none;
+}
+:root[data-ui=studio] .canvas-start-eyebrow { color: var(--t-ink-3); font-family: var(--t-font-display); letter-spacing: var(--t-label-tracking); font-weight: 600; }
+:root[data-ui=studio] .canvas-start-copy h2 { color: var(--t-ink); font-weight: 650; letter-spacing: -0.01em; }
+:root[data-ui=studio] .canvas-start-copy p { color: var(--t-ink-2); }
+:root[data-ui=studio] .canvas-start-action {
+  border: 1px solid var(--t-line);
+  border-radius: var(--t-r2);
+  background: var(--t-surface);
+  color: var(--t-ink);
+  box-shadow: none;
+}
+:root[data-ui=studio] .canvas-start-action:hover { background: var(--t-hover); border-color: var(--t-line-strong); transform: none; box-shadow: none; }
+:root[data-ui=studio] .canvas-start-action.primary { border-color: transparent; background: var(--t-accent); color: var(--t-accent-ink); }
+:root[data-ui=studio] .canvas-start-action.primary:hover { background: var(--t-accent-strong); }
+:root[data-ui=studio] .canvas-start-shortcuts kbd {
+  border: 1px solid var(--t-line-strong);
+  border-bottom-width: 2px;
+  border-radius: var(--t-r1);
+  background: var(--t-surface);
+  color: var(--t-ink-2);
+  font-family: var(--t-font-num);
+  box-shadow: none;
+}
+

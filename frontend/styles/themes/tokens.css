@@ -1,0 +1,232 @@
+/*
+ * Studio themes. Classic keeps the original stylesheet untouched; every rule
+ * here is scoped to :root[data-ui=studio] and a palette below.
+ *
+ * --t-* tokens are the theme contract. Foundation variables are remapped to
+ * them so existing components that already use variables follow automatically.
+ */
+:root[data-ui=studio] {
+  --t-r1: 3px;
+  --t-r2: 6px;
+  --t-r3: 9px;
+  --t-r-full: 999px;
+  --t-ease: cubic-bezier(0.23, 1, 0.32, 1);
+  --t-ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+  --t-dur-1: 110ms;
+  --t-dur-2: 170ms;
+  --t-dur-3: 230ms;
+  --t-font-ui: Inter, 'Noto Sans SC', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'HarmonyOS Sans SC', 'Microsoft YaHei UI', 'Microsoft YaHei', 'Source Han Sans SC', 'Noto Sans CJK SC', sans-serif;
+  --t-font-num: ui-monospace, 'SF Mono', 'JetBrains Mono', 'Cascadia Mono', Consolas, 'Microsoft YaHei', monospace;
+  --t-font-display: var(--t-font-ui);
+  --t-label-tracking: 0.08em;
+  --t-scrim: rgba(18, 20, 24, 0.32);
+
+  --font-ui: var(--t-font-ui);
+  --canvas-bg: var(--t-app);
+  --surface: var(--t-surface);
+  --surface-strong: var(--t-surface);
+  --surface-muted: var(--t-sunken);
+  --surface-dark: var(--t-ink);
+  --surface-dark-strong: var(--t-ink);
+  --line: var(--t-line);
+  --line-strong: var(--t-line-strong);
+  --ink: var(--t-ink);
+  --muted: var(--t-ink-3);
+  --muted-strong: var(--t-ink-2);
+  --accent: var(--t-accent);
+  --accent-strong: var(--t-accent-strong);
+  --accent-soft: var(--t-accent-soft);
+  --accent-glow: transparent;
+  --select: var(--t-select);
+  --danger: var(--t-danger);
+  --success: var(--t-success);
+  --warning: var(--t-warning);
+  --control-fast: var(--t-dur-1);
+  --control-hover: var(--t-hover);
+  --control-line: var(--t-line-strong);
+  --radius-xs: var(--t-r1);
+  --radius-sm: var(--t-r2);
+  --radius-md: var(--t-r2);
+  --radius-lg: var(--t-r3);
+  --radius-xl: var(--t-r3);
+  --shadow-sm: var(--t-shadow-1);
+  --shadow-md: var(--t-shadow-2);
+  --shadow-lg: var(--t-shadow-3);
+  --glass-filter: none;
+  --glass-light: var(--t-surface);
+  --glass-edge: var(--t-line);
+
+  --nt-bg: var(--t-app);
+  --nt-surface: var(--t-surface);
+  --nt-subtle: var(--t-sunken);
+  --nt-hover: var(--t-hover);
+  --nt-line: var(--t-line);
+  --nt-control-line: var(--t-line-strong);
+  --nt-ink: var(--t-ink);
+  --nt-muted: var(--t-ink-2);
+  --nt-accent: var(--t-accent);
+  --nt-accent-hover: var(--t-accent-strong);
+  --nt-selected: var(--t-accent-soft);
+  --nt-danger: var(--t-danger);
+  --nt-radius: var(--t-r2);
+  --nt-menu-radius: var(--t-r3);
+  --nt-dialog-radius: var(--t-r3);
+  --nt-shadow-menu: var(--t-shadow-2);
+  --nt-shadow-dialog: var(--t-shadow-3);
+}
+
+/* 文具 — warm paper, blue-black ink, a highlighter for the active tool. */
+:root[data-theme=paper] {
+  color-scheme: light;
+  --t-app: #f7f5f0;
+  --t-surface: #fffefb;
+  --t-raised: #ffffff;
+  --t-sunken: #f3f0e8;
+  --t-hover: rgba(31, 42, 68, 0.055);
+  --t-press: rgba(31, 42, 68, 0.09);
+  --t-line: rgba(31, 42, 68, 0.11);
+  --t-line-strong: rgba(31, 42, 68, 0.24);
+  --t-ink: #1f2a44;
+  --t-ink-2: #4f5a72;
+  --t-ink-3: #848c9e;
+  --t-accent: #1f2a44;
+  --t-accent-strong: #121a2e;
+  --t-accent-ink: #fffdf6;
+  --t-accent-soft: rgba(44, 79, 158, 0.09);
+  --t-accent-line: rgba(44, 79, 158, 0.38);
+  --t-focus: #2c4f9e;
+  --t-select: #2c4f9e;
+  --t-select-fill: rgba(44, 79, 158, 0.07);
+  --t-tool-bg: #f5d547;
+  --t-tool-ink: #1f2a44;
+  --t-tool-line: transparent;
+  --t-highlight: #f5d547;
+  --t-danger: #c8412d;
+  --t-success: #2e7d4f;
+  --t-warning: #b7791f;
+  --t-r1: 3px;
+  --t-r2: 5px;
+  --t-r3: 8px;
+  --t-shadow-1: 0 1px 0 rgba(31, 42, 68, 0.04), 0 1px 3px rgba(31, 42, 68, 0.07);
+  --t-shadow-2: 0 0 0 1px rgba(31, 42, 68, 0.06), 0 2px 4px rgba(31, 42, 68, 0.05), 0 12px 28px -10px rgba(31, 42, 68, 0.2);
+  --t-shadow-3: 0 0 0 1px rgba(31, 42, 68, 0.07), 0 4px 10px rgba(31, 42, 68, 0.06), 0 28px 60px -18px rgba(31, 42, 68, 0.32);
+  --t-label-tracking: 0.14em;
+  --t-scrim: rgba(31, 42, 68, 0.26);
+}
+
+/* 专注 — monochrome islands: white, near-black ink, nothing competes with the canvas. */
+:root[data-theme=focus] {
+  color-scheme: light;
+  --t-app: #fafafa;
+  --t-surface: #ffffff;
+  --t-raised: #ffffff;
+  --t-sunken: #f4f4f5;
+  --t-hover: #f1f1f2;
+  --t-press: #e7e7e9;
+  --t-line: #e7e7e9;
+  --t-line-strong: #c9c9ce;
+  --t-ink: #18181b;
+  --t-ink-2: #52525b;
+  --t-ink-3: #8e8e96;
+  --t-accent: #18181b;
+  --t-accent-strong: #000000;
+  --t-accent-ink: #ffffff;
+  --t-accent-soft: rgba(24, 24, 27, 0.06);
+  --t-accent-line: rgba(24, 24, 27, 0.3);
+  --t-focus: #2563eb;
+  --t-select: #2563eb;
+  --t-select-fill: rgba(37, 99, 235, 0.06);
+  --t-tool-bg: #18181b;
+  --t-tool-ink: #ffffff;
+  --t-tool-line: transparent;
+  --t-highlight: #18181b;
+  --t-danger: #dc2626;
+  --t-success: #16a34a;
+  --t-warning: #d97706;
+  --t-r1: 6px;
+  --t-r2: 9px;
+  --t-r3: 14px;
+  --t-shadow-1: 0 0 0 1px rgba(24, 24, 27, 0.06), 0 2px 6px rgba(24, 24, 27, 0.06), 0 10px 24px -12px rgba(24, 24, 27, 0.18);
+  --t-shadow-2: 0 0 0 1px rgba(24, 24, 27, 0.07), 0 6px 16px rgba(24, 24, 27, 0.08), 0 18px 40px -16px rgba(24, 24, 27, 0.22);
+  --t-shadow-3: 0 0 0 1px rgba(24, 24, 27, 0.08), 0 24px 64px -16px rgba(24, 24, 27, 0.3);
+  --t-label-tracking: 0.04em;
+  --t-scrim: rgba(24, 24, 27, 0.28);
+}
+
+/* 工作台 — a desktop application frame: cool greys, one working blue, dense type. */
+:root[data-theme=workbench] {
+  color-scheme: light;
+  --t-app: #e9ebef;
+  --t-surface: #f6f7f9;
+  --t-raised: #ffffff;
+  --t-sunken: #eceef2;
+  --t-hover: #e6e9ee;
+  --t-press: #dde1e7;
+  --t-line: #d9dde3;
+  --t-line-strong: #b4bac4;
+  --t-ink: #1f2329;
+  --t-ink-2: #4b535e;
+  --t-ink-3: #848b96;
+  --t-accent: #2563eb;
+  --t-accent-strong: #1d4fd8;
+  --t-accent-ink: #ffffff;
+  --t-accent-soft: rgba(37, 99, 235, 0.1);
+  --t-accent-line: rgba(37, 99, 235, 0.45);
+  --t-focus: #2563eb;
+  --t-select: #2563eb;
+  --t-select-fill: rgba(37, 99, 235, 0.06);
+  --t-tool-bg: rgba(37, 99, 235, 0.12);
+  --t-tool-ink: #1d4fd8;
+  --t-tool-line: transparent;
+  --t-highlight: #2563eb;
+  --t-danger: #d92d20;
+  --t-success: #1a7f4b;
+  --t-warning: #b54708;
+  --t-r1: 3px;
+  --t-r2: 4px;
+  --t-r3: 6px;
+  --t-shadow-1: none;
+  --t-shadow-2: 0 0 0 1px #d0d5dc, 0 8px 20px -8px rgba(20, 28, 40, 0.22);
+  --t-shadow-3: 0 0 0 1px #c3c9d1, 0 24px 56px -16px rgba(20, 28, 40, 0.34);
+  --t-font-display: var(--t-font-ui);
+  --t-label-tracking: 0.06em;
+  --t-scrim: rgba(20, 28, 40, 0.3);
+}
+
+/* 夜灯 — deep graphite shell, warm lamp-light accent. Canvas content keeps its own colours. */
+:root[data-theme=night] {
+  color-scheme: dark;
+  --t-app: #141517;
+  --t-surface: #1d1e21;
+  --t-raised: #25262a;
+  --t-sunken: #17181a;
+  --t-hover: rgba(255, 244, 228, 0.06);
+  --t-press: rgba(255, 244, 228, 0.1);
+  --t-line: rgba(255, 244, 228, 0.085);
+  --t-line-strong: rgba(255, 244, 228, 0.18);
+  --t-ink: #ece7df;
+  --t-ink-2: #aaa499;
+  --t-ink-3: #77726a;
+  --t-accent: #e3a857;
+  --t-accent-strong: #f0b96b;
+  --t-accent-ink: #1b1408;
+  --t-accent-soft: rgba(227, 168, 87, 0.13);
+  --t-accent-line: rgba(227, 168, 87, 0.42);
+  --t-focus: #e3a857;
+  --t-select: #e3a857;
+  --t-select-fill: rgba(227, 168, 87, 0.08);
+  --t-tool-bg: rgba(227, 168, 87, 0.16);
+  --t-tool-ink: #f3c27c;
+  --t-tool-line: rgba(227, 168, 87, 0.4);
+  --t-highlight: #e3a857;
+  --t-danger: #ef6b57;
+  --t-success: #62c08a;
+  --t-warning: #e3a857;
+  --t-r1: 4px;
+  --t-r2: 6px;
+  --t-r3: 10px;
+  --t-shadow-1: 0 0 0 1px rgba(0, 0, 0, 0.35), 0 1px 2px rgba(0, 0, 0, 0.3);
+  --t-shadow-2: 0 0 0 1px rgba(0, 0, 0, 0.45), 0 10px 28px -8px rgba(0, 0, 0, 0.6);
+  --t-shadow-3: 0 0 0 1px rgba(0, 0, 0, 0.5), 0 28px 64px -16px rgba(0, 0, 0, 0.72);
+  --t-scrim: rgba(6, 6, 8, 0.56);
+}

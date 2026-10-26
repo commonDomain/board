@@ -1,0 +1,201 @@
+.sheet-context-menu {
+  position: absolute;
+  z-index: 70;
+  display: flex;
+  min-width: 168px;
+  max-width: calc(100% - 8px);
+  flex-direction: column;
+  overflow: visible;
+  overscroll-behavior: contain;
+  padding: 4px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface-strong);
+  box-shadow: var(--shadow-md);
+}
+
+.sheet-context-menu[hidden] {
+  display: none;
+}
+
+.sheet-context-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 7px 10px;
+  border: 0;
+  border-radius: var(--radius-xs);
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.sheet-context-parent {
+  position: relative;
+}
+
+.sheet-context-parent > .sheet-context-item {
+  width: 100%;
+}
+
+.sheet-context-label {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+}
+
+.sheet-context-label svg,
+.sheet-context-arrow {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 auto;
+}
+
+.sheet-context-submenu {
+  position: absolute;
+  z-index: 72;
+  top: -4px;
+  left: calc(100% + 5px);
+  display: grid;
+  min-width: 218px;
+  padding: 4px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface-strong);
+  box-shadow: var(--shadow-md);
+}
+
+.sheet-context-submenu[hidden] {
+  display: none;
+}
+
+.sheet-context-menu.open-left .sheet-context-submenu {
+  right: calc(100% + 5px);
+  left: auto;
+}
+
+.sheet-context-item:hover:not(:disabled),
+.sheet-context-item:focus-visible {
+  outline: 0;
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+}
+
+.sheet-context-item:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.sheet-context-item.danger {
+  color: var(--danger);
+}
+
+.sheet-context-item.danger:hover:not(:disabled) {
+  background: rgba(230, 82, 93, 0.12);
+  color: var(--danger);
+}
+
+.sheet-context-accelerator {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.sheet-context-separator {
+  height: 1px;
+  margin: 4px 6px;
+  background: var(--line);
+}
+
+.sheet-rename-input {
+  min-width: 180px;
+  padding: 6px 8px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-xs);
+  background: var(--surface-strong);
+  color: var(--ink);
+  font: inherit;
+}
+
+/* The in-canvas preview element. */
+
+.sheet-item {
+  overflow: visible;
+  border-radius: var(--radius-sm);
+  background: var(--surface-strong);
+  box-shadow: var(--shadow-sm);
+}
+
+.sheet-item .sheet-preview {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.sheet-item .sheet-preview-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: var(--radius-sm);
+  cursor: cell;
+}
+
+.sheet-item .sheet-preview-frame {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: var(--radius-sm);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+
+.sheet-item .sheet-preview.is-search-located .sheet-preview-frame {
+  box-shadow:
+    inset 0 0 0 2px rgba(105, 87, 245, 0.72),
+    0 0 0 6px rgba(105, 87, 245, 0.12);
+}
+
+.sheet-item .sheet-preview-location {
+  position: absolute;
+  z-index: 3;
+  top: 8px;
+  right: 8px;
+  max-width: calc(100% - 16px);
+  overflow: hidden;
+  padding: 4px 8px;
+  border: 1px solid rgba(105, 87, 245, 0.3);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.94);
+  color: var(--accent-strong);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  pointer-events: none;
+  box-shadow: var(--shadow-sm);
+}
+
+.sheet-item .sheet-preview-location[hidden] {
+  display: none;
+}
+
+.sheet-item .sheet-preview-scroll {
+  position: absolute;
+  z-index: 4;
+  right: 8px;
+  bottom: 40px;
+  left: 8px;
+  height: 15px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  border: 1px solid rgba(89, 99, 118, 0.22);
+  border-radius: 8px;
+  background: rgba(245, 246, 250, 0.96);
+  scrollbar-color: rgba(89, 99, 118, 0.48) transparent;
+  scrollbar-width: thin;
+}

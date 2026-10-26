@@ -1,0 +1,248 @@
+.sheet-item .sheet-preview-scroll[hidden] {
+  display: none;
+}
+
+.sheet-item .sheet-preview-scroll-track {
+  height: 1px;
+}
+
+.sheet-item .sheet-preview-scroll::-webkit-scrollbar {
+  height: 13px;
+}
+
+.sheet-item .sheet-preview-scroll::-webkit-scrollbar-thumb {
+  border: 3px solid transparent;
+  border-radius: 999px;
+  background: rgba(89, 99, 118, 0.5);
+  background-clip: padding-box;
+}
+
+.sheet-item .sheet-item-open {
+  position: absolute;
+  z-index: 6;
+  top: 50%;
+  left: 50%;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-xs);
+  background: rgba(255, 255, 255, 0.96);
+  color: var(--ink);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  box-shadow: var(--shadow-md);
+  transform: translate(-50%, -50%);
+}
+
+.sheet-item .sheet-item-open:hover {
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+}
+
+.sheet-item .sheet-item-open svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* The sheet bar is part of the element in view mode: it shows which worksheet
+   is on screen and switches it without opening the editor. It sits above the
+   edit affordance so a long tab list never hides the button. */
+
+.sheet-item .sheet-preview-tabs {
+  position: absolute;
+  z-index: 2;
+  right: 8px;
+  bottom: 8px;
+  left: 8px;
+  display: flex;
+  height: 28px;
+  align-items: center;
+  gap: 3px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+}
+
+.sheet-item .sheet-preview-tabs[hidden] {
+  display: none;
+}
+
+.sheet-item .sheet-preview-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.sheet-item .sheet-preview-tab {
+  display: inline-flex;
+  max-width: 148px;
+  height: 26px;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 5px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.94);
+  color: var(--muted-strong);
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+  box-shadow: var(--shadow-sm);
+}
+
+.sheet-item .sheet-preview-tab:hover {
+  border-color: rgba(105, 87, 245, 0.32);
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+}
+
+.sheet-item .sheet-preview-tab:focus-visible {
+  outline: 2px solid var(--accent-glow);
+  outline-offset: 1px;
+}
+
+.sheet-item .sheet-preview-tab.is-active {
+  border-color: rgba(105, 87, 245, 0.42);
+  background: var(--surface-strong);
+  color: var(--accent-strong);
+  font-weight: 650;
+}
+
+.sheet-item .sheet-preview-tab-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 720px) {
+  .sheet-editor {
+    inset: 0;
+    width: 100vw;
+    height: 100dvh;
+    max-width: none;
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    transform: none;
+  }
+  .sheet-editor-header {
+    min-height: 54px;
+    padding: 7px 8px 7px 12px;
+  }
+  .sheet-editor-subtitle {
+    display: none;
+  }
+  .sheet-editor-save-pill {
+    max-width: 138px;
+    padding-inline: 7px;
+  }
+  .sheet-editor-header .sheet-editor-done {
+    min-width: 76px;
+    height: 44px;
+  }
+  .sheet-toolbar {
+    gap: 4px;
+    padding: 6px 0;
+    overflow: visible;
+  }
+  .sheet-toolbar-row {
+    padding-inline: 8px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scroll-snap-type: x proximity;
+    scrollbar-width: none;
+  }
+  .sheet-toolbar-row::-webkit-scrollbar {
+    display: none;
+  }
+  .sheet-toolbar-row + .sheet-toolbar-row {
+    padding-top: 4px;
+  }
+  .sheet-tool-group {
+    flex: 0 0 auto;
+    scroll-snap-align: start;
+  }
+  .sheet-toolbar .sheet-tool {
+    width: auto;
+    min-width: 44px;
+    height: 44px;
+    padding-inline: 10px;
+  }
+  .sheet-toolbar .sheet-select {
+    height: 44px;
+  }
+  .sheet-tool-labeled {
+    min-width: max-content;
+    padding-inline: 10px;
+  }
+  .sheet-select {
+    min-height: 44px;
+  }
+  .sheet-formula-bar {
+    grid-template-columns: 64px auto minmax(0, 1fr);
+    gap: 6px;
+    padding: 6px 8px;
+  }
+  .sheet-formula-feedback {
+    grid-column: 1 / -1;
+  }
+  .sheet-formula-suggestions {
+    right: 8px;
+    left: 8px;
+    max-height: min(42dvh, 320px);
+  }
+  .sheet-color-menu {
+    position: fixed;
+    top: 104px;
+    left: 8px;
+  }
+  .sheet-fill-color .sheet-color-menu {
+    left: 126px;
+  }
+  .sheet-border-menu {
+    position: fixed;
+    top: 104px;
+    right: 8px;
+    left: auto;
+  }
+  .sheet-action-menu {
+    position: fixed;
+    top: 104px;
+    right: 8px;
+    left: auto;
+    max-height: min(56dvh, 420px);
+    overflow-y: auto;
+  }
+  .sheet-reference {
+    min-width: 64px;
+  }
+  .sheet-tabs {
+    min-height: 44px;
+    padding: 5px 8px;
+  }
+  .sheet-tab {
+    min-height: 34px;
+  }
+  .sheet-status {
+    min-height: 38px;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding: 5px 9px;
+  }
+  .sheet-context-menu {
+    max-width: calc(100vw - 16px);
+    max-height: min(72dvh, 520px);
+    overflow-y: auto;
+  }
+  .sheet-context-menu:has(.sheet-context-submenu:not([hidden])) {
+    overflow: visible;
+  }
+  .sheet-context-item {
+    min-height: 42px;
+  }
+}

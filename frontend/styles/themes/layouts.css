@@ -1,0 +1,304 @@
+/*
+ * Layout themes. Paper and Night keep the classic arrangement; Focus and
+ * Workbench rearrange the same DOM. Phones keep the classic viewer layout.
+ */
+
+/* ====================================================================== */
+/* 专注 Focus — corner islands on top, core tools in a bottom island,     */
+/* creation tools in a slim column on the left, canvas left untouched.    */
+/* ====================================================================== */
+:root[data-theme=focus]:not([data-form-factor=phone]) .document-bar {
+  top: max(14px, var(--safe-top));
+  right: max(16px, var(--safe-right));
+  left: max(16px, var(--safe-left));
+  width: auto;
+  max-width: none;
+  min-height: 0;
+  justify-content: flex-start;
+  gap: 8px;
+  padding: 0;
+  border: 0;
+  background: none;
+  box-shadow: none;
+  pointer-events: none;
+}
+:root[data-theme=focus]:not([data-form-factor=phone]) .document-bar > *,
+:root[data-theme=focus]:not([data-form-factor=phone]) .document-bar-content > * { pointer-events: auto; }
+:root[data-theme=focus]:not([data-form-factor=phone]) :is(.canvas-controls, .workspace-mode-switch, .status, .toolbar-actions, .document-bar-toggle) {
+  height: 44px;
+  border: 1px solid var(--t-line);
+  border-radius: var(--t-r3);
+  background: var(--t-surface);
+  box-shadow: var(--t-shadow-1);
+}
+:root[data-theme=focus]:not([data-form-factor=phone]) .document-bar-toggle { width: 44px; flex-basis: 44px; color: var(--t-ink-2); }
+:root[data-theme=focus]:not([data-form-factor=phone]) .canvas-controls { padding: 4px; gap: 2px; }
+:root[data-theme=focus]:not([data-form-factor=phone]) .canvas-switcher-button { height: 34px; border-color: transparent; background: transparent; font-weight: 650; }
+:root[data-theme=focus]:not([data-form-factor=phone]) .new-canvas-button { height: 34px; }
+:root[data-theme=focus]:not([data-form-factor=phone]) .workspace-mode-switch { padding: 4px; border-radius: var(--t-r3); }
+:root[data-theme=focus]:not([data-form-factor=phone]) .workspace-mode-switch button { min-height: 34px; border-radius: var(--t-r2); }
+:root[data-theme=focus]:not([data-form-factor=phone]) .status { margin-inline: auto; padding: 0 10px; }
+:root[data-theme=focus]:not([data-form-factor=phone]) .toolbar-actions { padding: 4px; gap: 2px; }
+:root[data-theme=focus]:not([data-form-factor=phone]) .toolbar-actions .action-button { height: 34px; }
+:root[data-theme=focus]:not([data-form-factor=phone]) .account-button { width: 34px; height: 34px; min-width: 34px; }
+:root[data-theme=focus]:not([data-form-factor=phone]) .document-bar.is-collapsed { width: auto; padding: 0; }
+
+/* Core tools: a floating island at the bottom centre. */
+:root[data-theme=focus]:not([data-form-factor=phone]) .tool-dock {
+  top: auto;
+  right: 0;
+  bottom: max(18px, var(--safe-bottom));
+  left: 0;
+  width: max-content;
+  max-width: calc(100vw - 32px);
+  height: auto;
+  margin-inline: auto;
+  flex-direction: row;
+  align-items: center;
+  gap: 2px;
+  padding: 6px;
+  overflow: visible;
+  border-radius: var(--t-r3);
+  box-shadow: var(--t-shadow-2);
+  scroll-snap-type: none;
+}
+:root[data-theme=focus]:not([data-form-factor=phone]) :is(.dock-section-label, .dock-divider) { display: none; }
+:root[data-theme=focus]:not([data-form-factor=phone]) .toolbar-primary { display: flex; width: auto; gap: 2px; }
+:root[data-theme=focus]:not([data-form-factor=phone]) .toolbar-primary .tool-button { width: 58px; min-width: 58px; min-height: 52px; flex: 0 0 58px; }
+:root[data-theme=focus]:not([data-form-factor=phone]) .dock-collapse-button {
+  position: static;
+  width: 34px;
+  height: 52px;
+  margin: 0 0 0 4px;
+  border-left: 1px solid var(--t-line);
+  border-radius: 0 var(--t-r2) var(--t-r2) 0;
+}
+:root[data-theme=focus]:not([data-form-factor=phone]) .dock-collapse-button svg { transform: rotate(-90deg); }
+:root[data-theme=focus]:not([data-form-factor=phone]) .dock-expand-button {
+  top: auto;
+  right: 0;
+  bottom: max(18px, var(--safe-bottom));
+  left: 0;
+  width: 56px;
+  height: 32px;
+  margin-inline: auto;
+  border-radius: var(--t-r-full);
+}
+:root[data-theme=focus]:not([data-form-factor=phone]) .dock-expand-button svg { transform: rotate(-90deg); }
+
+/* Creation tools: a slim column on the left edge, vertically centred. */
+:root[data-theme=focus]:not([data-form-factor=phone]) .toolbar-insert {
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  left: max(16px, var(--safe-left));
+  display: grid;
+  width: auto;
+  height: max-content;
+  max-height: calc(var(--viewport-height, 100dvh) - 190px);
+  margin-block: auto;
+  grid-template-columns: repeat(2, 54px);
+  gap: 2px;
+  padding: 6px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  border: 1px solid var(--t-line);
+  border-radius: var(--t-r3);
+  background: var(--t-surface);
+  box-shadow: var(--t-shadow-1);
+  scrollbar-width: none;
+}
+:root[data-theme=focus]:not([data-form-factor=phone]) .toolbar-insert .tool-button { width: 54px; min-width: 54px; min-height: 50px; flex: none; }
+
+/* Zoom: a quiet island in the bottom-right corner, percentage only. */
+:root[data-theme=focus]:not([data-form-factor=phone]) .canvas-view-controls { right: max(16px, var(--safe-right)); bottom: max(18px, var(--safe-bottom)); }
+:root[data-theme=focus]:not([data-form-factor=phone]) .canvas-zoom-controls { height: 44px; grid-template-columns: 40px 64px 40px; border-radius: var(--t-r3); }
+:root[data-theme=focus]:not([data-form-factor=phone]) .zoom-slider-control { justify-content: center; border: 0; }
+:root[data-theme=focus]:not([data-form-factor=phone]) .zoom-slider-control input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+:root[data-theme=focus]:not([data-form-factor=phone]) .canvas-fit-view { width: 44px; height: 44px; border-radius: var(--t-r3); }
+
+/* Panels open as floating sheets on the right. */
+:root[data-theme=focus]:not([data-form-factor=phone]) .navigator-panel { top: 72px; right: max(16px, var(--safe-right)); bottom: 84px; }
+:root[data-theme=focus]:not([data-form-factor=phone]) .context-panel { top: 72px; }
+
+/* Touch (scheme B): icons only until the labels toggle is pressed. */
+:root[data-theme=focus][data-device=mobile]:not([data-form-factor=phone]) .dock-labels-toggle {
+  position: fixed;
+  bottom: max(18px, var(--safe-bottom));
+  left: max(16px, var(--safe-left));
+  width: 52px;
+  height: 52px;
+  margin: 0;
+  border: 1px solid var(--t-line);
+  border-radius: var(--t-r3);
+  background: var(--t-surface);
+  box-shadow: var(--t-shadow-1);
+}
+:root[data-theme=focus][data-device=mobile][data-dock-labels=compact]:not([data-form-factor=phone]) .tool-button .tool-label { display: none; }
+:root[data-theme=focus][data-device=mobile][data-dock-labels=compact]:not([data-form-factor=phone]) .toolbar-primary .tool-button { width: 52px; min-width: 52px; flex-basis: 52px; }
+:root[data-theme=focus][data-device=mobile][data-dock-labels=compact]:not([data-form-factor=phone]) .toolbar-insert { grid-template-columns: repeat(2, 48px); }
+:root[data-theme=focus][data-device=mobile][data-dock-labels=compact]:not([data-form-factor=phone]) .toolbar-insert .tool-button { width: 48px; min-width: 48px; min-height: 48px; }
+:root[data-theme=focus][data-device=mobile]:not([data-form-factor=phone]) .touch-actions { bottom: calc(max(18px, var(--safe-bottom)) + 76px); }
+
+/* ====================================================================== */
+/* 工作台 Workbench — an application frame: title bar, left rail, status  */
+/* bar with zoom; inspectors dock flush to the right edge.               */
+/* ====================================================================== */
+:root[data-theme=workbench]:not([data-form-factor=phone]) {
+  --wb-top: calc(48px + var(--safe-top));
+  --wb-rail: 112px;
+  --wb-status: calc(30px + var(--safe-bottom));
+}
+:root[data-theme=workbench]:not([data-form-factor=phone]) .document-bar,
+:root[data-theme=workbench]:not([data-form-factor=phone]) .document-bar.is-collapsed {
+  top: 0;
+  right: 0;
+  left: 0;
+  width: auto;
+  max-width: none;
+  height: var(--wb-top);
+  min-height: 0;
+  justify-content: flex-start;
+  gap: 6px;
+  padding: var(--safe-top) max(10px, var(--safe-right)) 0 max(10px, var(--safe-left));
+  border: 0;
+  border-bottom: 1px solid var(--t-line);
+  border-radius: 0;
+  background: var(--t-surface);
+  box-shadow: none;
+}
+:root[data-theme=workbench]:not([data-form-factor=phone]) .document-bar-toggle { display: none; }
+:root[data-theme=workbench]:not([data-form-factor=phone]) .document-bar.is-collapsed .document-bar-content { display: contents; }
+:root[data-theme=workbench]:not([data-form-factor=phone]) .canvas-controls { gap: 4px; }
+:root[data-theme=workbench]:not([data-form-factor=phone]) :is(.canvas-switcher-button, .new-canvas-button) { height: 32px; font-size: 12.5px; }
+:root[data-theme=workbench]:not([data-form-factor=phone]) .canvas-switcher-button { min-width: 168px; border-color: var(--t-line); background: var(--t-raised); }
+:root[data-theme=workbench]:not([data-form-factor=phone]) .workspace-mode-switch { margin-left: 6px; }
+:root[data-theme=workbench]:not([data-form-factor=phone]) .workspace-mode-switch button { min-height: 28px; font-size: 12.5px; }
+:root[data-theme=workbench]:not([data-form-factor=phone]) .status { margin-left: auto; }
+:root[data-theme=workbench]:not([data-form-factor=phone]) .action-button { height: 32px; min-width: 32px; padding: 0 8px; font-size: 12px; }
+:root[data-theme=workbench]:not([data-form-factor=phone]) .account-button { width: 30px; height: 30px; min-width: 30px; }
+
+:root[data-theme=workbench]:not([data-form-factor=phone]) .tool-dock {
+  top: var(--wb-top);
+  right: auto;
+  bottom: var(--wb-status);
+  left: 0;
+  width: calc(var(--wb-rail) + var(--safe-left));
+  height: auto;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0;
+  padding: 8px 6px 6px calc(6px + var(--safe-left));
+  overflow-x: hidden;
+  overflow-y: auto;
+  border: 0;
+  border-right: 1px solid var(--t-line);
+  border-radius: 0;
+  box-shadow: none;
+  scroll-snap-type: none;
+}
+:root[data-theme=workbench]:not([data-form-factor=phone]) .dock-section-label { display: block; padding: 6px 4px 4px; font-size: 9.5px; }
+:root[data-theme=workbench]:not([data-form-factor=phone]) .dock-group { display: grid; width: 100%; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1px; }
+:root[data-theme=workbench]:not([data-form-factor=phone]) .dock-divider { display: block; width: auto; height: 1px; margin: 8px 0 4px; }
+:root[data-theme=workbench]:not([data-form-factor=phone]) .tool-button {
+  width: auto;
+  min-width: 0;
+  min-height: 48px;
+  flex: none;
+  border-radius: var(--t-r2);
+  font-size: 11px;
+}
+:root[data-theme=workbench]:not([data-form-factor=phone]) .tool-button:is(.active, [aria-pressed='true']) { box-shadow: inset 2px 0 0 var(--t-accent); }
+:root[data-theme=workbench]:not([data-form-factor=phone]) .dock-collapse-button { display: grid; position: sticky; bottom: 0; height: 28px; margin-top: auto; background: var(--t-surface); }
+:root[data-theme=workbench]:not([data-form-factor=phone]) .dock-expand-button {
+  top: auto;
+  bottom: calc(var(--wb-status) + 8px);
+  left: max(8px, var(--safe-left));
+  width: 32px;
+  height: 32px;
+}
+
+/* Status bar along the bottom, carrying zoom. */
+:root[data-theme=workbench]:not([data-form-factor=phone]) .canvas-view-controls {
+  top: auto;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: var(--wb-status);
+  justify-content: flex-end;
+  gap: 2px;
+  padding: 0 max(10px, var(--safe-right)) var(--safe-bottom) calc(var(--wb-rail) + var(--safe-left) + 12px);
+  border-top: 1px solid var(--t-line);
+  background: var(--t-surface);
+  pointer-events: auto;
+}
+:root[data-theme=workbench]:not([data-form-factor=phone]) #toolDock[hidden] ~ .canvas-view-controls { padding-left: calc(var(--safe-left) + 52px); }
+:root[data-theme=workbench]:not([data-form-factor=phone]) .canvas-view-controls::before {
+  content: '画布';
+  margin-right: auto;
+  color: var(--t-ink-3);
+  font-size: 11px;
+  letter-spacing: var(--t-label-tracking);
+}
+:root[data-theme=workbench]:not([data-form-factor=phone]) :is(.canvas-zoom-controls, .canvas-fit-view) { border: 0; background: transparent; box-shadow: none; }
+:root[data-theme=workbench]:not([data-form-factor=phone]) .canvas-zoom-controls { height: 24px; grid-template-columns: 24px 128px 24px; border-radius: var(--t-r2); }
+:root[data-theme=workbench]:not([data-form-factor=phone]) .zoom-slider-control { border-inline: 0; }
+:root[data-theme=workbench]:not([data-form-factor=phone]) .canvas-fit-view { width: 24px; height: 24px; border-radius: var(--t-r2); }
+:root[data-theme=workbench]:not([data-form-factor=phone]) :is(.canvas-zoom-controls button, .canvas-fit-view) svg { width: 14px; height: 14px; }
+
+/* Inspectors dock flush to the right edge between title bar and status bar. */
+:root[data-theme=workbench]:not([data-form-factor=phone]) :is(.navigator-panel, .context-panel) {
+  top: var(--wb-top);
+  right: 0;
+  bottom: var(--wb-status);
+  max-height: none;
+  border: 0;
+  border-left: 1px solid var(--t-line);
+  border-radius: 0;
+  box-shadow: -8px 0 24px -20px rgba(20, 28, 40, 0.4);
+}
+:root[data-theme=workbench]:not([data-form-factor=phone]) .navigator-panel { width: min(340px, calc(100vw - 160px)); min-height: 0; }
+:root[data-theme=workbench]:not([data-form-factor=phone]) .context-panel { width: 248px; animation: none; }
+:root[data-theme=workbench]:not([data-form-factor=phone]) .touch-actions { bottom: calc(var(--wb-status) + 10px); }
+
+/* Touch (scheme B): a narrow icon rail that widens when labels are shown. */
+:root[data-theme=workbench][data-device=mobile]:not([data-form-factor=phone]) .dock-labels-toggle { width: 100%; min-height: 40px; }
+:root[data-theme=workbench][data-device=mobile][data-dock-labels=compact]:not([data-form-factor=phone]) { --wb-rail: 60px; }
+:root[data-theme=workbench][data-device=mobile][data-dock-labels=compact]:not([data-form-factor=phone]) .dock-group { grid-template-columns: minmax(0, 1fr); }
+:root[data-theme=workbench][data-device=mobile][data-dock-labels=compact]:not([data-form-factor=phone]) .dock-section-label { display: none; }
+:root[data-theme=workbench][data-device=mobile][data-dock-labels=compact]:not([data-form-factor=phone]) .tool-button .tool-label { display: none; }
+:root[data-theme=workbench][data-device=mobile]:not([data-form-factor=phone]) .tool-button { min-height: 46px; }
+:root[data-theme=workbench][data-device=mobile]:not([data-form-factor=phone]) .canvas-view-controls::before { content: none; }
+
+/* Narrower screens: buttons fold to icons so the islands keep breathing room. */
+@media (max-width: 1320px) {
+  :root[data-theme=focus]:not([data-form-factor=phone]) .new-canvas-button span,
+  :root[data-theme=focus]:not([data-form-factor=phone]) .toolbar-actions .action-button:not(.primary) .button-label,
+  :root[data-theme=workbench]:not([data-form-factor=phone]) .toolbar-actions .action-button:not(.primary) .button-label { display: none; }
+  :root[data-theme=focus]:not([data-form-factor=phone]) .new-canvas-button { width: 34px; padding: 0; }
+}
+:root[data-theme=workbench]:not([data-form-factor=phone]) .touch-actions { left: calc(var(--wb-rail) + var(--safe-left) + 10px); }
+
+/* Toasts sit above the zoom island / status bar instead of covering them. */
+:root[data-theme=focus]:not([data-form-factor=phone]) .toast { bottom: calc(max(18px, var(--safe-bottom)) + 56px); }
+:root[data-theme=workbench]:not([data-form-factor=phone]) .toast { bottom: calc(var(--wb-status) + 12px); }
+
+/* Workbench on touch devices: a taller status bar so 44px zoom targets fit. */
+:root[data-theme=workbench][data-device=mobile]:not([data-form-factor=phone]) { --wb-status: calc(52px + var(--safe-bottom)); --wb-top: calc(54px + var(--safe-top)); }
+:root[data-theme=workbench][data-device=mobile]:not([data-form-factor=phone]) .canvas-zoom-controls { height: 44px; grid-template-columns: 44px 120px 44px; }
+:root[data-theme=workbench][data-device=mobile]:not([data-form-factor=phone]) .canvas-fit-view { width: 44px; height: 44px; }
+
+/* Narrow windows and portrait tablets: the title bar stays a single row. */
+@media (max-width: 1100px), (max-height: 500px) and (orientation: landscape) {
+  :root[data-theme=workbench]:not([data-form-factor=phone]) .document-bar { flex-wrap: nowrap; min-height: 0; overflow: hidden; }
+  :root[data-theme=workbench]:not([data-form-factor=phone]) .canvas-controls { width: auto; flex: 0 1 auto; min-width: 0; }
+  :root[data-theme=workbench]:not([data-form-factor=phone]) .canvas-switcher-button { min-width: 0; max-width: 200px; }
+  :root[data-theme=workbench]:not([data-form-factor=phone]) .new-canvas-button span,
+  :root[data-theme=workbench]:not([data-form-factor=phone]) .workspace-mode-switch button span { display: none; }
+  :root[data-theme=workbench]:not([data-form-factor=phone]) .new-canvas-button { width: 36px; padding: 0; }
+  :root[data-theme=workbench]:not([data-form-factor=phone]) .status { margin-left: auto; }
+  :root[data-theme=workbench]:not([data-form-factor=phone]) .toolbar-actions { flex: 0 0 auto; min-height: 0; }
+  :root[data-theme=workbench]:not([data-form-factor=phone]) .toolbar-actions .action-button { width: 40px; min-width: 40px; height: 40px; }
+  :root[data-theme=workbench]:not([data-form-factor=phone]) .tool-popover,
+  :root[data-theme=workbench]:not([data-form-factor=phone]) .context-panel { bottom: auto !important; }
+}

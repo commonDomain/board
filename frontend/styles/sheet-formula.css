@@ -1,0 +1,145 @@
+.sheet-border-mark[data-border-mode='left'] {
+  border-left: 2px solid currentColor;
+}
+
+.sheet-border-mark[data-border-mode='right'] {
+  border-right: 2px solid currentColor;
+}
+
+.sheet-formula-bar {
+  position: relative;
+  display: grid;
+  flex: 0 0 auto;
+  grid-template-columns: 88px auto minmax(0, 1fr);
+  align-items: center;
+  gap: 6px 8px;
+  padding: 7px 10px;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface-strong);
+}
+
+.sheet-reference {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 88px;
+  padding: 0 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-xs);
+  background: var(--surface-muted);
+  color: var(--ink);
+  font:
+    12px/1 ui-monospace,
+    SFMono-Regular,
+    Consolas,
+    monospace;
+}
+
+.sheet-divider {
+  display: flex;
+  align-items: center;
+  padding: 0 2px;
+  color: var(--muted);
+  font:
+    italic 13px/1 Georgia,
+    serif;
+}
+
+.sheet-formula-input {
+  flex: 1 1 auto;
+  min-height: 30px;
+  max-height: 84px;
+  padding: 6px 8px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-xs);
+  background: var(--surface-strong);
+  color: var(--ink);
+  font:
+    13px/1.4 ui-monospace,
+    SFMono-Regular,
+    Consolas,
+    monospace;
+  resize: none;
+}
+
+.sheet-formula-input:focus {
+  outline: 2px solid var(--accent-glow);
+  outline-offset: 0;
+}
+
+.sheet-formula-input.is-invalid,
+.sheet-cell-editor.is-invalid {
+  border-color: var(--danger);
+  background: rgba(230, 82, 93, 0.045);
+  box-shadow: 0 0 0 3px rgba(230, 82, 93, 0.1);
+}
+
+.sheet-formula-feedback {
+  grid-column: 3;
+  min-height: 16px;
+  padding: 0 2px;
+  color: var(--muted-strong);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.sheet-formula-feedback[hidden] {
+  display: none;
+}
+
+.sheet-formula-feedback.is-error {
+  color: var(--danger);
+}
+
+.sheet-formula-feedback.is-success {
+  color: #168455;
+}
+
+.sheet-formula-suggestions {
+  position: absolute;
+  z-index: 8;
+  top: calc(100% - 4px);
+  right: 10px;
+  left: 128px;
+  display: grid;
+  max-height: 280px;
+  overflow-y: auto;
+  padding: 5px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface-strong);
+  box-shadow: var(--shadow-md);
+}
+
+.sheet-formula-suggestions[hidden] {
+  display: none;
+}
+
+.sheet-formula-suggestion {
+  display: grid;
+  grid-template-columns: minmax(94px, auto) 1fr;
+  gap: 10px;
+  align-items: baseline;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: var(--radius-xs);
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.sheet-formula-suggestion span {
+  overflow: hidden;
+  color: var(--muted-strong);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sheet-formula-suggestion:hover,
+.sheet-formula-suggestion.is-active {
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+}
